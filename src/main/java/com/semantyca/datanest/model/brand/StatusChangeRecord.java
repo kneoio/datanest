@@ -1,8 +1,8 @@
-package com.semantyca.model.brand;
+package com.semantyca.datanest.model.brand;
 
 
 
-import com.semantyca.model.cnst.StreamStatus;
+import com.semantyca.datanest.model.cnst.StreamStatus;
 
 import java.time.LocalDateTime;
 

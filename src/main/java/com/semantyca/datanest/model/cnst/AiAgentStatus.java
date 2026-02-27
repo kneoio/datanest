@@ -1,4 +1,4 @@
-package com.semantyca.model.cnst;
+package com.semantyca.datanest.model.cnst;
 
 public enum AiAgentStatus {
     DISCONNECTED,

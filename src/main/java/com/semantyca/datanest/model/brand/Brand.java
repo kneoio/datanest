@@ -1,10 +1,8 @@
-package com.semantyca.model.brand;
+package com.semantyca.datanest.model.brand;
 
-import com.semantyca.model.cnst.AiAgentStatus;
-import com.semantyca.model.cnst.ManagedBy;
+import com.semantyca.mixpla.model.cnst.ManagedBy;
 
-import com.semantyca.model.cnst.StreamStatus;
-import com.semantyca.model.cnst.SubmissionPolicy;
+import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
 import io.kneo.core.localization.LanguageCode;
 import io.kneo.core.model.SecureDataEntity;
 import io.kneo.officeframe.cnst.CountryCode;
@@ -13,10 +11,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.EnumMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,7 +22,6 @@ import java.util.UUID;
 public class Brand extends SecureDataEntity<UUID> {
 
     private EnumMap<LanguageCode, String> localizedName = new EnumMap<>(LanguageCode.class);
-    //private IStreamManager streamManager;
     private String slugName;
     private ZoneId timeZone;
     private Integer archived;
@@ -49,29 +44,6 @@ public class Brand extends SecureDataEntity<UUID> {
     private List<BrandScriptEntry> scripts;
     private Owner owner;
 
-    //*transient**//
-    @Deprecated //???
-    private StreamStatus status;
-    private AiAgentStatus aiAgentStatus;
-    private List<StatusChangeRecord> statusHistory = new LinkedList<>();
-    private Long lastAgentContactAt;
-    private LocalDateTime startTime;
-
-
-    public void setStatus(StreamStatus newStatus) {
-        if (this.status != newStatus) {
-            StatusChangeRecord record = new StatusChangeRecord(
-                    LocalDateTime.now(),
-                    this.status,
-                    newStatus
-            );
-            if (statusHistory.isEmpty()) {
-                startTime = record.timestamp();
-            }
-            statusHistory.add(record);
-            this.status = newStatus;
-        }
-    }
 
     public String toString() {
         return String.format("id: %s, slug: %s", getId(), slugName);

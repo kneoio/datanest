@@ -1,4 +1,4 @@
-package com.semantyca.model.brand;
+package com.semantyca.datanest.model.brand;
 
 import lombok.Getter;
 import lombok.Setter;

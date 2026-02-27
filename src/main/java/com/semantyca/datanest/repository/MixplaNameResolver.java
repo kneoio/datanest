@@ -1,4 +1,4 @@
-package com.semantyca.repository;
+package com.semantyca.datanest.repository;
 
 import io.kneo.core.repository.table.EntityData;
 import io.kneo.core.repository.table.TableNameResolver;
