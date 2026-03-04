@@ -2,13 +2,14 @@ package com.semantyca.datanest.repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import com.semantyca.mixpla.model.brand.AiOverriding;
+import com.semantyca.mixpla.model.brand.Brand;
+import com.semantyca.mixpla.model.brand.BrandScriptEntry;
+import com.semantyca.mixpla.model.brand.Owner;
+import com.semantyca.mixpla.model.brand.ProfileOverriding;
 import com.semantyca.mixpla.model.cnst.ManagedBy;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
-import com.semantyca.datanest.model.brand.AiOverriding;
-import com.semantyca.datanest.model.brand.Brand;
-import com.semantyca.datanest.model.brand.BrandScriptEntry;
-import com.semantyca.datanest.model.brand.Owner;
-import com.semantyca.datanest.model.brand.ProfileOverriding;
+import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.kneo.core.localization.LanguageCode;
 import io.kneo.core.model.embedded.DocumentAccessInfo;
 import io.kneo.core.model.user.IUser;
@@ -36,9 +37,8 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
 
-import static com.semantyca.datanest.repository.MixplaNameResolver.BRAND_STATS;
-import static com.semantyca.datanest.repository.MixplaNameResolver.RADIO_STATION;
-
+import static com.semantyca.mixpla.repository.MixplaNameResolver.BRAND_STATS;
+import static com.semantyca.mixpla.repository.MixplaNameResolver.RADIO_STATION;
 
 @ApplicationScoped
 public class BrandRepository extends AsyncRepository {

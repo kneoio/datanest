@@ -34,6 +34,13 @@
         </dependencies>
     </dependencyManagement>
 
+    <repositories>
+        <repository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/kneoio/2next</url>
+        </repository>
+    </repositories>
+
     <dependencies>
         <!-- Quarkus Core -->
         <dependency>
@@ -48,14 +55,10 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-rest-jackson</artifactId>
         </dependency>
-
-        <!-- Qute Template Engine -->
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-qute</artifactId>
         </dependency>
-
-        <!-- Reactive Postgres Client (version managed by Quarkus BOM) -->
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-reactive-pg-client</artifactId>
@@ -66,13 +69,10 @@
             <artifactId>lombok</artifactId>
             <version>1.18.30</version>
         </dependency>
-        <!-- Custom Dependency -->
         <dependency>
             <groupId>io.kneo</groupId>
             <artifactId>2next</artifactId>
             <version>1.2.0</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/lib/2next-1.2.0.jar</systemPath>
         </dependency>
 
         <dependency>
