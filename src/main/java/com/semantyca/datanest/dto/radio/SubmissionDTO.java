@@ -1,0 +1,51 @@
+package com.semantyca.datanest.dto.radio;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import io.kneo.officeframe.cnst.CountryCode;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.experimental.SuperBuilder;
+
+import java.util.List;
+import java.util.UUID;
+
+@Setter
+@Getter
+@SuperBuilder
+@NoArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class SubmissionDTO {
+    @NotBlank
+    private String confirmationCode;
+    @NotBlank
+    private String title;
+    @NotBlank
+    private String artist;
+    @NotNull
+    @NotEmpty
+    private List<UUID> genres;
+    private List<UUID> labels;
+    private String album;
+    @NotBlank
+    private String email;
+    private String description;
+    private List<String> newlyUploaded;
+    private List<UUID> representedInBrands;
+    private boolean isShareable;
+    private String messageFrom;
+    private String attachedMessage;
+    private CountryCode country;
+    private String agreedAt;
+    private String ipAddress;
+    private String userAgent;
+    private String termsText;
+    private String agreementVersion;
+
+    public String toString() {
+        return String.format("%s|%s", title, artist);
+    }
+}
