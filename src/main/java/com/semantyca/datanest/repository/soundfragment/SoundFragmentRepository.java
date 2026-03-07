@@ -3,8 +3,8 @@ package com.semantyca.datanest.repository.soundfragment;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.semantyca.core.model.FileMetadata;
 import com.semantyca.core.model.cnst.FileStorageType;
-import com.semantyca.core.repository.file.HetznerStorage;
 import com.semantyca.core.repository.file.IFileStorage;
+import com.semantyca.core.service.external.hetzner.HetznerStorageService;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
 import com.semantyca.mixpla.model.soundfragment.BrandSoundFragment;
@@ -67,7 +67,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
 
     @Inject
     public SoundFragmentRepository(PgPool client, ObjectMapper mapper, RLSRepository rlsRepository,
-                                   HetznerStorage fileStorage, SoundFragmentFileHandler fileHandler,
+                                   HetznerStorageService fileStorage, SoundFragmentFileHandler fileHandler,
                                    SoundFragmentQueryBuilder queryBuilder, SoundFragmentBrandAssociationHandler brandHandler) {
         super(client, mapper, rlsRepository);
         this.fileStorage = fileStorage;
@@ -272,12 +272,10 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                     if (filesToProcess != null) {
                         FileMetadata meta = filesToProcess.getFirst();
                         assert fileStorage != null;
-                        return fileStorage.storeFile(
+                        return fileStorage.uploadFile(
                                         meta.getFileKey(),
                                         meta.getFilePath().toString(),
-                                        meta.getMimeType(),
-                                        entityData.getTableName(),
-                                        insertedDoc.getId()
+                                        meta.getMimeType()
                                 )
                                 .onItem().invoke(storedKey -> LOGGER.debug("File stored with key: {} for doc ID: {}", storedKey, insertedDoc.getId()))
                                 .onItem().transform(ignored -> insertedDoc)
@@ -606,7 +604,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
         LOGGER.debug("Storing file - Key: {}, Path: {}, Artist: {}, Title: {}", doKey, localPath, doc.getArtist(), doc.getTitle());
 
         assert fileStorage != null;
-        return fileStorage.storeFile(doKey, localPath, meta.getMimeType(), entityData.getTableName(), id)
+        return fileStorage.uploadFile(doKey, localPath, meta.getMimeType())
                 .onItem().invoke(storedKey -> LOGGER.debug("File stored with key: {} for doc ID: {}", storedKey, id))
                 .onFailure().invoke(ex -> LOGGER.error("Failed to store file with key: {}", doKey, ex))
                 .onItem().ignore().andContinueWithNull();
