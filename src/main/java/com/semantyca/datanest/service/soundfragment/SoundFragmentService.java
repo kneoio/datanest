@@ -4,12 +4,11 @@ import com.semantyca.core.model.FileMetadata;
 import com.semantyca.core.model.cnst.RatingAction;
 import com.semantyca.core.service.maintenance.LocalFileCleanupService;
 import com.semantyca.core.util.BrandLogger;
-import com.semantyca.datanest.config.BroadcasterConfig;
+import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.AudioMetadataDTO;
 import com.semantyca.datanest.dto.BrandSoundFragmentDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
 import com.semantyca.datanest.dto.UploadFileDTO;
-import com.semantyca.datanest.dto.filter.SoundFragmentFilterDTO;
 import com.semantyca.datanest.repository.soundfragment.SoundFragmentRepository;
 import com.semantyca.datanest.service.BrandService;
 import com.semantyca.datanest.service.RefService;
@@ -74,7 +73,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                 LocalFileCleanupService localFileCleanupService,
                                 Validator validator,
                                 SoundFragmentRepository repository,
-                                BroadcasterConfig config,
+                                DatanestConfig config,
                                 RefService refService) {
         super(userService);
         this.genreService = genreService;
@@ -86,9 +85,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         uploadDir = config.getPathUploads() + "/sound-fragments-controller";
     }
 
-    public Uni<List<SoundFragmentDTO>> getAllDTO(final int limit, final int offset, final IUser user, final SoundFragmentFilterDTO filterDTO) {
+    public Uni<List<SoundFragmentDTO>> getAllDTO(final int limit, final int offset, final IUser user, final SoundFragmentFilter filter) {
         assert repository != null;
-        SoundFragmentFilter filter = toFilter(filterDTO);
         return repository.getAll(limit, offset, false, user, filter)
                 .chain(list -> {
                     if (list.isEmpty()) {
@@ -102,9 +100,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 });
     }
 
-    public Uni<Integer> getAllCount(final IUser user, final SoundFragmentFilterDTO filterDTO) {
+    public Uni<Integer> getAllCount(final IUser user, final SoundFragmentFilter filter) {
         assert repository != null;
-        SoundFragmentFilter filter = toFilter(filterDTO);
         return repository.getAllCount(user, false, filter);
     }
 
@@ -168,7 +165,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         return repository.getFirstFile(soundFragmentId);
     }
 
-    public Uni<List<BrandSoundFragmentDTO>> getBrandSoundFragments(String brandName, int limit, int offset, SoundFragmentFilterDTO filterDTO, IUser user) {
+    public Uni<List<BrandSoundFragmentDTO>> getBrandSoundFragments(String brandName, int limit, int offset, SoundFragmentFilter filter, IUser user) {
         assert repository != null;
         assert brandService != null;
 
@@ -177,7 +174,6 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                     if (radioStation == null) {
                         return Uni.createFrom().failure(new IllegalArgumentException("Brand not found: " + brandName));
                     }
-                    SoundFragmentFilter filter = toFilter(filterDTO);
                     UUID brandId = radioStation.getId();
                     return repository.getForBrand(brandId, limit, offset, false, user, filter)
                             .chain(fragments -> {
@@ -199,10 +195,9 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 });
     }
 
-    public Uni<Integer> getBrandSoundFragmentsCount(final String brand, final SoundFragmentFilterDTO filterDTO, IUser user) {
+    public Uni<Integer> getBrandSoundFragmentsCount(final String brand, final SoundFragmentFilter filter, IUser user) {
         assert repository != null;
 
-        SoundFragmentFilter filter = toFilter(filterDTO);
         String filterStatus = (filter != null && filter.isActivated()) ? "active" : "none";
 
         BrandLogger.logActivity(brand, "count_request",
@@ -543,21 +538,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 );
     }
 
-    private SoundFragmentFilter toFilter(SoundFragmentFilterDTO dto) {
-        if (dto == null) {
-            return null;
-        }
 
-        SoundFragmentFilter filter = new SoundFragmentFilter();
-        filter.setActivated(dto.isActivated());
-        filter.setGenre(dto.getGenres());
-        filter.setLabels(dto.getLabels());
-        filter.setSource(dto.getSources());
-        filter.setType(dto.getTypes());
-        filter.setSearchTerm(dto.getSearchTerm());
-
-        return filter;
-    }
 
     public Uni<UUID> resolveBrandSlug(String brandSlug) {
         if (brandSlug == null || brandSlug.trim().isEmpty()) {

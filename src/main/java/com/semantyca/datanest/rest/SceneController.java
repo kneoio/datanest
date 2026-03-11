@@ -1,10 +1,10 @@
 package com.semantyca.datanest.rest;
 
 import com.semantyca.datanest.dto.SceneDTO;
-import com.semantyca.datanest.dto.filter.SceneFilterDTO;
 import com.semantyca.datanest.service.SceneService;
 import com.semantyca.mixpla.model.Scene;
 import com.semantyca.mixpla.model.cnst.SceneTimingMode;
+import com.semantyca.mixpla.model.filter.SceneFilter;
 import io.kneo.core.controller.AbstractSecuredController;
 import io.kneo.core.dto.actions.ActionBox;
 import io.kneo.core.dto.cnst.PayloadType;
@@ -63,7 +63,7 @@ public class SceneController extends AbstractSecuredController<Scene, SceneDTO> 
     private void getAll(RoutingContext rc) {
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
-        SceneFilterDTO filter = parseFilterDTO(rc);
+        SceneFilter filter = parseFilter(rc);
 
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
@@ -85,13 +85,13 @@ public class SceneController extends AbstractSecuredController<Scene, SceneDTO> 
                 );
     }
 
-    private SceneFilterDTO parseFilterDTO(RoutingContext rc) {
+    private SceneFilter parseFilter(RoutingContext rc) {
         String filterParam = rc.request().getParam("filter");
         if (filterParam == null || filterParam.trim().isEmpty()) {
             return null;
         }
 
-        SceneFilterDTO dto = new SceneFilterDTO();
+        SceneFilter dto = new SceneFilter();
         boolean any = false;
         try {
             JsonObject json = new JsonObject(filterParam);

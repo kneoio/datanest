@@ -4,12 +4,12 @@ import com.semantyca.core.model.ScriptVariable;
 import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.datanest.dto.DraftDTO;
 import com.semantyca.datanest.dto.agentrest.DraftTestReqDTO;
-import com.semantyca.datanest.dto.filter.DraftFilterDTO;
 import com.semantyca.datanest.repository.ScriptRepository;
 import com.semantyca.datanest.repository.draft.DraftRepository;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
 import com.semantyca.datanest.util.ScriptVariableExtractor;
 import com.semantyca.mixpla.model.Draft;
+import com.semantyca.mixpla.model.filter.DraftFilter;
 import io.kneo.core.localization.LanguageCode;
 import io.kneo.core.model.user.IUser;
 import io.kneo.core.model.user.SuperUser;
@@ -52,7 +52,7 @@ public class DraftService extends AbstractService<Draft, DraftDTO> {
         return repository.getAll(0, 0, false, SuperUser.build(), null);
     }
 
-    public Uni<List<DraftDTO>> getAll(final int limit, final int offset, final IUser user, final DraftFilterDTO filter) {
+    public Uni<List<DraftDTO>> getAll(final int limit, final int offset, final IUser user, final DraftFilter filter) {
         return repository.getAll(limit, offset, false, user, filter)
                 .chain(list -> {
                     if (list.isEmpty()) {
@@ -66,7 +66,7 @@ public class DraftService extends AbstractService<Draft, DraftDTO> {
                 });
     }
 
-    public Uni<Integer> getAllCount(final IUser user, final DraftFilterDTO filter) {
+    public Uni<Integer> getAllCount(final IUser user, final DraftFilter filter) {
         return repository.getAllCount(user, false, filter);
     }
 

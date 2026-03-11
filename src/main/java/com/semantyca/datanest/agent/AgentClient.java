@@ -2,7 +2,7 @@ package com.semantyca.datanest.agent;
 
 import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.model.cnst.TranslationType;
-import com.semantyca.datanest.config.BroadcasterConfig;
+import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.agentrest.AgentRespDTO;
 import com.semantyca.mixpla.model.cnst.LlmType;
 import io.kneo.officeframe.cnst.CountryCode;
@@ -21,7 +21,7 @@ import java.util.Map;
 public class AgentClient {
 
     @Inject
-    BroadcasterConfig config;
+    DatanestConfig config;
 
     @Inject
     Vertx vertx;

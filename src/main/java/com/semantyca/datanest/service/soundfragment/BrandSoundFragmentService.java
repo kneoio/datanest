@@ -1,7 +1,6 @@
 package com.semantyca.datanest.service.soundfragment;
 
 import com.semantyca.datanest.dto.BrandSoundFragmentFlatDTO;
-import com.semantyca.datanest.dto.filter.SoundFragmentFilterDTO;
 import com.semantyca.datanest.repository.soundfragment.SoundFragmentBrandRepository;
 import com.semantyca.datanest.service.BrandService;
 import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
@@ -29,13 +28,12 @@ public class BrandSoundFragmentService {
     }
 
     public Uni<List<BrandSoundFragmentFlatDTO>> getBrandSoundFragmentsFlat(String brandName, int limit, int offset,
-                                                                           SoundFragmentFilterDTO filterDTO, IUser user) {
+                                                                           SoundFragmentFilter filter, IUser user) {
         return brandService.getBySlugName(brandName)
                 .onItem().transformToUni(brand -> {
                     if (brand == null) {
                         return Uni.createFrom().failure(new IllegalArgumentException("Brand not found: " + brandName));
                     }
-                    SoundFragmentFilter filter = toFilter(filterDTO);
                     UUID brandId = brand.getId();
                     return repository.findForBrandFlat(brandId, limit, offset, user, filter)
                             .onItem().transform(fragments -> {
@@ -49,13 +47,13 @@ public class BrandSoundFragmentService {
                 });
     }
 
-    public Uni<Integer> getBrandSoundFragmentsCount(String brandName, SoundFragmentFilterDTO filterDTO, IUser user) {
+    public Uni<Integer> getBrandSoundFragmentsCount(String brandName, SoundFragmentFilter filter, IUser user) {
         return brandService.getBySlugName(brandName)
                 .onItem().transformToUni(brand -> {
                     if (brand == null) {
                         return Uni.createFrom().failure(new IllegalArgumentException("Brand not found: " + brandName));
                     }
-                    SoundFragmentFilter filter = toFilter(filterDTO);
+
                     UUID brandId = brand.getId();
                     return repository.findForBrandCount(brandId, user, filter);
                 });
@@ -78,19 +76,4 @@ public class BrandSoundFragmentService {
         return dto;
     }
 
-    private SoundFragmentFilter toFilter(SoundFragmentFilterDTO dto) {
-        if (dto == null) {
-            return null;
-        }
-
-        SoundFragmentFilter filter = new SoundFragmentFilter();
-        filter.setActivated(dto.isActivated());
-        filter.setGenre(dto.getGenres());
-        filter.setLabels(dto.getLabels());
-        filter.setSource(dto.getSources());
-        filter.setType(dto.getTypes());
-        filter.setSearchTerm(dto.getSearchTerm());
-
-        return filter;
-    }
 }

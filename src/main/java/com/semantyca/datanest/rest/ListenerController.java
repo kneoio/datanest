@@ -3,9 +3,9 @@ package com.semantyca.datanest.rest;
 import com.semantyca.core.util.ProblemDetailsUtil;
 import com.semantyca.datanest.dto.BrandListenerDTO;
 import com.semantyca.datanest.dto.ListenerDTO;
-import com.semantyca.datanest.dto.filter.ListenerFilterDTO;
 import com.semantyca.datanest.service.ListenerService;
 import com.semantyca.mixpla.model.Listener;
+import com.semantyca.mixpla.model.filter.ListenerFilter;
 import io.kneo.core.controller.AbstractSecuredController;
 import io.kneo.core.dto.actions.ActionBox;
 import io.kneo.core.dto.cnst.PayloadType;
@@ -71,7 +71,7 @@ public class ListenerController extends AbstractSecuredController<Listener, List
     private void get(RoutingContext rc) {
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
-        ListenerFilterDTO filter = parseFilterDTO(rc);
+        ListenerFilter filter = parseFilterDTO(rc);
 
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
@@ -120,7 +120,7 @@ public class ListenerController extends AbstractSecuredController<Listener, List
         String brandName = rc.request().getParam("brand");
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
-        ListenerFilterDTO filter = parseFilterDTO(rc);
+        ListenerFilter filter = parseFilterDTO(rc);
 
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
@@ -256,8 +256,8 @@ public class ListenerController extends AbstractSecuredController<Listener, List
         }
     }
 
-    private ListenerFilterDTO parseFilterDTO(RoutingContext rc) {
-        ListenerFilterDTO filterDTO = new ListenerFilterDTO();
+    private ListenerFilter parseFilterDTO(RoutingContext rc) {
+        ListenerFilter filterDTO = new ListenerFilter();
         boolean hasAnyFilter = false;
 
         // Parse countries filter (comma-separated enum values)

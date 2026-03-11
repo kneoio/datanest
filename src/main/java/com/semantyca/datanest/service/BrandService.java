@@ -1,6 +1,6 @@
 package com.semantyca.datanest.service;
 
-import com.semantyca.datanest.config.BroadcasterConfig;
+import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.radiostation.AiOverridingDTO;
 import com.semantyca.datanest.dto.radiostation.BrandDTO;
 import com.semantyca.datanest.dto.radiostation.BrandScriptEntryDTO;
@@ -12,7 +12,6 @@ import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.brand.BrandScriptEntry;
 import com.semantyca.mixpla.model.brand.Owner;
 import com.semantyca.mixpla.model.brand.ProfileOverriding;
-import com.semantyca.mixpla.model.cnst.StreamStatus;
 import io.kneo.core.dto.DocumentAccessDTO;
 import io.kneo.core.localization.LanguageCode;
 import io.kneo.core.model.user.IUser;
@@ -41,7 +40,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
     private final BrandRepository repository;
 
-    private final BroadcasterConfig broadcasterConfig;
+    private final DatanestConfig datanestConfig;
 
     ScriptService scriptService;
 
@@ -50,12 +49,12 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             UserService userService,
             ScriptService scriptService,
             BrandRepository repository,
-            BroadcasterConfig broadcasterConfig
+            DatanestConfig datanestConfig
     ) {
         super(userService);
         this.scriptService = scriptService;
         this.repository = repository;
-        this.broadcasterConfig = broadcasterConfig;
+        this.datanestConfig = datanestConfig;
     }
 
     public Uni<List<BrandDTO>> getAllDTO(final int limit, final int offset, final IUser user, final String country, final String query) {
@@ -212,9 +211,9 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             }
 
             try {
-                dto.setHlsUrl(URI.create(broadcasterConfig.getHost() + "/" + dto.getSlugName() + "/radio/stream.m3u8").toURL());
-                dto.setIceCastUrl(URI.create(broadcasterConfig.getHost() + "/" + dto.getSlugName() + "/radio/icecast").toURL());
-                dto.setMp3Url(URI.create(broadcasterConfig.getHost() + "/" + dto.getSlugName() + "/radio/stream.mp3").toURL());
+                dto.setHlsUrl(URI.create(datanestConfig.getHost() + "/" + dto.getSlugName() + "/radio/stream.m3u8").toURL());
+                dto.setIceCastUrl(URI.create(datanestConfig.getHost() + "/" + dto.getSlugName() + "/radio/icecast").toURL());
+                dto.setMp3Url(URI.create(datanestConfig.getHost() + "/" + dto.getSlugName() + "/radio/stream.mp3").toURL());
                 dto.setMixplaUrl(URI.create("https://player.mixpla.io/?radio=" + dto.getSlugName()).toURL());
             } catch (MalformedURLException e) {
                 throw new RuntimeException(e);

@@ -1,6 +1,6 @@
 package com.semantyca.datanest.service.util;
 
-import com.semantyca.datanest.config.BroadcasterConfig;
+import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.AudioMetadataDTO;
 import com.semantyca.datanest.dto.UploadFileDTO;
 import com.semantyca.datanest.service.manipulation.AudioMetadataService;
@@ -38,7 +38,7 @@ public class FileUploadService {
     private final ConcurrentHashMap<String, UUID> batchBrandIdMap = new ConcurrentHashMap<>();
 
     @Inject
-    public FileUploadService(BroadcasterConfig config, AudioMetadataService audioMetadataService,
+    public FileUploadService(DatanestConfig config, AudioMetadataService audioMetadataService,
                              SoundFragmentService soundFragmentService) {
         this.uploadDir = config.getPathUploads() + "/sound-fragments-controller";
         this.uploadDirectory = config.getPathUploads();

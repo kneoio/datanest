@@ -3,7 +3,6 @@ package com.semantyca.datanest.service;
 import com.semantyca.core.model.UserData;
 import com.semantyca.datanest.dto.BrandListenerDTO;
 import com.semantyca.datanest.dto.ListenerDTO;
-import com.semantyca.datanest.dto.filter.ListenerFilterDTO;
 import com.semantyca.datanest.repository.ListenersRepository;
 import com.semantyca.mixpla.model.BrandListener;
 import com.semantyca.mixpla.model.Listener;
@@ -54,9 +53,8 @@ public class ListenerService extends AbstractService<Listener, ListenerDTO> {
         this.repository = repository;
     }
 
-    public Uni<List<ListenerDTO>> getAllDTO(final int limit, final int offset, final IUser user, final ListenerFilterDTO filterDTO) {
+    public Uni<List<ListenerDTO>> getAllDTO(final int limit, final int offset, final IUser user, final ListenerFilter filter) {
         assert repository != null;
-        ListenerFilter filter = toFilter(filterDTO);
         return repository.getAll(limit, offset, false, user, filter)
                 .chain(list -> {
                     if (list.isEmpty()) {
@@ -70,9 +68,8 @@ public class ListenerService extends AbstractService<Listener, ListenerDTO> {
                 });
     }
 
-    public Uni<Integer> getAllCount(final IUser user, final ListenerFilterDTO filterDTO) {
+    public Uni<Integer> getAllCount(final IUser user, final ListenerFilter filter) {
         assert repository != null;
-        ListenerFilter filter = toFilter(filterDTO);
         return repository.getAllCount(user, false, filter);
     }
 
@@ -110,11 +107,10 @@ public class ListenerService extends AbstractService<Listener, ListenerDTO> {
         return repository.addBrandToListener(listenerId, brandId);
     }
 
-    public Uni<List<BrandListenerDTO>> getBrandListeners(String brandName, int limit, final int offset, IUser user, ListenerFilterDTO filterDTO) {
+    public Uni<List<BrandListenerDTO>> getBrandListeners(String brandName, int limit, final int offset, IUser user, ListenerFilter filter) {
         assert repository != null;
         assert brandService != null;
 
-        ListenerFilter filter = toFilter(filterDTO);
         return repository.findForBrand(brandName, limit, offset, user, false, filter)
                 .chain(list -> {
                     if (list.isEmpty()) {
@@ -129,9 +125,8 @@ public class ListenerService extends AbstractService<Listener, ListenerDTO> {
                 });
     }
 
-    public Uni<Integer> getCountBrandListeners(final String brand, final IUser user, final ListenerFilterDTO filterDTO) {
+    public Uni<Integer> getCountBrandListeners(final String brand, final IUser user, final ListenerFilter filter) {
         assert repository != null;
-        ListenerFilter filter = toFilter(filterDTO);
         return repository.findForBrandCount(brand, user, false, filter);
     }
 
@@ -270,20 +265,6 @@ public class ListenerService extends AbstractService<Listener, ListenerDTO> {
                     dto.setListenerDTO(listenerDTO);
                     return dto;
                 });
-    }
-
-
-    private ListenerFilter toFilter(ListenerFilterDTO dto) {
-        if (dto == null) {
-            return null;
-        }
-
-        ListenerFilter filter = new ListenerFilter();
-        filter.setActivated(dto.isActivated());
-        filter.setCountries(dto.getCountries());
-        filter.setSearchTerm(dto.getSearchTerm());
-
-        return filter;
     }
 
     public Uni<List<DocumentAccessDTO>> getDocumentAccess(UUID documentId, IUser user) {

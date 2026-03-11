@@ -3,8 +3,8 @@ package com.semantyca.datanest.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.semantyca.datanest.dto.aiagent.VoiceDTO;
-import com.semantyca.datanest.dto.filter.VoiceFilterDTO;
 import com.semantyca.mixpla.model.cnst.TTSEngineType;
+import com.semantyca.mixpla.model.filter.VoiceFilter;
 import io.kneo.core.localization.LanguageCode;
 import io.kneo.core.model.user.SuperUser;
 import io.kneo.officeframe.dto.GenreDTO;
@@ -59,7 +59,7 @@ public class RefService {
         return getAllVoices(engineType).map(List::size);
     }
 
-    public Uni<List<VoiceDTO>> getFilteredVoices(VoiceFilterDTO filter) {
+    public Uni<List<VoiceDTO>> getFilteredVoices(VoiceFilter filter) {
         TTSEngineType engineType = filter.getEngineType() != null ? filter.getEngineType() : TTSEngineType.ELEVENLABS;
         return getAllVoices(engineType).map(voices -> voices.stream()
                 .filter(voice -> {
@@ -89,7 +89,7 @@ public class RefService {
                 .collect(Collectors.toList()));
     }
 
-    public Uni<Integer> getFilteredVoicesCount(VoiceFilterDTO filter) {
+    public Uni<Integer> getFilteredVoicesCount(VoiceFilter filter) {
         return getFilteredVoices(filter).map(List::size);
     }
 

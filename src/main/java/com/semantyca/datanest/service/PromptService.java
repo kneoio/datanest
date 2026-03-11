@@ -2,9 +2,9 @@ package com.semantyca.datanest.service;
 
 import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.datanest.dto.PromptDTO;
-import com.semantyca.datanest.dto.filter.PromptFilterDTO;
 import com.semantyca.datanest.repository.prompt.PromptRepository;
 import com.semantyca.mixpla.model.Prompt;
+import com.semantyca.mixpla.model.filter.PromptFilter;
 import io.kneo.core.dto.DocumentAccessDTO;
 import io.kneo.core.localization.LanguageCode;
 import io.kneo.core.model.user.IUser;
@@ -28,7 +28,7 @@ public class PromptService extends AbstractService<Prompt, PromptDTO> {
         this.repository = repository;
     }
 
-    public Uni<List<PromptDTO>> getAllDTO(final int limit, final int offset, final IUser user, final PromptFilterDTO filter) {
+    public Uni<List<PromptDTO>> getAllDTO(final int limit, final int offset, final IUser user, final PromptFilter filter) {
         return repository.getAll(limit, offset, false, user, filter)
                 .chain(list -> {
                     if (list.isEmpty()) {
@@ -42,11 +42,11 @@ public class PromptService extends AbstractService<Prompt, PromptDTO> {
                 });
     }
 
-    public Uni<List<Prompt>> getAll(final int limit, final int offset, final IUser user, final PromptFilterDTO filter) {
+    public Uni<List<Prompt>> getAll(final int limit, final int offset, final IUser user, final PromptFilter filter) {
         return repository.getAll(limit, offset, false, user, filter);
     }
 
-    public Uni<Integer> getAllCount(final IUser user, final PromptFilterDTO filter) {
+    public Uni<Integer> getAllCount(final IUser user, final PromptFilter filter) {
         return repository.getAllCount(user, false, filter);
     }
 

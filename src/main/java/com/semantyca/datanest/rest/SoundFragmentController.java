@@ -6,7 +6,6 @@ import com.semantyca.datanest.dto.BrandSoundFragmentFlatDTO;
 import com.semantyca.datanest.dto.BulkBrandUpdateDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
 import com.semantyca.datanest.dto.actions.SoundFragmentActionsFactory;
-import com.semantyca.datanest.dto.filter.SoundFragmentFilterDTO;
 import com.semantyca.datanest.service.soundfragment.BrandSoundFragmentService;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
 import com.semantyca.datanest.service.util.FileDownloadService;
@@ -15,6 +14,7 @@ import com.semantyca.datanest.service.util.ValidationResult;
 import com.semantyca.datanest.service.util.ValidationService;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.cnst.SourceType;
+import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
 import com.semantyca.mixpla.model.soundfragment.SoundFragment;
 import io.kneo.core.controller.AbstractSecuredController;
 import io.kneo.core.dto.actions.ActionBox;
@@ -25,14 +25,11 @@ import io.kneo.core.dto.view.ViewPage;
 import io.kneo.core.localization.LanguageCode;
 import io.kneo.core.repository.exception.UserNotFoundException;
 import io.kneo.core.service.UserService;
-import io.kneo.core.util.FileSecurityUtils;
 import io.kneo.core.util.RuntimeUtil;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.tuples.Tuple2;
 import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
@@ -100,7 +97,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
     private void get(RoutingContext rc) {
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
-        SoundFragmentFilterDTO filter = parseFilterDTO(rc);
+        SoundFragmentFilter filter = parseFilterDTO(rc);
 
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
@@ -151,7 +148,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         String brandName = rc.request().getParam("brand");
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
-        SoundFragmentFilterDTO filter = parseFilterDTO(rc);
+        SoundFragmentFilter filter = parseFilterDTO(rc);
 
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
@@ -362,12 +359,12 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         }
     }
 
-    private SoundFragmentFilterDTO parseFilterDTO(RoutingContext rc) {
+    private SoundFragmentFilter parseFilterDTO(RoutingContext rc) {
         String filterParam = rc.request().getParam("filter");
         if (filterParam == null || filterParam.trim().isEmpty()) {
             return null;
         }
-        SoundFragmentFilterDTO dto = new SoundFragmentFilterDTO();
+        SoundFragmentFilter dto = new SoundFragmentFilter();
         boolean any = false;
         try {
             JsonObject json = new JsonObject(filterParam);
@@ -383,7 +380,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                     }
                 }
                 if (!genres.isEmpty()) {
-                    dto.setGenres(genres);
+                   // dto.setGenres(genres);
                     any = true;
                 }
             }
@@ -399,7 +396,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                     }
                 }
                 if (!sources.isEmpty()) {
-                    dto.setSources(sources);
+                   // dto.setSources(sources);
                     any = true;
                 }
             }
@@ -431,7 +428,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                     }
                 }
                 if (!types.isEmpty()) {
-                    dto.setTypes(types);
+                   // dto.setTypes(types);
                     any = true;
                 }
             }

@@ -1,7 +1,7 @@
 package com.semantyca.datanest.service.util;
 
 import com.semantyca.core.model.FileData;
-import com.semantyca.datanest.config.BroadcasterConfig;
+import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
 import io.kneo.core.model.user.IUser;
 import io.kneo.core.util.FileSecurityUtils;
@@ -27,7 +27,7 @@ public class FileDownloadService {
     private final SoundFragmentService soundFragmentService;
 
     @Inject
-    public FileDownloadService(BroadcasterConfig config, SoundFragmentService soundFragmentService) {
+    public FileDownloadService(DatanestConfig config, SoundFragmentService soundFragmentService) {
         this.uploadDir = config.getPathUploads() + "/sound-fragments-controller";
         this.soundFragmentService = soundFragmentService;
     }

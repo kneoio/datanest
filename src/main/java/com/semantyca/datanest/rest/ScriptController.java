@@ -9,11 +9,11 @@ import com.semantyca.datanest.dto.SceneDTO;
 import com.semantyca.datanest.dto.ScriptDTO;
 import com.semantyca.datanest.dto.ScriptExportDTO;
 import com.semantyca.datanest.dto.TreeNodeDTO;
-import com.semantyca.datanest.dto.filter.ScriptFilterDTO;
 import com.semantyca.datanest.service.ScriptService;
 import com.semantyca.datanest.service.util.BrandScriptUpdateService;
 import com.semantyca.mixpla.model.Script;
 import com.semantyca.mixpla.model.cnst.SceneTimingMode;
+import com.semantyca.mixpla.model.filter.ScriptFilter;
 import io.kneo.core.controller.AbstractSecuredController;
 import io.kneo.core.dto.actions.ActionBox;
 import io.kneo.core.dto.cnst.PayloadType;
@@ -88,7 +88,7 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
     private void getAll(RoutingContext rc) {
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
-        ScriptFilterDTO filter = parseFilterDTO(rc);
+        ScriptFilter filter = parseFilterDTO(rc);
 
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
@@ -110,13 +110,13 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
                 );
     }
 
-    private ScriptFilterDTO parseFilterDTO(RoutingContext rc) {
+    private ScriptFilter parseFilterDTO(RoutingContext rc) {
         String filterParam = rc.request().getParam("filter");
         if (filterParam == null || filterParam.trim().isEmpty()) {
             return null;
         }
 
-        ScriptFilterDTO dto = new ScriptFilterDTO();
+        ScriptFilter dto = new ScriptFilter();
         boolean any = false;
         try {
             JsonObject json = new JsonObject(filterParam);
@@ -178,7 +178,7 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
     private void getAllShared(RoutingContext rc) {
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
-        ScriptFilterDTO filter = parseFilterDTO(rc);
+        ScriptFilter filter = parseFilterDTO(rc);
 
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(

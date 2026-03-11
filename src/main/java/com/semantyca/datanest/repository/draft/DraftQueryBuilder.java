@@ -1,13 +1,13 @@
 package com.semantyca.datanest.repository.draft;
 
-import com.semantyca.datanest.dto.filter.DraftFilterDTO;
+import com.semantyca.mixpla.model.filter.DraftFilter;
 import jakarta.enterprise.context.ApplicationScoped;
 
 @ApplicationScoped
 public class DraftQueryBuilder {
 
     public String buildGetAllQuery(String tableName, boolean includeArchived,
-                                   DraftFilterDTO filter, int limit, int offset) {
+                                   DraftFilter filter, int limit, int offset) {
         StringBuilder sql = new StringBuilder()
                 .append("SELECT * FROM ").append(tableName).append(" t");
 
@@ -28,7 +28,7 @@ public class DraftQueryBuilder {
         return sql.toString();
     }
 
-    String buildFilterConditions(DraftFilterDTO filter) {
+    String buildFilterConditions(DraftFilter filter) {
         StringBuilder conditions = new StringBuilder();
 
         if (filter.getLanguageTag() != null) {

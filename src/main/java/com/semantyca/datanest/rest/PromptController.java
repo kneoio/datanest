@@ -6,11 +6,11 @@ import com.semantyca.datanest.agent.AgentClient;
 import com.semantyca.datanest.dto.PromptDTO;
 import com.semantyca.datanest.dto.agentrest.PromptTestReqDTO;
 import com.semantyca.datanest.dto.agentrest.TranslateReqDTO;
-import com.semantyca.datanest.dto.filter.PromptFilterDTO;
 import com.semantyca.datanest.service.PromptService;
 import com.semantyca.datanest.service.TranslateService;
 import com.semantyca.mixpla.model.Prompt;
 import com.semantyca.mixpla.model.cnst.PromptType;
+import com.semantyca.mixpla.model.filter.PromptFilter;
 import io.kneo.core.controller.AbstractSecuredController;
 import io.kneo.core.dto.actions.ActionBox;
 import io.kneo.core.dto.cnst.PayloadType;
@@ -83,7 +83,7 @@ public class PromptController extends AbstractSecuredController<Prompt, PromptDT
     private void getAll(RoutingContext rc) {
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
-        PromptFilterDTO filter = parseFilterDTO(rc);
+        PromptFilter filter = parseFilterDTO(rc);
 
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
@@ -108,13 +108,13 @@ public class PromptController extends AbstractSecuredController<Prompt, PromptDT
                 );
     }
 
-    private PromptFilterDTO parseFilterDTO(RoutingContext rc) {
+    private PromptFilter parseFilterDTO(RoutingContext rc) {
         String filterParam = rc.request().getParam("filter");
         if (filterParam == null || filterParam.isBlank()) {
             return null;
         }
 
-        PromptFilterDTO dto = new PromptFilterDTO();
+        PromptFilter dto = new PromptFilter();
         boolean any = false;
 
         try {

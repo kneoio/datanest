@@ -1,10 +1,10 @@
 package com.semantyca.datanest.repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.semantyca.datanest.dto.filter.SceneFilterDTO;
 import com.semantyca.datanest.repository.prompt.PromptRepository;
 import com.semantyca.mixpla.model.PlaylistRequest;
 import com.semantyca.mixpla.model.Scene;
+import com.semantyca.mixpla.model.filter.SceneFilter;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.kneo.core.model.embedded.DocumentAccessInfo;
 import io.kneo.core.model.user.IUser;
@@ -43,7 +43,7 @@ public class SceneRepository extends AsyncRepository {
         this.promptRepository = promptRepository;
     }
 
-    public Uni<List<Scene>> getAll(int limit, int offset, boolean includeArchived, IUser user, SceneFilterDTO filter) {
+    public Uni<List<Scene>> getAll(int limit, int offset, boolean includeArchived, IUser user, SceneFilter filter) {
         String sql = "SELECT t.*, s.name as script_title FROM " + entityData.getTableName() + " t, " + entityData.getRlsName() + " rls, mixpla_scripts s " +
                 "WHERE t.id = rls.entity_id AND t.script_id = s.id AND rls.reader = $1";
         if (!includeArchived) {
@@ -66,7 +66,7 @@ public class SceneRepository extends AsyncRepository {
                 .collect().asList();
     }
 
-    public Uni<Integer> getAllCount(IUser user, boolean includeArchived, SceneFilterDTO filter) {
+    public Uni<Integer> getAllCount(IUser user, boolean includeArchived, SceneFilter filter) {
         String sql = "SELECT COUNT(*) FROM " + entityData.getTableName() + " t, " + entityData.getRlsName() + " rls, mixpla_scripts s " +
                 "WHERE t.id = rls.entity_id AND t.script_id = s.id AND rls.reader = $1";
         if (!includeArchived) {

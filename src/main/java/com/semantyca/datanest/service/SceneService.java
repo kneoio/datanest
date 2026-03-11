@@ -3,7 +3,6 @@ package com.semantyca.datanest.service;
 import com.semantyca.datanest.dto.SceneDTO;
 import com.semantyca.datanest.dto.ScenePromptDTO;
 import com.semantyca.datanest.dto.StagePlaylistDTO;
-import com.semantyca.datanest.dto.filter.SceneFilterDTO;
 import com.semantyca.datanest.repository.SceneRepository;
 import com.semantyca.mixpla.model.PlaylistRequest;
 import com.semantyca.mixpla.model.Scene;
@@ -11,6 +10,7 @@ import com.semantyca.mixpla.model.ScenePrompt;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.cnst.SourceType;
 import com.semantyca.mixpla.model.cnst.WayOfSourcing;
+import com.semantyca.mixpla.model.filter.SceneFilter;
 import io.kneo.core.dto.DocumentAccessDTO;
 import io.kneo.core.localization.LanguageCode;
 import io.kneo.core.model.user.IUser;
@@ -34,7 +34,7 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
         this.repository = repository;
     }
 
-    public Uni<List<SceneDTO>> getAllDTO(final int limit, final int offset, final IUser user, SceneFilterDTO filter) {
+    public Uni<List<SceneDTO>> getAllDTO(final int limit, final int offset, final IUser user, SceneFilter filter) {
         return repository.getAll(limit, offset, false, user, filter)
                 .chain(list -> {
                     if (list.isEmpty()) {
@@ -45,7 +45,7 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
                 });
     }
 
-    public Uni<Integer> getAllCount(final IUser user, SceneFilterDTO filter) {
+    public Uni<Integer> getAllCount(final IUser user, SceneFilter filter) {
         return repository.getAllCount(user, false, filter);
     }
 

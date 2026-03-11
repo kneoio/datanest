@@ -6,10 +6,10 @@ import com.semantyca.datanest.agent.AgentClient;
 import com.semantyca.datanest.dto.DraftDTO;
 import com.semantyca.datanest.dto.agentrest.DraftTestReqDTO;
 import com.semantyca.datanest.dto.agentrest.TranslateReqDTO;
-import com.semantyca.datanest.dto.filter.DraftFilterDTO;
 import com.semantyca.datanest.service.DraftService;
 import com.semantyca.datanest.service.TranslateService;
 import com.semantyca.mixpla.model.Draft;
+import com.semantyca.mixpla.model.filter.DraftFilter;
 import io.kneo.core.controller.AbstractSecuredController;
 import io.kneo.core.dto.actions.ActionBox;
 import io.kneo.core.dto.cnst.PayloadType;
@@ -84,7 +84,7 @@ public class DraftController extends AbstractSecuredController<Draft, DraftDTO> 
     private void getAll(RoutingContext rc) {
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
-        DraftFilterDTO filter = parseFilterDTO(rc);
+        DraftFilter filter = parseFilterDTO(rc);
 
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
@@ -112,13 +112,13 @@ public class DraftController extends AbstractSecuredController<Draft, DraftDTO> 
                 );
     }
     
-    private DraftFilterDTO parseFilterDTO(RoutingContext rc) {
+    private DraftFilter parseFilterDTO(RoutingContext rc) {
         String filterParam = rc.request().getParam("filter");
         if (filterParam == null || filterParam.isBlank()) {
             return null;
         }
         
-        DraftFilterDTO dto = new DraftFilterDTO();
+        DraftFilter dto = new DraftFilter();
         boolean any = false;
         
         try {

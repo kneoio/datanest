@@ -10,7 +10,7 @@ import com.semantyca.datanest.dto.ScenePromptDTO;
 import com.semantyca.datanest.dto.ScriptDTO;
 import com.semantyca.datanest.dto.ScriptExportDTO;
 import com.semantyca.datanest.dto.StagePlaylistDTO;
-import com.semantyca.datanest.dto.filter.ScriptFilterDTO;
+
 import com.semantyca.datanest.repository.ScriptRepository;
 import com.semantyca.datanest.util.ScriptVariableExtractor;
 import com.semantyca.mixpla.model.BrandScript;
@@ -71,9 +71,8 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         return getAllDTO(limit, offset, user, null);
     }
 
-    public Uni<List<ScriptDTO>> getAllDTO(final int limit, final int offset, final IUser user, final ScriptFilterDTO filterDTO) {
+    public Uni<List<ScriptDTO>> getAllDTO(final int limit, final int offset, final IUser user, final ScriptFilter filter) {
         assert repository != null;
-        ScriptFilter filter = toFilter(filterDTO);
         return repository.getAll(limit, offset, false, user, filter)
                 .chain(list -> {
                     if (list.isEmpty()) {
@@ -86,40 +85,25 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                 });
     }
 
-    private ScriptFilter toFilter(ScriptFilterDTO dto) {
-        if (dto == null) {
-            return null;
-        }
 
-        ScriptFilter filter = new ScriptFilter();
-        filter.setActivated(dto.isActivated());
-        filter.setLabels(dto.getLabels());
-        filter.setTimingMode(dto.getTimingMode());
-        filter.setLanguageTag(dto.getLanguageTag());
-        filter.setSearchTerm(dto.getSearchTerm());
-
-        return filter;
-    }
 
     public Uni<Integer> getAllCount(final IUser user) {
         return getAllCount(user, null);
     }
 
-    public Uni<Integer> getAllCount(final IUser user, final ScriptFilterDTO filterDTO) {
+    public Uni<Integer> getAllCount(final IUser user, final ScriptFilter filter) {
         assert repository != null;
-        ScriptFilter filter = toFilter(filterDTO);
         return repository.getAllCount(user, false, filter);
     }
 
     public Uni<List<ScriptDTO>> getAllShared(final int limit, final int offset, final IUser user) {
-        ScriptFilterDTO filterDTO = new ScriptFilterDTO();
-        filterDTO.setTimingMode(SceneTimingMode.RELATIVE_TO_STREAM_START);
-        return getAllShared(limit, offset, user, filterDTO);
+        ScriptFilter filter = new ScriptFilter();
+        filter.setTimingMode(SceneTimingMode.RELATIVE_TO_STREAM_START);
+        return getAllShared(limit, offset, user, filter);
     }
 
-    public Uni<List<ScriptDTO>> getAllShared(final int limit, final int offset, final IUser user, final ScriptFilterDTO filterDTO) {
+    public Uni<List<ScriptDTO>> getAllShared(final int limit, final int offset, final IUser user, final ScriptFilter filter) {
         assert repository != null;
-        ScriptFilter filter = toFilter(filterDTO);
         return repository.getAllShared(limit, offset, user, filter)
                 .chain(list -> {
                     if (list.isEmpty()) {
@@ -136,9 +120,8 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         return getAllSharedCount(user, null);
     }
 
-    public Uni<Integer> getAllSharedCount(final IUser user, final ScriptFilterDTO filterDTO) {
+    public Uni<Integer> getAllSharedCount(final IUser user, final ScriptFilter filter) {
         assert repository != null;
-        ScriptFilter filter = toFilter(filterDTO);
         return repository.getAllSharedCount(user, filter);
     }
 

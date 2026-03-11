@@ -1,6 +1,6 @@
 package com.semantyca.datanest.service.manipulation;
 
-import com.semantyca.datanest.config.BroadcasterConfig;
+import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.AudioMetadataDTO;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -23,7 +23,7 @@ public class AudioMetadataService {
     private static final Logger LOGGER = LoggerFactory.getLogger(AudioMetadataService.class);
 
     @Inject
-    BroadcasterConfig config;
+    DatanestConfig config;
 
     private FFprobe ffprobe;
 
@@ -34,10 +34,6 @@ public class AudioMetadataService {
         } catch (Exception e) {
             LOGGER.error("Failed to initialize FFprobe with path: {}", config.getFfprobePath(), e);
         }
-    }
-
-    public AudioMetadataDTO extractMetadata(String filePath) {
-        return extractMetadataWithProgress(filePath, null);
     }
 
     public AudioMetadataDTO extractMetadataWithProgress(String filePath, Consumer<Integer> progressCallback) {
