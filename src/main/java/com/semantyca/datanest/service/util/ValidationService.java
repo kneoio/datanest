@@ -4,7 +4,6 @@ import com.semantyca.datanest.dto.SoundFragmentDTO;
 import com.semantyca.datanest.dto.radio.MessageDTO;
 import com.semantyca.datanest.dto.radio.SubmissionDTO;
 import com.semantyca.datanest.dto.radiostation.OneTimeStreamRunReqDTO;
-import com.semantyca.datanest.service.external.MailService;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -26,12 +25,10 @@ public class ValidationService {
     private static final Logger LOGGER = LoggerFactory.getLogger(ValidationService.class);
 
     private final Validator validator;
-    private final MailService mailService;
 
     @Inject
-    public ValidationService(Validator validator, MailService mailService) {
+    public ValidationService(Validator validator) {
         this.validator = validator;
-        this.mailService = mailService;
     }
 
     public ValidationResult validateSoundFragmentDTO(String id, SoundFragmentDTO dto) {
@@ -73,18 +70,7 @@ public class ValidationService {
             return Uni.createFrom().item(ValidationResult.failure(errorMessage));
         }
 
-        if (dto.getEmail() != null && !dto.getEmail().isEmpty()) {
-            return mailService.verifyCode(dto.getEmail(), dto.getConfirmationCode())
-                    .map(result -> {
-                        if (result == null) {
-                            mailService.removeCode(dto.getEmail());
-                            return ValidationResult.success();
-                        } else {
-                            LOGGER.warn("Email verification failed for submission {}: {}", dto.getEmail(), result);
-                            return ValidationResult.failure(result);
-                        }
-                    });
-        }
+
 
         return Uni.createFrom().item(ValidationResult.success());
     }
@@ -101,36 +87,10 @@ public class ValidationService {
             return Uni.createFrom().item(ValidationResult.failure(errorMessage));
         }
 
-        if (dto.getEmail() != null && !dto.getEmail().isEmpty()) {
-            return mailService.verifyCode(dto.getEmail(), dto.getConfirmationCode())
-                    .map(result -> {
-                        if (result == null) {
-                            mailService.removeCode(dto.getEmail());
-                            return ValidationResult.success();
-                        } else {
-                            LOGGER.warn("Email verification failed for message {}: {}", dto.getEmail(), result);
-                            return ValidationResult.failure(result);
-                        }
-                    });
-        }
+
 
         return Uni.createFrom().item(ValidationResult.success());
     }
 
-    public Uni<ValidationResult> validateOneTimeStreamRunReqDTO(OneTimeStreamRunReqDTO dto) {
-        if (dto.getEmail() != null && !dto.getEmail().isEmpty()) {
-            return mailService.verifyCode(dto.getEmail(), dto.getConfirmationCode())
-                    .map(result -> {
-                        if (result == null) {
-                            mailService.removeCode(dto.getEmail());
-                            return ValidationResult.success();
-                        } else {
-                            LOGGER.warn("Email verification failed for one-time stream {}: {}", dto.getEmail(), result);
-                            return ValidationResult.failure(result);
-                        }
-                    });
-        }
 
-        return Uni.createFrom().item(ValidationResult.success());
-    }
 }

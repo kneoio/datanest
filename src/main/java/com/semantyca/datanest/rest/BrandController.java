@@ -56,7 +56,7 @@ public class BrandController extends AbstractSecuredController<Brand, BrandDTO> 
     }
 
     public void setupRoutes(Router router) {
-        String path = "/api/radiostations";
+        String path = "/api/brands";
         router.route(path + "*").handler(BodyHandler.create());
         router.get(path).handler(this::getAll);
         router.get(path + "/:id").handler(this::getById);
