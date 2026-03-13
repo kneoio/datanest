@@ -1,11 +1,11 @@
 package com.semantyca.datanest.service.soundfragment;
 
+import com.semantyca.core.model.user.IUser;
 import com.semantyca.datanest.dto.BrandSoundFragmentFlatDTO;
 import com.semantyca.datanest.repository.soundfragment.SoundFragmentBrandRepository;
 import com.semantyca.datanest.service.BrandService;
 import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
 import com.semantyca.mixpla.model.soundfragment.BrandSoundFragmentFlat;
-import io.kneo.core.model.user.IUser;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;

@@ -1,5 +1,10 @@
 package com.semantyca.datanest.service;
 
+import com.semantyca.core.dto.DocumentAccessDTO;
+import com.semantyca.core.model.cnst.LanguageCode;
+import com.semantyca.core.model.user.IUser;
+import com.semantyca.core.service.AbstractService;
+import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.SceneDTO;
 import com.semantyca.datanest.dto.ScenePromptDTO;
 import com.semantyca.datanest.dto.StagePlaylistDTO;
@@ -11,11 +16,6 @@ import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.cnst.SourceType;
 import com.semantyca.mixpla.model.cnst.WayOfSourcing;
 import com.semantyca.mixpla.model.filter.SceneFilter;
-import io.kneo.core.dto.DocumentAccessDTO;
-import io.kneo.core.localization.LanguageCode;
-import io.kneo.core.model.user.IUser;
-import io.kneo.core.service.AbstractService;
-import io.kneo.core.service.UserService;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;

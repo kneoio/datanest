@@ -1,7 +1,7 @@
 package com.semantyca.datanest.dto.radio;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import io.kneo.officeframe.cnst.CountryCode;
+import com.semantyca.officeframe.model.cnst.CountryCode;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

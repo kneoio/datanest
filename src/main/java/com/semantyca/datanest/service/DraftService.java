@@ -1,7 +1,12 @@
 package com.semantyca.datanest.service;
 
 import com.semantyca.core.model.ScriptVariable;
+import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.cnst.LanguageTag;
+import com.semantyca.core.model.user.IUser;
+import com.semantyca.core.model.user.SuperUser;
+import com.semantyca.core.service.AbstractService;
+import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.DraftDTO;
 import com.semantyca.datanest.dto.agentrest.DraftTestReqDTO;
 import com.semantyca.datanest.repository.ScriptRepository;
@@ -10,11 +15,6 @@ import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
 import com.semantyca.datanest.util.ScriptVariableExtractor;
 import com.semantyca.mixpla.model.Draft;
 import com.semantyca.mixpla.model.filter.DraftFilter;
-import io.kneo.core.localization.LanguageCode;
-import io.kneo.core.model.user.IUser;
-import io.kneo.core.model.user.SuperUser;
-import io.kneo.core.service.AbstractService;
-import io.kneo.core.service.UserService;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -22,7 +22,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.Random;
 import java.util.UUID;
 import java.util.stream.Collectors;
 

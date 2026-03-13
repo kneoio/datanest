@@ -1,12 +1,12 @@
 package com.semantyca.datanest.service.util;
 
+import com.semantyca.core.model.user.IUser;
+import com.semantyca.core.util.FileSecurityUtils;
 import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.AudioMetadataDTO;
 import com.semantyca.datanest.dto.UploadFileDTO;
 import com.semantyca.datanest.service.manipulation.AudioMetadataService;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
-import io.kneo.core.model.user.IUser;
-import io.kneo.core.util.FileSecurityUtils;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import io.vertx.ext.web.RoutingContext;

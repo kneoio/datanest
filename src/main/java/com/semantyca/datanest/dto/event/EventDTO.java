@@ -1,10 +1,10 @@
 package com.semantyca.datanest.dto.event;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.semantyca.core.dto.AbstractDTO;
 import com.semantyca.core.dto.scheduler.ScheduleDTO;
 import com.semantyca.datanest.dto.ScenePromptDTO;
 import com.semantyca.datanest.dto.StagePlaylistDTO;
-import io.kneo.core.dto.AbstractDTO;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import lombok.Getter;

@@ -1,10 +1,10 @@
 package com.semantyca.datanest.service.util;
 
 import com.semantyca.core.model.FileData;
+import com.semantyca.core.model.user.IUser;
+import com.semantyca.core.util.FileSecurityUtils;
 import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
-import io.kneo.core.model.user.IUser;
-import io.kneo.core.util.FileSecurityUtils;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;

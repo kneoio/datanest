@@ -2,11 +2,11 @@ package com.semantyca.datanest.service;
 
 import com.semantyca.core.model.JobState;
 import com.semantyca.core.model.cnst.LanguageTag;
+import com.semantyca.core.model.user.IUser;
 import com.semantyca.datanest.agent.AgentClient;
 import com.semantyca.datanest.dto.agentrest.TranslateReqDTO;
 import com.semantyca.mixpla.model.Draft;
 import com.semantyca.mixpla.model.Prompt;
-import io.kneo.core.model.user.IUser;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonObject;
 import jakarta.enterprise.context.ApplicationScoped;
