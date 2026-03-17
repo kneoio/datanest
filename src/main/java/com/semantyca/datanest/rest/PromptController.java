@@ -67,7 +67,7 @@ public class PromptController extends AbstractSecuredController<Prompt, PromptDT
     }
 
     public void setupRoutes(Router router) {
-        String path = "/api/prompts";
+        String path = "/datanest/prompts";
         router.route(path + "*").handler(BodyHandler.create());
         router.post(path + "/translate/start").handler(this::translateStart);
         router.get(path + "/translate/stream").handler(this::translateStream);

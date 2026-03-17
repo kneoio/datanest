@@ -52,7 +52,7 @@ public class ProfileController extends AbstractSecuredController<Profile, Profil
     }
 
     public void setupRoutes(Router router) {
-        String path = "/api/profiles";
+        String path = "/datanest/profiles";
         //router.route().handler(BodyHandler.create());
         router.route(path + "*").handler(BodyHandler.create());
         //router.route(path + "/*").handler(this::addHeaders);

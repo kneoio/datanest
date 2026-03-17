@@ -68,9 +68,9 @@ public class DraftController extends AbstractSecuredController<Draft, DraftDTO> 
     }
 
     public void setupRoutes(Router router) {
-        String path = "/api/drafts";
+        String path = "/datanest/drafts";
         router.route(path + "*").handler(BodyHandler.create());
-        router.post(path + "/test").handler(this::testDraft);  // Must be before POST /api/drafts
+        router.post(path + "/test").handler(this::testDraft);  // Must be before POST /datanest/drafts
         router.post(path + "/extract-variables").handler(this::extractVariables);
         router.post(path + "/translate/start").handler(this::translateStart);
         router.get(path + "/translate/stream").handler(this::translateStream);
@@ -130,11 +130,7 @@ public class DraftController extends AbstractSecuredController<Draft, DraftDTO> 
                 dto.setLanguageTag(LanguageTag.fromTag(json.getString("languageTag")));
                 any = true;
             }
-            
-            if (json.containsKey("archived")) {
-                dto.setArchived(json.getInteger("archived"));
-                any = true;
-            }
+
             
             if (json.containsKey("enabled")) {
                 dto.setEnabled(json.getBoolean("enabled"));

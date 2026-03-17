@@ -19,6 +19,7 @@ import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.brand.BrandScriptEntry;
 import com.semantyca.mixpla.model.brand.Owner;
 import com.semantyca.mixpla.model.brand.ProfileOverriding;
+import com.semantyca.mixpla.model.filter.BrandFilter;
 import com.semantyca.officeframe.model.cnst.CountryCode;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -58,8 +59,12 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     }
 
     public Uni<List<BrandDTO>> getAllDTO(final int limit, final int offset, final IUser user, final String country, final String query) {
+        return getAllDTO(limit, offset, user, country, query, null);
+    }
+
+    public Uni<List<BrandDTO>> getAllDTO(final int limit, final int offset, final IUser user, final String country, final String query, BrandFilter filter) {
         assert repository != null;
-        return repository.getAll(limit, offset, false, user, country, query)
+        return repository.getAll(limit, offset, false, user, country, query, filter)
                 .chain(list -> {
                     if (list.isEmpty()) {
                         return Uni.createFrom().item(List.of());
@@ -73,8 +78,12 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     }
 
     public Uni<Integer> getAllCount(final IUser user, String country, final String query) {
+        return getAllCount(user, country, query, null);
+    }
+
+    public Uni<Integer> getAllCount(final IUser user, String country, final String query, BrandFilter filter) {
         assert repository != null;
-        return repository.getAllCount(user, false, country, query);
+        return repository.getAllCount(user, false, country, query, filter);
     }
 
     public Uni<List<Brand>> getAll(final int limit, final int offset) {
@@ -187,6 +196,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             dto.setSubmissionPolicy(doc.getSubmissionPolicy());
             dto.setMessagingPolicy(doc.getMessagingPolicy());
             dto.setIsTemporary(doc.getIsTemporary());
+            dto.setPublicBrand(doc.getPublicBrand());
             dto.setPopularityRate(doc.getPopularityRate());
 
             if (doc.getAiOverriding() != null) {
@@ -245,6 +255,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         doc.setCountry(CountryCode.fromString(dto.getCountry()));
         doc.setArchived(dto.getArchived());
         doc.setIsTemporary(dto.getIsTemporary() != null ? dto.getIsTemporary() : 0);
+        doc.setPublicBrand(dto.getPublicBrand());
         doc.setManagedBy(dto.getManagedBy());
         doc.setColor(dto.getColor());
         doc.setDescription(dto.getDescription());
@@ -302,3 +313,4 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 );
     }
 }
+

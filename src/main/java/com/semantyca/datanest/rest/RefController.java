@@ -54,7 +54,7 @@ public class RefController extends BaseController {
     ProfileService profileService;
 
     public void setupRoutes(Router router) {
-        router.route(HttpMethod.GET, "/api/dictionary/:type").handler(this::getDictionary);
+        router.route(HttpMethod.GET, "/datanest/dictionary/:type").handler(this::getDictionary);
     }
 
     private void getDictionary(RoutingContext rc) {

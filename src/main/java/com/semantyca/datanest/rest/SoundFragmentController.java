@@ -78,7 +78,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
     }
 
     public void setupRoutes(Router router) {
-        String path = "/api/soundfragments";
+        String path = "/datanest/soundfragments";
         BodyHandler jsonBodyHandler = BodyHandler.create().setHandleFileUploads(false);
         router.route(HttpMethod.GET, path).handler(this::get);
         router.route(HttpMethod.GET, path + "/available-soundfragments").handler(this::getForBrand);

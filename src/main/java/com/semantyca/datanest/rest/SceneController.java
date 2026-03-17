@@ -46,12 +46,12 @@ public class SceneController extends AbstractSecuredController<Scene, SceneDTO> 
     }
 
     public void setupRoutes(Router router) {
-        String scenesByScriptPath = "/api/scripts/:scriptId/scenes";
+        String scenesByScriptPath = "/datanest/scripts/:scriptId/scenes";
         router.route(scenesByScriptPath + "*").handler(BodyHandler.create());
         router.get(scenesByScriptPath).handler(this::getByScript);
         router.post(scenesByScriptPath).handler(this::upsertSceneForScript);
 
-        String scenePath = "/api/scenes";
+        String scenePath = "/datanest/scenes";
         router.route(scenePath + "*").handler(BodyHandler.create());
         router.get(scenePath).handler(this::getAll);
         router.get(scenePath + "/:id").handler(this::getById);

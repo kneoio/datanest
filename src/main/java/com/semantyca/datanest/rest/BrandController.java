@@ -16,6 +16,8 @@ import com.semantyca.datanest.dto.radiostation.BrandDTO;
 import com.semantyca.datanest.service.BrandService;
 import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.cnst.ManagedBy;
+import com.semantyca.mixpla.model.filter.BrandFilter;
+import com.semantyca.officeframe.model.cnst.CountryCode;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.tuples.Tuple2;
 import io.vertx.core.json.JsonObject;
@@ -29,11 +31,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -56,7 +60,7 @@ public class BrandController extends AbstractSecuredController<Brand, BrandDTO> 
     }
 
     public void setupRoutes(Router router) {
-        String path = "/api/brands";
+        String path = "/datanest/brands";
         router.route(path + "*").handler(BodyHandler.create());
         router.get(path).handler(this::getAll);
         router.get(path + "/:id").handler(this::getById);
@@ -71,10 +75,27 @@ public class BrandController extends AbstractSecuredController<Brand, BrandDTO> 
         String country = rc.request().getParam("country");
         String query = rc.request().getParam("query");
 
+        BrandFilter filter = new BrandFilter();
+        String publicBrand = rc.request().getParam("publicBrand");
+        if (publicBrand != null && publicBrand.equals("true")) {
+            filter.setPublicBrand(true);
+            filter.setActivated(true);
+        }
+
+        String countries = rc.request().getParam("countries");
+        if (countries != null && !countries.isBlank()) {
+            List<CountryCode> countryList = Arrays.stream(countries.split(","))
+                .map(String::trim)
+                .map(CountryCode::valueOf)
+                .collect(Collectors.toList());
+            filter.setCountries(countryList);
+            filter.setActivated(true);
+        }
+
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
-                        service.getAllCount(user, country, query),
-                        service.getAllDTO(size, (page - 1) * size, user, country, query)
+                        service.getAllCount(user, country, query, filter),
+                        service.getAllDTO(size, (page - 1) * size, user, country, query, filter)
                 ).asTuple().map(tuple -> {
                     ViewPage viewPage = new ViewPage();
                     View<BrandDTO> dtoEntries = new View<>(tuple.getItem2(),
@@ -213,3 +234,9 @@ public class BrandController extends AbstractSecuredController<Brand, BrandDTO> 
     }
 
 }
+
+
+
+
+
+

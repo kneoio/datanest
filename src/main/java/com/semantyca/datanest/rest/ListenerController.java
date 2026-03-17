@@ -55,7 +55,7 @@ public class ListenerController extends AbstractSecuredController<Listener, List
     }
 
     public void setupRoutes(Router router) {
-        String path = "/api/listeners";
+        String path = "/datanest/listeners";
         router.route(path + "*").handler(BodyHandler.create());
         router.route(path + "*").handler(this::addHeaders);
         router.get(path).handler(this::get);

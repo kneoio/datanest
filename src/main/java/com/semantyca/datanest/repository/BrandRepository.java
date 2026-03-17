@@ -17,6 +17,7 @@ import com.semantyca.mixpla.model.brand.Owner;
 import com.semantyca.mixpla.model.brand.ProfileOverriding;
 import com.semantyca.mixpla.model.cnst.ManagedBy;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
+import com.semantyca.mixpla.model.filter.BrandFilter;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
 import com.semantyca.officeframe.model.cnst.CountryCode;
 import io.smallrye.mutiny.Multi;
@@ -52,6 +53,10 @@ public class BrandRepository extends AsyncRepository {
     }
 
     public Uni<List<Brand>> getAll(int limit, int offset, boolean includeArchived, final IUser user, String country, String query) {
+        return getAll(limit, offset, includeArchived, user, country, query, null);
+    }
+
+    public Uni<List<Brand>> getAll(int limit, int offset, boolean includeArchived, final IUser user, String country, String query, BrandFilter filter) {
         StringBuilder sql = new StringBuilder();
         sql.append("SELECT * FROM ").append(entityData.getTableName()).append(" t, ")
                 .append(entityData.getRlsName()).append(" rls ")
@@ -69,6 +74,11 @@ public class BrandRepository extends AsyncRepository {
                     .append(" OR LOWER(t.description) LIKE $").append(paramIndex + 1).append(")");
             paramIndex += 2;
         }
+
+        if (filter != null && filter.isActivated()) {
+            sql.append(buildFilterConditions(filter));
+        }
+
         sql.append(" ORDER BY t.last_mod_date DESC");
         if (limit > 0) {
             sql.append(" LIMIT ").append(limit).append(" OFFSET ").append(offset);
@@ -84,6 +94,10 @@ public class BrandRepository extends AsyncRepository {
             params.addString(q);
         }
 
+        if (filter != null && filter.isActivated()) {
+            addFilterParameters(params, filter);
+        }
+
         return client.preparedQuery(sql.toString())
                 .execute(params)
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
@@ -92,6 +106,10 @@ public class BrandRepository extends AsyncRepository {
     }
 
     public Uni<Integer> getAllCount(IUser user, boolean includeArchived, String country, String query) {
+        return getAllCount(user, includeArchived, country, query, null);
+    }
+
+    public Uni<Integer> getAllCount(IUser user, boolean includeArchived, String country, String query, BrandFilter filter) {
         StringBuilder sql = new StringBuilder();
         sql.append("SELECT COUNT(*) FROM ").append(entityData.getTableName()).append(" t, ")
                 .append(entityData.getRlsName()).append(" rls ")
@@ -110,6 +128,10 @@ public class BrandRepository extends AsyncRepository {
             paramIndex += 2;
         }
 
+        if (filter != null && filter.isActivated()) {
+            sql.append(buildFilterConditions(filter));
+        }
+
         Tuple params = Tuple.tuple().addLong(user.getId());
         if (country != null && !country.isBlank()) {
             params.addString(country.toUpperCase());
@@ -118,6 +140,10 @@ public class BrandRepository extends AsyncRepository {
             String q = "%" + query.toLowerCase() + "%";
             params.addString(q);
             params.addString(q);
+        }
+
+        if (filter != null && filter.isActivated()) {
+            addFilterParameters(params, filter);
         }
 
         return client.preparedQuery(sql.toString())
@@ -186,8 +212,8 @@ public class BrandRepository extends AsyncRepository {
     public Uni<Brand> insert(Brand station, IUser user) {
         return Uni.createFrom().deferred(() -> {
             String sql = "INSERT INTO " + entityData.getTableName() +
-                    " (author, reg_date, last_mod_user, last_mod_date, country, time_zone, managing_mode, color, loc_name, ai_overriding, profile_overriding, bit_rate, slug_name, description, profile_id, ai_agent_id, one_time_stream_policy, submission_policy, messaging_policy, title_font, popularity_rate, is_temporary, owner) " +
-                    "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23) RETURNING id";
+                    " (author, reg_date, last_mod_user, last_mod_date, country, time_zone, managing_mode, color, loc_name, ai_overriding, profile_overriding, bit_rate, slug_name, description, profile_id, ai_agent_id, one_time_stream_policy, submission_policy, messaging_policy, title_font, popularity_rate, is_temporary, public, owner) " +
+                    "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24) RETURNING id";
 
             OffsetDateTime now = OffsetDateTime.now();
             JsonObject localizedNameJson = JsonObject.mapFrom(station.getLocalizedName());
@@ -216,6 +242,7 @@ public class BrandRepository extends AsyncRepository {
                     .addString(station.getTitleFont())
                     .addDouble(station.getPopularityRate())
                     .addInteger(station.getIsTemporary())
+                    .addInteger(station.getPublicBrand())
                     .addJsonObject(station.getOwner() != null ? JsonObject.mapFrom(station.getOwner()) : new JsonObject());
 
             return client.withTransaction(tx ->
@@ -244,8 +271,8 @@ public class BrandRepository extends AsyncRepository {
 
                     String sql = "UPDATE " + entityData.getTableName() +
                             " SET country=$1, time_zone=$2, managing_mode=$3, color=$4, loc_name=$5, ai_overriding=$6, profile_overriding=$7, " +
-                            "bit_rate=$8, slug_name=$9, description=$10, profile_id=$11, ai_agent_id=$12, one_time_stream_policy=$13::submission_policy, submission_policy=$14, messaging_policy=$15, title_font=$16, is_temporary=$17, last_mod_user=$18, last_mod_date=$19, owner=$20 " +
-                            "WHERE id=$21";
+                            "bit_rate=$8, slug_name=$9, description=$10, profile_id=$11, ai_agent_id=$12, one_time_stream_policy=$13::submission_policy, submission_policy=$14, messaging_policy=$15, title_font=$16, is_temporary=$17, public=$18, last_mod_user=$19, last_mod_date=$20, owner=$21 " +
+                            "WHERE id=$22";
 
                     OffsetDateTime now = OffsetDateTime.now();
                     JsonObject localizedNameJson = JsonObject.mapFrom(station.getLocalizedName());
@@ -269,6 +296,7 @@ public class BrandRepository extends AsyncRepository {
                             .addString(station.getMessagingPolicy().name())
                             .addString(station.getTitleFont())
                             .addInteger(station.getIsTemporary() != null ? station.getIsTemporary() : 0)
+                            .addInteger(station.getPublicBrand())
                             .addLong(user.getId())
                             .addOffsetDateTime(now)
                             .addJsonObject(station.getOwner() != null ? JsonObject.mapFrom(station.getOwner()) : new JsonObject())
@@ -302,6 +330,7 @@ public class BrandRepository extends AsyncRepository {
         doc.setSlugName(row.getString("slug_name"));
         doc.setArchived(row.getInteger("archived"));
         doc.setIsTemporary(row.getInteger("is_temporary"));
+        doc.setPublicBrand(row.getInteger("public"));
         String country = row.getString("country");
         doc.setCountry(country != null ? CountryCode.valueOf(country) : null);
         doc.setManagedBy(ManagedBy.valueOf(row.getString("managing_mode")));
@@ -460,5 +489,34 @@ public class BrandRepository extends AsyncRepository {
                     return Uni.join().all(insertUnis).andFailFast()
                             .onItem().transform(v -> brandId);
                 });
+    }
+
+    private String buildFilterConditions(BrandFilter filter) {
+        StringBuilder conditions = new StringBuilder();
+
+        if (filter.getCountries() != null && !filter.getCountries().isEmpty()) {
+            conditions.append(" AND t.country IN (");
+            for (int i = 0; i < filter.getCountries().size(); i++) {
+                if (i > 0) {
+                    conditions.append(", ");
+                }
+                conditions.append("'").append(filter.getCountries().get(i).name()).append("'");
+            }
+            conditions.append(")");
+        }
+
+        if (filter.isPublicBrand()) {
+            conditions.append(" AND t.public = 1");
+        }
+
+        return conditions.toString();
+    }
+
+    private void addFilterParameters(Tuple params, BrandFilter filter) {
+        if (filter.getCountries() != null && !filter.getCountries().isEmpty()) {
+            for (CountryCode country : filter.getCountries()) {
+                params.addString(country.name());
+            }
+        }
     }
 }

@@ -359,7 +359,7 @@ public class FileUploadService {
 
     private String generateFileUrl(String entityId, String safeFileName) {
         String entityIdSafe = entityId != null ? entityId : "temp";
-        return String.format("/api/soundfragments/files/%s/%s", entityIdSafe, safeFileName);
+        return String.format("/datanest/soundfragments/files/%s/%s", entityIdSafe, safeFileName);
     }
 
     private void updateProgress(String uploadId, Integer percentage, String status, String url, String fullPath, AudioMetadataDTO metadata, String errorMessage) {

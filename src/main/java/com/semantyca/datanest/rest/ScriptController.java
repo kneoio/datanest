@@ -64,7 +64,7 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
     }
 
     public void setupRoutes(Router router) {
-        String path = "/api/scripts";
+        String path = "/datanest/scripts";
         router.route(path + "*").handler(BodyHandler.create());
         router.get(path).handler(this::getAll);
         router.get(path + "/shared").handler(this::getAllShared);
@@ -80,7 +80,7 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
         router.delete(path + "/:id").handler(this::delete);
         router.get(path + "/:id/access").handler(this::getDocumentAccess);
 
-        String brandScriptsPath = "/api/brands/:brandId/scripts";
+        String brandScriptsPath = "/datanest/brands/:brandId/scripts";
         router.route(brandScriptsPath + "*").handler(BodyHandler.create());
         router.get(brandScriptsPath).handler(this::getScriptsForBrand);
     }
