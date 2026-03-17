@@ -6,6 +6,7 @@ import com.semantyca.datanest.rest.EventController;
 import com.semantyca.datanest.rest.ListenerController;
 import com.semantyca.datanest.rest.ProfileController;
 import com.semantyca.datanest.rest.PromptController;
+import com.semantyca.datanest.rest.RefController;
 import com.semantyca.datanest.rest.SceneController;
 import com.semantyca.datanest.rest.ScriptController;
 import com.semantyca.datanest.rest.SoundFragmentController;
@@ -44,6 +45,9 @@ public class DatanestApplication {
     @Inject
     ScriptController scriptController;
 
+    @Inject
+    RefController refController;
+
     void setupRoutes(@Observes Router router) {
         brandController.setupRoutes(router);
         draftController.setupRoutes(router);
@@ -54,5 +58,6 @@ public class DatanestApplication {
         sceneController.setupRoutes(router);
         scriptController.setupRoutes(router);
         soundFragmentController.setupRoutes(router);
+        refController.setupRoutes(router);
     }
 }
