@@ -1,5 +1,6 @@
 package com.semantyca.datanest;
 
+import com.semantyca.datanest.rest.AiAgentController;
 import com.semantyca.datanest.rest.BrandController;
 import com.semantyca.datanest.rest.DraftController;
 import com.semantyca.datanest.rest.EventController;
@@ -31,6 +32,10 @@ public class DatanestApplication {
     ListenerController listenerController;
 
     @Inject
+    AiAgentController aiAgentController;
+
+
+    @Inject
     ProfileController profileController;
 
     @Inject
@@ -59,5 +64,6 @@ public class DatanestApplication {
         scriptController.setupRoutes(router);
         soundFragmentController.setupRoutes(router);
         refController.setupRoutes(router);
+        aiAgentController.setupRoutes(router);
     }
 }

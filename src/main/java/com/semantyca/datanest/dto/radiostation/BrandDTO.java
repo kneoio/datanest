@@ -65,7 +65,6 @@ public class BrandDTO extends AbstractDTO {
     private boolean profileOverridingEnabled;
     private AiOverridingDTO aiOverriding;
     private ProfileOverridingDTO profileOverriding;
-    private Integer archived;
     @NotNull
     @NotEmpty
     private List<BrandScriptEntryDTO> scripts;

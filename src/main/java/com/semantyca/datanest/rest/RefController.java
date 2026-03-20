@@ -55,10 +55,12 @@ public class RefController extends BaseController {
 
     public void setupRoutes(Router router) {
         router.route(HttpMethod.GET, "/datanest/dictionary/:type").handler(this::getDictionary);
+        router.route(HttpMethod.GET, "/datanest/dictionary/:type/:category").handler(this::getDictionary);
     }
 
     private void getDictionary(RoutingContext rc) {
         String type = rc.pathParam("type");
+        String category = rc.pathParam("category");
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
 
@@ -138,7 +140,13 @@ public class RefController extends BaseController {
                         );
                 break;
             case "labels":
-                service.getSoundFragmentLabels()
+                if (category == null || category.isBlank()) {
+                    rc.response()
+                            .setStatusCode(400)
+                            .end("Category path parameter is required for labels");
+                    return;
+                }
+                service.getSoundFragmentLabels(category)
                         .map(labels -> {
                             ViewPage viewPage = new ViewPage();
                             viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());

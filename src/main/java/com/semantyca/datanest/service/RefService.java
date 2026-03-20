@@ -93,7 +93,7 @@ public class RefService {
         return getFilteredVoices(filter).map(List::size);
     }
 
-    public Uni<List<LabelDTO>> getSoundFragmentLabels() {
-        return labelService.getOfCategory("sound_fragment", LanguageCode.en);
+    public Uni<List<LabelDTO>> getSoundFragmentLabels(String category) {
+        return labelService.getOfCategory(category, LanguageCode.en);
     }
 }

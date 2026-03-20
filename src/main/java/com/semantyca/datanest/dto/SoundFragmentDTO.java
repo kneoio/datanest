@@ -1,9 +1,8 @@
 package com.semantyca.datanest.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.fasterxml.jackson.datatype.jsr310.deser.DurationDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.DurationSerializer;
 import com.semantyca.core.dto.AbstractDTO;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
@@ -39,8 +38,8 @@ public class SoundFragmentDTO extends AbstractDTO {
     private List<UUID> labels;
     private String album;
     private String slugName;
-    @JsonDeserialize(using = DurationDeserializer.class)
     @JsonSerialize(using = DurationSerializer.class)
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private Duration length;
     private String description;
     private List<String> brands;  //?

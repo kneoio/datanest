@@ -1,0 +1,106 @@
+[
+  {
+    "id": "tara",
+    "name": "Tara",
+    "gender": "female",
+    "language": "en-US",
+    "labels": "premium",
+    "engineType": "modelslab"
+  },
+  {
+    "id": "leah",
+    "name": "Leah",
+    "gender": "female",
+    "language": "en-US",
+    "labels": "premium",
+    "engineType": "modelslab"
+  },
+  {
+    "id": "mia",
+    "name": "Mia",
+    "gender": "female",
+    "language": "en-US",
+    "labels": "premium",
+    "engineType": "modelslab"
+  },
+  {
+    "id": "zoe",
+    "name": "Zoe",
+    "gender": "female",
+    "language": "en-US",
+    "labels": "premium",
+    "engineType": "modelslab"
+  },
+  {
+    "id": "leo",
+    "name": "Leo",
+    "gender": "male",
+    "language": "en-US",
+    "labels": "premium",
+    "engineType": "modelslab"
+  },
+  {
+    "id": "dan",
+    "name": "Dan",
+    "gender": "male",
+    "language": "en-US",
+    "labels": "premium",
+    "engineType": "modelslab"
+  },
+  {
+    "id": "zac",
+    "name": "Zac",
+    "gender": "male",
+    "language": "en-US",
+    "labels": "premium",
+    "engineType": "modelslab"
+  },
+  {
+    "id": "alejo",
+    "name": "Alejo",
+    "gender": "male",
+    "language": "es-ES",
+    "labels": "",
+    "engineType": "modelslab"
+  },
+  {
+    "id": "dorita",
+    "name": "Dorita",
+    "gender": "female",
+    "language": "es-ES",
+    "labels": "",
+    "engineType": "modelslab"
+  },
+  {
+    "id": "santi",
+    "name": "Santi",
+    "gender": "male",
+    "language": "es-ES",
+    "labels": "",
+    "engineType": "modelslab"
+  },
+  {
+    "id": "emma",
+    "name": "Emma",
+    "gender": "female",
+    "language": "en-GB",
+    "labels": "",
+    "engineType": "modelslab"
+  },
+  {
+    "id": "isabella",
+    "name": "Isabella",
+    "gender": "female",
+    "language": "en-GB",
+    "labels": "",
+    "engineType": "modelslab"
+  },
+  {
+    "id": "elodie",
+    "name": "Elodie",
+    "gender": "female",
+    "language": "fr-FR",
+    "labels": "",
+    "engineType": "modelslab"
+  }
+]

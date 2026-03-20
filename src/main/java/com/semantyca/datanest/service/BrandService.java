@@ -224,11 +224,10 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 dto.setHlsUrl(URI.create(datanestConfig.getHost() + "/" + dto.getSlugName() + "/radio/stream.m3u8").toURL());
                 dto.setIceCastUrl(URI.create(datanestConfig.getHost() + "/" + dto.getSlugName() + "/radio/icecast").toURL());
                 dto.setMp3Url(URI.create(datanestConfig.getHost() + "/" + dto.getSlugName() + "/radio/stream.mp3").toURL());
-                dto.setMixplaUrl(URI.create("https://player.mixpla.io/?radio=" + dto.getSlugName()).toURL());
+                dto.setMixplaUrl(URI.create("https://mixpla.online").toURL());
             } catch (MalformedURLException e) {
                 throw new RuntimeException(e);
             }
-            dto.setArchived(doc.getArchived());
             List<BrandScriptEntryDTO> scriptDTOs = tuple.getItem3().stream()
                     .map(entry -> {
                         BrandScriptEntryDTO scriptDTO = new BrandScriptEntryDTO();
@@ -253,7 +252,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         Brand doc = new Brand();
         doc.setLocalizedName(dto.getLocalizedName());
         doc.setCountry(CountryCode.fromString(dto.getCountry()));
-        doc.setArchived(dto.getArchived());
+        doc.setArchived(0);
         doc.setIsTemporary(dto.getIsTemporary() != null ? dto.getIsTemporary() : 0);
         doc.setPublicBrand(dto.getPublicBrand());
         doc.setManagedBy(dto.getManagedBy());
