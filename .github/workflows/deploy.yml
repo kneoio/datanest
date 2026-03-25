@@ -75,3 +75,4 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY  }}
           script: |
             kubectl rollout restart deployment/datanest -n default
+            sudo k3s crictl rmi --prune
