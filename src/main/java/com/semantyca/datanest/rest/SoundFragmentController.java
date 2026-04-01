@@ -10,8 +10,10 @@ import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.cnst.RatingAction;
 import com.semantyca.core.repository.exception.UserNotFoundException;
 import com.semantyca.core.service.UserService;
+import com.semantyca.core.util.FileSecurityUtils;
 import com.semantyca.core.util.ProblemDetailsUtil;
 import com.semantyca.core.util.RuntimeUtil;
+import com.semantyca.datanest.util.InputStreamReadStream;
 import com.semantyca.datanest.dto.BrandSoundFragmentFlatDTO;
 import com.semantyca.datanest.dto.BulkBrandUpdateDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
@@ -29,7 +31,9 @@ import com.semantyca.mixpla.model.soundfragment.SoundFragment;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.tuples.Tuple2;
 import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
@@ -84,7 +88,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         router.route(HttpMethod.GET, path + "/available-soundfragments").handler(this::getForBrand);
         //router.route(HttpMethod.GET, path + "/available-soundfragments/:id").handler(this::getForBrand);
         router.route(HttpMethod.GET, path + "/:id").handler(this::getById);
-        //router.route(HttpMethod.GET, path + "/files/:id/:slug").handler(this::getBySlugName);
+        router.route(HttpMethod.GET, path + "/files/:id/:slug").handler(this::getBySlugName);
         router.route(HttpMethod.POST, path + "/bulk-brand-update").handler(jsonBodyHandler).handler(this::bulkBrandUpdate);
         router.route(HttpMethod.POST, path + "/:id?").handler(jsonBodyHandler).handler(this::upsert);
         router.route(HttpMethod.DELETE, path + "/:id").handler(this::delete);
@@ -333,6 +337,48 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         }
     }
 
+
+    private void getBySlugName(RoutingContext rc) {
+        String id = rc.pathParam("id");
+        String requestedFileName = rc.pathParam("slug");
+
+        getContextUser(rc, false, true)
+                .chain(user -> fileDownloadService.getFile(id, requestedFileName, user))
+                .subscribe().with(
+                        fileData -> {
+                            if (fileData == null ||
+                                    (fileData.getData() == null && fileData.getInputStream() == null) ||
+                                    (fileData.hasByteArray() && fileData.getData().length == 0)) {
+                                rc.fail(404, new IllegalArgumentException("File content not available"));
+                                return;
+                            }
+
+                            HttpServerResponse response = rc.response()
+                                    .putHeader("Content-Disposition", "attachment; filename=\"" +
+                                            FileSecurityUtils.sanitizeFilename(requestedFileName) + "\"")
+                                    .putHeader("Content-Type", fileData.getMimeType())
+                                    .putHeader("Content-Length", String.valueOf(fileData.getContentLength()));
+
+                            if (fileData.hasByteArray()) {
+                                response.end(Buffer.buffer(fileData.getData()));
+                            } else if (fileData.hasInputStream()) {
+                                response.setChunked(true);
+
+                                InputStreamReadStream inputStreamReadStream = new InputStreamReadStream(vertx, fileData.getInputStream(), STREAM_BUFFER_SIZE);
+                                inputStreamReadStream.pipeTo(response)
+                                        .onComplete(ar -> {
+                                            if (ar.failed()) {
+                                                LOGGER.error("Stream failed", ar.cause());
+                                                if (!response.ended()) {
+                                                    response.setStatusCode(500).end();
+                                                }
+                                            }
+                                        });
+                            }
+                        },
+                        t -> handleFailure(rc, t)
+                );
+    }
 
     private void getDocumentAccess(RoutingContext rc) {
         String id = rc.pathParam("id");

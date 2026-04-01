@@ -24,9 +24,9 @@ target/
 .vscode/
 
 .DS_Store
+/.claude/
 
-# Environment-specific properties with sensitive data
-src/main/resources/application-dev.properties
-src/main/resources/application-prod.properties
+application-dev.properties
+application-prod.properties
 .env
-/src/main/resources/application-dev.properties
+

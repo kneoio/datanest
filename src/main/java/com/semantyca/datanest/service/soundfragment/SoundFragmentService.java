@@ -9,7 +9,6 @@ import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
-import com.semantyca.core.service.maintenance.LocalFileCleanupService;
 import com.semantyca.core.util.BrandLogger;
 import com.semantyca.core.util.FileSecurityUtils;
 import com.semantyca.core.util.WebHelper;
@@ -21,6 +20,7 @@ import com.semantyca.datanest.dto.UploadFileDTO;
 import com.semantyca.datanest.repository.soundfragment.SoundFragmentRepository;
 import com.semantyca.datanest.service.BrandService;
 import com.semantyca.datanest.service.RefService;
+import com.semantyca.datanest.service.maintenance.LocalFileCleanupService;
 import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.cnst.SourceType;
@@ -305,10 +305,6 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         }
     }
 
-    public Uni<LocalFileCleanupService.CleanupStats> getLocalFileCleanupStats() {
-        return Uni.createFrom().item(localFileCleanupService.getStats());
-    }
-
     private Uni<SoundFragment> moveFilesForNewEntity(SoundFragment doc, List<FileMetadata> fileMetadataList, IUser user) {
         if (fileMetadataList.isEmpty()) {
             return Uni.createFrom().item(doc);
@@ -383,7 +379,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                             .collect(Collectors.toList());
 
                     return Uni.join().all(updateUnis).andFailFast()
-                            .map(results -> (int) results.stream().filter(result -> result != null).count());
+                            .map(results -> (int) results.stream().filter(Objects::nonNull).count());
                 });
     }
 

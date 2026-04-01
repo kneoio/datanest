@@ -26,9 +26,4 @@ public interface DatanestConfig {
     String getFfprobePath();
 
 
-    @WithName("agent.api-key")
-    String getAgentApiKey();
-
-
-
 }
