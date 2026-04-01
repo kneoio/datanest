@@ -3,7 +3,7 @@ RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
 RUN groupadd -r kneo && useradd -r -g kneo kneo
 
 WORKDIR /app
-COPY target/datanest-1.0.0-SNAPSHOT-runner.jar app.jar
+COPY target/datanest-*-runner.jar app.jar
 RUN chown kneo:kneo app.jar
 USER kneo
 EXPOSE 8080 38799
