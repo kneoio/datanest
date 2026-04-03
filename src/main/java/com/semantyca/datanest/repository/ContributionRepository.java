@@ -4,22 +4,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.semantyca.core.repository.AsyncRepository;
 import com.semantyca.core.repository.rls.RLSRepository;
 import io.smallrye.mutiny.Uni;
-import io.vertx.mutiny.pgclient.PgPool;
+import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.SqlConnection;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import java.util.UUID;
 
 @ApplicationScoped
 public class ContributionRepository extends AsyncRepository {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ContributionRepository.class);
+    private static final Logger LOGGER = Logger.getLogger(ContributionRepository.class);
 
     @Inject
-    public ContributionRepository(PgPool client, ObjectMapper mapper, RLSRepository rlsRepository) {
+    public ContributionRepository(Pool client, ObjectMapper mapper, RLSRepository rlsRepository) {
         super(client, mapper, rlsRepository);
     }
 

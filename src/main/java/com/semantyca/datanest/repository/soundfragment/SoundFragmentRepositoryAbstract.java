@@ -17,6 +17,7 @@ import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.pgclient.PgPool;
+import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.SqlResult;
 import io.vertx.mutiny.sqlclient.Tuple;
@@ -42,7 +43,7 @@ public abstract class SoundFragmentRepositoryAbstract extends AsyncRepository {
         super();
     }
 
-    public SoundFragmentRepositoryAbstract(PgPool client, ObjectMapper mapper, RLSRepository rlsRepository) {
+    public SoundFragmentRepositoryAbstract(Pool client, ObjectMapper mapper, RLSRepository rlsRepository) {
         super(client, mapper, rlsRepository);
     }
 

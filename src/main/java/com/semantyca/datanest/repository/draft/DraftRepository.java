@@ -13,6 +13,7 @@ import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.pgclient.PgPool;
+import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
@@ -36,7 +37,7 @@ public class DraftRepository extends AsyncRepository {
     private final DraftQueryBuilder queryBuilder;
 
     @Inject
-    public DraftRepository(PgPool client, ObjectMapper mapper, DraftQueryBuilder queryBuilder) {
+    public DraftRepository(Pool client, ObjectMapper mapper, DraftQueryBuilder queryBuilder) {
         super(client, mapper, null);
         this.queryBuilder = queryBuilder;
     }

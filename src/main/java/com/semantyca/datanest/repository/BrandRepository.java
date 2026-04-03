@@ -1,7 +1,6 @@
 package com.semantyca.datanest.repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.embedded.DocumentAccessInfo;
 import com.semantyca.core.model.user.IUser;
@@ -10,11 +9,7 @@ import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.exception.DocumentModificationAccessException;
 import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.table.EntityData;
-import com.semantyca.mixpla.model.brand.AiOverriding;
-import com.semantyca.mixpla.model.brand.Brand;
-import com.semantyca.mixpla.model.brand.BrandScriptEntry;
-import com.semantyca.mixpla.model.brand.Owner;
-import com.semantyca.mixpla.model.brand.ProfileOverriding;
+import com.semantyca.mixpla.model.brand.*;
 import com.semantyca.mixpla.model.cnst.ManagedBy;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
 import com.semantyca.mixpla.model.filter.BrandFilter;
@@ -24,14 +19,13 @@ import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.mutiny.pgclient.PgPool;
+import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import java.time.OffsetDateTime;
 import java.util.EnumMap;
@@ -43,12 +37,12 @@ import static com.semantyca.mixpla.repository.MixplaNameResolver.RADIO_STATION;
 
 @ApplicationScoped
 public class BrandRepository extends AsyncRepository {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BrandRepository.class);
+    private static final Logger LOGGER = Logger.getLogger(BrandRepository.class);
     private static final EntityData entityData = MixplaNameResolver.create().getEntityNames(RADIO_STATION);
     private static final EntityData brandStats = MixplaNameResolver.create().getEntityNames(BRAND_STATS);
 
     @Inject
-    public BrandRepository(PgPool client, ObjectMapper mapper, RLSRepository rlsRepository) {
+    public BrandRepository(Pool client, ObjectMapper mapper, RLSRepository rlsRepository) {
         super(client, mapper, rlsRepository);
     }
 

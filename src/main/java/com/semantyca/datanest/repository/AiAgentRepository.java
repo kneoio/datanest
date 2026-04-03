@@ -19,14 +19,10 @@ import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.pgclient.PgPool;
-import io.vertx.mutiny.sqlclient.Row;
-import io.vertx.mutiny.sqlclient.RowSet;
-import io.vertx.mutiny.sqlclient.SqlClient;
-import io.vertx.mutiny.sqlclient.Tuple;
+import io.vertx.mutiny.sqlclient.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -38,11 +34,11 @@ import static com.semantyca.mixpla.repository.MixplaNameResolver.AI_AGENT;
 
 @ApplicationScoped
 public class AiAgentRepository extends AsyncRepository {
-    private static final Logger LOGGER = LoggerFactory.getLogger(AiAgentRepository.class);
+    private static final Logger LOGGER = Logger.getLogger(AiAgentRepository.class);
     private static final EntityData entityData = MixplaNameResolver.create().getEntityNames(AI_AGENT);
 
     @Inject
-    public AiAgentRepository(PgPool client, ObjectMapper mapper, RLSRepository rlsRepository) {
+    public AiAgentRepository(Pool client, ObjectMapper mapper, RLSRepository rlsRepository) {
         super(client, mapper, rlsRepository);
     }
 
@@ -108,7 +104,7 @@ public class AiAgentRepository extends AsyncRepository {
                                             return agent;
                                         }));
                     } else {
-                        LOGGER.warn("No {} found with id: {}, user: {} ", AI_AGENT, uuid, user.getId());
+                        LOGGER.warnf("No %s found with id: %s, user: %s ", AI_AGENT, uuid, user.getId());
                         throw new DocumentHasNotFoundException(uuid);
                     }
                 });
@@ -149,7 +145,7 @@ public class AiAgentRepository extends AsyncRepository {
         return Uni.createFrom().deferred(() -> {
             try {
                 return rlsRepository.findById(entityData.getRlsName(), user.getId(), id)
-                        .onFailure().invoke(throwable -> LOGGER.error("Failed to check RLS permissions for update ai agent: {} by user: {}", id, user.getId(), throwable))
+                        .onFailure().invoke(throwable -> LOGGER.errorf("Failed to check RLS permissions for update ai agent: %s by user: %s", id, user.getId(), throwable))
                         .onItem().transformToUni(permissions -> {
                             if (!permissions[0]) {
                                 return Uni.createFrom().failure(new DocumentModificationAccessException(
@@ -175,7 +171,7 @@ public class AiAgentRepository extends AsyncRepository {
 
                             return client.preparedQuery(sql)
                                     .execute(params)
-                                    .onFailure().invoke(throwable -> LOGGER.error("Failed to update ai agent: {} by user: {}", id, user.getId(), throwable))
+                                    .onFailure().invoke(throwable -> LOGGER.errorf("Failed to update ai agent: %s by user: %s", id, user.getId(), throwable))
                                     .onItem().transformToUni(rowSet -> {
                                         if (rowSet.rowCount() == 0) {
                                             return Uni.createFrom().failure(new DocumentHasNotFoundException(id));
@@ -185,7 +181,7 @@ public class AiAgentRepository extends AsyncRepository {
                                     });
                         });
             } catch (Exception e) {
-                LOGGER.error("Failed to prepare update parameters for ai agent: {} by user: {}", id, user.getId(), e);
+                LOGGER.errorf("Failed to prepare update parameters for ai agent: %s by user: %s", id, user.getId(), e);
                 return Uni.createFrom().failure(e);
             }
         });

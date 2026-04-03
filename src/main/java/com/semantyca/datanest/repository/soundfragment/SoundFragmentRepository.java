@@ -20,11 +20,7 @@ import com.semantyca.mixpla.model.soundfragment.SoundFragment;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
-import io.vertx.mutiny.pgclient.PgPool;
-import io.vertx.mutiny.sqlclient.Row;
-import io.vertx.mutiny.sqlclient.RowSet;
-import io.vertx.mutiny.sqlclient.SqlClient;
-import io.vertx.mutiny.sqlclient.Tuple;
+import io.vertx.mutiny.sqlclient.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.slf4j.Logger;
@@ -66,7 +62,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
     }
 
     @Inject
-    public SoundFragmentRepository(PgPool client, ObjectMapper mapper, RLSRepository rlsRepository,
+    public SoundFragmentRepository(Pool client, ObjectMapper mapper, RLSRepository rlsRepository,
                                    HetznerStorageService fileStorage, SoundFragmentFileHandler fileHandler,
                                    SoundFragmentQueryBuilder queryBuilder, SoundFragmentBrandAssociationHandler brandHandler) {
         super(client, mapper, rlsRepository);

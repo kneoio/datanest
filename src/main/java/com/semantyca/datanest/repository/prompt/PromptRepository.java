@@ -17,7 +17,7 @@ import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonObject;
-import io.vertx.mutiny.pgclient.PgPool;
+import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
@@ -40,7 +40,7 @@ public class PromptRepository extends AsyncRepository {
     private final PromptQueryBuilder queryBuilder;
 
     @Inject
-    public PromptRepository(PgPool client, ObjectMapper mapper, RLSRepository rlsRepository, PromptQueryBuilder queryBuilder) {
+    public PromptRepository(Pool client, ObjectMapper mapper, RLSRepository rlsRepository, PromptQueryBuilder queryBuilder) {
         super(client, mapper, rlsRepository);
         this.queryBuilder = queryBuilder;
     }

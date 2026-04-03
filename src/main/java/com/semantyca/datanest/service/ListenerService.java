@@ -20,8 +20,7 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.validation.Validator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import java.util.List;
 import java.util.Optional;
@@ -31,7 +30,7 @@ import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class ListenerService extends AbstractService<Listener, ListenerDTO> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ListenerService.class);
+    private static final Logger LOGGER = Logger.getLogger(ListenerService.class);
     private final ListenersRepository repository;
     private final Validator validator;
     private BrandService brandService;

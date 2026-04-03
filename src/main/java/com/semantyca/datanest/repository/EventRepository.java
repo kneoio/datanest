@@ -20,7 +20,7 @@ import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonObject;
-import io.vertx.mutiny.pgclient.PgPool;
+import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
@@ -42,7 +42,7 @@ public class EventRepository extends AsyncRepository implements SchedulableRepos
     private static final EntityData entityData = MixplaNameResolver.create().getEntityNames(EVENT);
 
     @Inject
-    public EventRepository(PgPool client, ObjectMapper mapper, RLSRepository rlsRepository) {
+    public EventRepository(Pool client, ObjectMapper mapper, RLSRepository rlsRepository) {
         super(client, mapper, rlsRepository);
     }
 

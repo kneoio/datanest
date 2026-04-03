@@ -30,6 +30,13 @@
     "language": "en-US",
     "labels": "premium",
     "engineType": "elevenlabs"
+  }, {
+    "id": "xwVJ1SoRe0v1T88zEwBN",
+    "name": "Vicente",
+    "gender": "male",
+    "language": "pt-PT",
+    "labels": "premium",
+    "engineType": "elevenlabs"
   },
   {
     "id": "6OzrBCQf8cjERkYgzSg8",

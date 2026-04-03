@@ -6,6 +6,7 @@ import com.semantyca.core.repository.exception.attachment.FileRetrievalFailureEx
 import com.semantyca.core.repository.exception.attachment.MissingFileRecordException;
 import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.pgclient.PgPool;
+import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -19,7 +20,7 @@ import java.util.UUID;
 public class SoundFragmentFileHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(SoundFragmentFileHandler.class);
 
-    private final PgPool client;
+    private final Pool client;
     private final IFileStorage fileStorage;
 
     @Inject
