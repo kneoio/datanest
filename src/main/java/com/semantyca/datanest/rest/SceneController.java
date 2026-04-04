@@ -172,18 +172,10 @@ public class SceneController extends AbstractSecuredController<Scene, SceneDTO> 
                 .subscribe().with(
                         tuple -> {
                             SceneDTO doc = tuple.getItem1();
-                            LOGGER.info("Returning scene to FE - id: {}, scene.prompts count: {}", 
-                                doc.getId(), doc.getPrompts() != null ? doc.getPrompts().size() : 0);
-                            if (doc.getStagePlaylist() != null) {
-                                LOGGER.info("  StagePlaylist.prompts count: {}", 
-                                    doc.getStagePlaylist().getPrompts() != null ? doc.getStagePlaylist().getPrompts().size() : 0);
-                            }
                             FormPage page = new FormPage();
                             page.addPayload(PayloadType.DOC_DATA, doc);
                             page.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());
-                            JsonObject response = JsonObject.mapFrom(page);
-                            LOGGER.info("Response JSON: {}", response.encode());
-                            rc.response().setStatusCode(200).end(response.encode());
+                            rc.response().setStatusCode(200).end(JsonObject.mapFrom(page).encode());
                         },
                         rc::fail
                 );
@@ -215,28 +207,7 @@ public class SceneController extends AbstractSecuredController<Scene, SceneDTO> 
         try {
             if (!validateJsonBody(rc)) return;
             String id = rc.pathParam("id");
-            JsonObject bodyJson = rc.body().asJsonObject();
-            LOGGER.info("Received scene update request for id: {}, body: {}", id, bodyJson.encode());
-            SceneDTO dto = bodyJson.mapTo(SceneDTO.class);
-            LOGGER.info("Mapped to DTO - scene.prompts count: {}", dto.getPrompts() != null ? dto.getPrompts().size() : 0);
-            if (dto.getPrompts() != null) {
-                for (int i = 0; i < dto.getPrompts().size(); i++) {
-                    var p = dto.getPrompts().get(i);
-                    LOGGER.info("  Scene Prompt[{}]: promptId={}, rank={}, weight={}, active={}", 
-                        i, p.getPromptId(), p.getRank(), p.getWeight(), p.isActive());
-                }
-            }
-            if (dto.getStagePlaylist() != null) {
-                LOGGER.info("StagePlaylist present - prompts count: {}", 
-                    dto.getStagePlaylist().getPrompts() != null ? dto.getStagePlaylist().getPrompts().size() : 0);
-                if (dto.getStagePlaylist().getPrompts() != null) {
-                    for (int i = 0; i < dto.getStagePlaylist().getPrompts().size(); i++) {
-                        var p = dto.getStagePlaylist().getPrompts().get(i);
-                        LOGGER.info("  Playlist Prompt[{}]: promptId={}, rank={}, weight={}, active={}", 
-                            i, p.getPromptId(), p.getRank(), p.getWeight(), p.isActive());
-                    }
-                }
-            }
+            SceneDTO dto = rc.body().asJsonObject().mapTo(SceneDTO.class);
             if (!validateDTO(rc, dto, validator)) return;
             getContextUser(rc, false, true)
                     .chain(user -> sceneService.upsert(id, null, dto, user))

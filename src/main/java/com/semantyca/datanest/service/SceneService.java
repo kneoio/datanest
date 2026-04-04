@@ -19,8 +19,6 @@ import com.semantyca.mixpla.model.filter.SceneFilter;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.UUID;
@@ -28,7 +26,6 @@ import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class SceneService extends AbstractService<Scene, SceneDTO> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(SceneService.class);
     private final SceneRepository repository;
 
     @Inject
@@ -186,16 +183,6 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
         if (playlistRequest == null) {
             return null;
         }
-        LOGGER.info("Mapping PlaylistRequest to DTO - contentPrompts count: {}", 
-            playlistRequest.getContentPrompts() != null ? playlistRequest.getContentPrompts().size() : 0);
-        if (playlistRequest.getContentPrompts() != null) {
-            for (int i = 0; i < playlistRequest.getContentPrompts().size(); i++) {
-                var p = playlistRequest.getContentPrompts().get(i);
-                LOGGER.info("  ContentPrompt[{}]: promptId={}, rank={}, weight={}, active={}", 
-                    i, p != null ? p.getPromptId() : null, p != null ? p.getRank() : null, 
-                    p != null ? p.getWeight() : null, p != null ? p.isActive() : null);
-            }
-        }
         StagePlaylistDTO dto = new StagePlaylistDTO();
         dto.setSourcing(playlistRequest.getSourcing() != null ? playlistRequest.getSourcing().name() : null);
         dto.setTitle(playlistRequest.getTitle());
@@ -207,7 +194,6 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
         dto.setSearchTerm(playlistRequest.getSearchTerm());
         dto.setSoundFragments(playlistRequest.getSoundFragments());
         dto.setPrompts(mapScenePromptsToDTOs(playlistRequest.getContentPrompts()));
-        LOGGER.info("Mapped StagePlaylistDTO - prompts count: {}", dto.getPrompts() != null ? dto.getPrompts().size() : 0);
         return dto;
     }
 
