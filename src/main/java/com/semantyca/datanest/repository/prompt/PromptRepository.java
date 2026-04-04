@@ -337,6 +337,17 @@ public class PromptRepository extends AsyncRepository {
 
     public Uni<Void> updatePromptsForScene(io.vertx.mutiny.sqlclient.SqlClient tx, UUID sceneId, List<ScenePrompt> prompts) {
         String deleteSql = "DELETE FROM mixpla__script_scene_actions WHERE script_scene_id = $1";
+        
+        LOGGER.info("updatePromptsForScene called for sceneId: {}, prompts count: {}", sceneId, prompts != null ? prompts.size() : 0);
+        if (prompts != null) {
+            for (int i = 0; i < prompts.size(); i++) {
+                ScenePrompt p = prompts.get(i);
+                LOGGER.info("  Prompt[{}]: promptId={}, rank={}, weight={}, active={}", 
+                    i, p != null ? p.getPromptId() : null, p != null ? p.getRank() : null, 
+                    p != null ? p.getWeight() : null, p != null ? p.isActive() : null);
+            }
+        }
+        
         if (prompts == null || prompts.isEmpty()) {
             return tx.preparedQuery(deleteSql)
                     .execute(Tuple.of(sceneId))
@@ -346,6 +357,8 @@ public class PromptRepository extends AsyncRepository {
         List<ScenePrompt> validPrompts = prompts.stream()
                 .filter(p -> p != null && p.getPromptId() != null)
                 .toList();
+
+        LOGGER.info("Valid prompts count after filtering: {}", validPrompts.size());
 
         if (validPrompts.isEmpty()) {
             return tx.preparedQuery(deleteSql)
@@ -360,16 +373,21 @@ public class PromptRepository extends AsyncRepository {
                     List<Tuple> batches = new java.util.ArrayList<>();
                     for (int i = 0; i < validPrompts.size(); i++) {
                         ScenePrompt prompt = validPrompts.get(i);
+                        int finalRank = prompt.getRank() != 0 ? prompt.getRank() : i;
+                        LOGGER.info("Inserting prompt: sceneId={}, promptId={}, rank={}, weight={}, active={}", 
+                            sceneId, prompt.getPromptId(), finalRank, prompt.getWeight(), prompt.isActive());
                         batches.add(Tuple.of(
                                 sceneId,
                                 prompt.getPromptId(),
-                                prompt.getRank() != 0 ? prompt.getRank() : i,
+                                finalRank,
                                 prompt.getWeight(),
                                 prompt.isActive()
                         ));
                     }
                     return tx.preparedQuery(insertSql).executeBatch(batches);
                 })
+                .onItem().invoke(() -> LOGGER.info("Successfully inserted {} prompts for scene {}", validPrompts.size(), sceneId))
+                .onFailure().invoke(throwable -> LOGGER.error("Failed to insert prompts for scene {}", sceneId, throwable))
                 .replaceWithVoid();
     }
 }
