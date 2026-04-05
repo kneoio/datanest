@@ -51,7 +51,6 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
     private final SoundFragmentFileHandler fileHandler;
     private final SoundFragmentQueryBuilder queryBuilder;
     private final SoundFragmentBrandAssociationHandler brandHandler;
-    private final SecureRandom secureRandom = new SecureRandom();
 
     public SoundFragmentRepository() {
         super();
@@ -119,20 +118,9 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                 .onItem().transform(rows -> rows.iterator().next().getInteger(0));
     }
 
-    public Uni<List<BrandSoundFragment>> getForBrandBySimilarity(UUID brandId, String keyword, final int limit, final int offset,
-                                                                 boolean includeArchived, IUser user) {
-        SoundFragmentBrandRepository brandRepository = new SoundFragmentBrandRepository(client, mapper, rlsRepository);
-        return brandRepository.findForBrandBySimilarity(brandId, keyword, limit, offset, includeArchived, user);
-    }
-
     public Uni<List<SoundFragment>> findByTypeAndBrand(PlaylistItemType type, UUID brandId, int limit, int offset) {
         SoundFragmentBrandRepository brandRepository = new SoundFragmentBrandRepository(client, mapper, rlsRepository);
         return brandRepository.getBrandSongs(brandId, type, limit, offset);
-    }
-
-    public Uni<FileMetadata> getFirstFile(UUID id) {
-        assert fileHandler != null;
-        return fileHandler.getFirstFile(id);
     }
 
     public Uni<FileMetadata> getFileBySlugName(UUID id, String slugName, IUser user, boolean includeArchived) {
@@ -182,60 +170,6 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                         return Uni.createFrom().failure(new DocumentHasNotFoundException(uuid));
                     }
                 });
-    }
-
-
-    public Uni<List<SoundFragment>> getBrandSongsRandomPage(UUID brandId, PlaylistItemType type) {
-        int limit = 200;
-        int offset = secureRandom.nextInt(20) * limit;
-        SoundFragmentBrandRepository brandRepository =
-                new SoundFragmentBrandRepository(client, mapper, rlsRepository);
-
-        return brandRepository.getBrandSongs(brandId, type, limit, offset);
-    }
-
-    public Uni<List<SoundFragment>> findByIds(List<UUID> ids) {
-        if (ids == null || ids.isEmpty()) {
-            return Uni.createFrom().item(List.of());
-        }
-        String placeholders = ids.stream()
-                .map(id -> "'" + id.toString() + "'")
-                .collect(Collectors.joining(","));
-        String sql = "SELECT t.* FROM " + entityData.getTableName() + " t " +
-                "WHERE t.id IN (" + placeholders + ") AND t.archived = 0";
-        return client.query(sql)
-                .execute()
-                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
-                .onItem().transformToUni(row -> from(row, false, false, false))
-                .concatenate()
-                .collect().asList();
-    }
-
-    public Uni<List<SoundFragment>> findByFilter(UUID brandId, SoundFragmentFilter filter, int limit) {
-        SoundFragmentBrandRepository brandRepository = new SoundFragmentBrandRepository(client, mapper, rlsRepository);
-        return brandRepository.findByFilter(brandId, filter, limit);
-    }
-
-    public Uni<List<UUID>> findExpiredFragments() {
-        String sql = "SELECT id FROM " + entityData.getTableName() + " " +
-                "WHERE expires_at IS NOT NULL AND expires_at < NOW() AND archived = 0";
-
-        return client.query(sql)
-                .execute()
-                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
-                .onItem().transform(row -> row.getUUID("id"))
-                .collect().asList();
-    }
-
-    public Uni<List<UUID>> findArchivedFragments(LocalDateTime cutoffDate) {
-        String sql = "SELECT id FROM " + entityData.getTableName() + " " +
-                "WHERE archived = 1 AND last_mod_date < $1";
-
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(cutoffDate))
-                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
-                .onItem().transform(row -> row.getUUID("id"))
-                .collect().asList();
     }
 
     public Uni<SoundFragment> insert(SoundFragment doc, List<UUID> representedInBrands, IUser user) {
@@ -372,7 +306,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
     public Uni<Integer> hardDelete(UUID uuid) {
         return findById(uuid)
                 .onFailure(DocumentHasNotFoundException.class).recoverWithItem(() -> {
-                    LOGGER.warn("SoundFragment {} not found, may already be deleted", uuid);
+                    LOGGER.warn("SoundFragment {} not found, may already be hard deleted", uuid);
                     return null;
                 })
                 .onItem().transformToUni(doc -> {
@@ -492,25 +426,6 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                         .merge()
                         .collect().asList()
                         .replaceWithVoid());
-    }
-
-
-
-    //TODO will be refactored later (fabric)
-    public Uni<List<BrandSoundFragment>> getForBrand(UUID brandId, final int limit, final int offset,
-                                                     boolean includeArchived, IUser user, SoundFragmentFilter filter) {
-        SoundFragmentBrandRepository brandRepository = new SoundFragmentBrandRepository(client, mapper, rlsRepository);
-        return brandRepository.findForBrand(brandId, limit, offset, includeArchived, user, filter);
-    }
-
-    public Uni<Integer> getForBrandCount(UUID brandId, IUser user, SoundFragmentFilter filter) {
-        SoundFragmentBrandRepository brandRepository = new SoundFragmentBrandRepository(client, mapper, rlsRepository);
-        return brandRepository.findForBrandCount(brandId, user, filter);
-    }
-
-    public Uni<List<SoundFragment>> getBrandSongs(UUID brandId, PlaylistItemType fragmentType) {
-        SoundFragmentBrandRepository brandRepository = new SoundFragmentBrandRepository(client, mapper, rlsRepository);
-        return brandRepository.getBrandSongs(brandId, fragmentType, 200, 0);
     }
 
     public Uni<Integer> updateRatedByBrandCount(UUID brandId, UUID soundFragmentId, int delta, IUser user) {
