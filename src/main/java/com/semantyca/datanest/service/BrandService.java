@@ -58,13 +58,9 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         this.datanestConfig = datanestConfig;
     }
 
-    public Uni<List<BrandDTO>> getAllDTO(final int limit, final int offset, final IUser user, final String country, final String query) {
-        return getAllDTO(limit, offset, user, country, query, null);
-    }
-
-    public Uni<List<BrandDTO>> getAllDTO(final int limit, final int offset, final IUser user, final String country, final String query, BrandFilter filter) {
+    public Uni<List<BrandDTO>> getAllDTO(final int limit, final int offset, final IUser user, final BrandFilter filter) {
         assert repository != null;
-        return repository.getAll(limit, offset, false, user, country, query, filter)
+        return repository.getAll(limit, offset, false, user, filter)
                 .chain(list -> {
                     if (list.isEmpty()) {
                         return Uni.createFrom().item(List.of());
@@ -77,21 +73,17 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 });
     }
 
-    public Uni<Integer> getAllCount(final IUser user, String country, final String query) {
-        return getAllCount(user, country, query, null);
-    }
-
-    public Uni<Integer> getAllCount(final IUser user, String country, final String query, BrandFilter filter) {
+    public Uni<Integer> getAllCount(final IUser user, final BrandFilter filter) {
         assert repository != null;
-        return repository.getAllCount(user, false, country, query, filter);
+        return repository.getAllCount(user, false, filter);
     }
 
     public Uni<List<Brand>> getAll(final int limit, final int offset) {
-        return repository.getAll(limit, offset, false, SuperUser.build(), null, null);
+        return repository.getAll(limit, offset, false, SuperUser.build(), null);
     }
 
     public Uni<List<Brand>> getAll(final int limit, final int offset, IUser user) {
-        return repository.getAll(limit, offset, false, user, null, null);
+        return repository.getAll(limit, offset, false, user, null);
     }
 
     public Uni<Brand> getById(UUID id, IUser user) {
@@ -244,6 +236,8 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 dto.setOwner(ownerDTO);
             }
 
+            dto.setLabels(doc.getLabels());
+
             return dto;
         });
     }
@@ -297,6 +291,10 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             owner.setName(dto.getOwner().getName());
             owner.setEmail(dto.getOwner().getEmail());
             doc.setOwner(owner);
+        }
+
+        if (dto.getLabels() != null) {
+            doc.setLabels(dto.getLabels());
         }
 
         return doc;

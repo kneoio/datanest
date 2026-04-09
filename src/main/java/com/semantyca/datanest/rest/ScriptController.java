@@ -105,7 +105,10 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
                     return viewPage;
                 }))
                 .subscribe().with(
-                        viewPage -> rc.response().setStatusCode(200).end(JsonObject.mapFrom(viewPage).encode()),
+                        viewPage -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(JsonObject.mapFrom(viewPage).encode()),
                         rc::fail
                 );
     }
@@ -195,7 +198,10 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
                     return viewPage;
                 }))
                 .subscribe().with(
-                        viewPage -> rc.response().setStatusCode(200).end(JsonObject.mapFrom(viewPage).encode()),
+                        viewPage -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(JsonObject.mapFrom(viewPage).encode()),
                         rc::fail
                 );
     }
@@ -219,7 +225,10 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
                             FormPage page = new FormPage();
                             page.addPayload(PayloadType.DOC_DATA, doc);
                             page.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());
-                            rc.response().setStatusCode(200).end(JsonObject.mapFrom(page).encode());
+                            rc.response()
+                                    .setStatusCode(200)
+                                    .putHeader("Content-Type", "application/json")
+                                    .end(JsonObject.mapFrom(page).encode());
                         },
                         rc::fail
                 );
@@ -322,7 +331,10 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
                     return viewPage;
                 }))
                 .subscribe().with(
-                        viewPage -> rc.response().setStatusCode(200).end(JsonObject.mapFrom(viewPage).encode()),
+                        viewPage -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(JsonObject.mapFrom(viewPage).encode()),
                         rc::fail
                 );
     }
@@ -348,7 +360,10 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
                         return viewPage;
                     }))
                     .subscribe().with(
-                            viewPage -> rc.response().setStatusCode(200).end(JsonObject.mapFrom(viewPage).encode()),
+                            viewPage -> rc.response()
+                                    .setStatusCode(200)
+                                    .putHeader("Content-Type", "application/json")
+                                    .end(JsonObject.mapFrom(viewPage).encode()),
                             rc::fail
                     );
         } catch (IllegalArgumentException e) {
@@ -544,7 +559,10 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
             getContextUser(rc, false, true)
                     .chain(user -> service.updateAccessLevel(id, accessLevel, user))
                     .subscribe().with(
-                            dto -> rc.response().setStatusCode(200).end(JsonObject.mapFrom(dto).encode()),
+                            dto -> rc.response()
+                                    .setStatusCode(200)
+                                    .putHeader("Content-Type", "application/json")
+                                    .end(JsonObject.mapFrom(dto).encode()),
                             rc::fail
                     );
         } catch (Exception e) {

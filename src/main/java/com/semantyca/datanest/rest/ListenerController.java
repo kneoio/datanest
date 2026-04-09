@@ -87,7 +87,10 @@ public class ListenerController extends AbstractSecuredController<Listener, List
                     return viewPage;
                 }))
                 .subscribe().with(
-                        viewPage -> rc.response().setStatusCode(200).end(JsonObject.mapFrom(viewPage).encode()),
+                        viewPage -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(JsonObject.mapFrom(viewPage).encode()),
                         rc::fail
                 );
     }
@@ -110,7 +113,10 @@ public class ListenerController extends AbstractSecuredController<Listener, List
                             FormPage page = new FormPage();
                             page.addPayload(PayloadType.DOC_DATA, doc);
                             page.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());
-                            rc.response().setStatusCode(200).end(JsonObject.mapFrom(page).encode());
+                            rc.response()
+                                    .setStatusCode(200)
+                                    .putHeader("Content-Type", "application/json")
+                                    .end(JsonObject.mapFrom(page).encode());
                         },
                         rc::fail
                 );
@@ -136,7 +142,10 @@ public class ListenerController extends AbstractSecuredController<Listener, List
                     return viewPage;
                 }))
                 .subscribe().with(
-                        viewPage -> rc.response().setStatusCode(200).end(JsonObject.mapFrom(viewPage).encode()),
+                        viewPage -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(JsonObject.mapFrom(viewPage).encode()),
                         rc::fail
                 );
     }
@@ -160,7 +169,10 @@ public class ListenerController extends AbstractSecuredController<Listener, List
                             FormPage page = new FormPage();
                             page.addPayload(PayloadType.DOC_DATA, brandListener);
                             page.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());
-                            rc.response().setStatusCode(200).end(JsonObject.mapFrom(page).encode());
+                            rc.response()
+                                    .setStatusCode(200)
+                                    .putHeader("Content-Type", "application/json")
+                                    .end(JsonObject.mapFrom(page).encode());
                         },
                         rc::fail
                 );

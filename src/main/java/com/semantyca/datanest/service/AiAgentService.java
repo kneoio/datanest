@@ -116,6 +116,7 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
                     djVoice.setId(doc.getTtsSetting().getDj().getId());
                     djVoice.setName(doc.getTtsSetting().getDj().getName());
                     djVoice.setEngineType(doc.getTtsSetting().getDj().getEngineType());
+                    djVoice.setGain(doc.getTtsSetting().getDj().getGain());
                     ttsSettingDTO.setDj(djVoice);
                 }
                 if (doc.getTtsSetting().getCopilot() != null) {
@@ -123,6 +124,7 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
                     copilotVoice.setId(doc.getTtsSetting().getCopilot().getId());
                     copilotVoice.setName(doc.getTtsSetting().getCopilot().getName());
                     copilotVoice.setEngineType(doc.getTtsSetting().getCopilot().getEngineType());
+                    copilotVoice.setGain(doc.getTtsSetting().getCopilot().getGain());
                     ttsSettingDTO.setCopilot(copilotVoice);
                 }
                 if (doc.getTtsSetting().getNewsReporter() != null) {
@@ -130,6 +132,7 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
                     newsReporterVoice.setId(doc.getTtsSetting().getNewsReporter().getId());
                     newsReporterVoice.setName(doc.getTtsSetting().getNewsReporter().getName());
                     newsReporterVoice.setEngineType(doc.getTtsSetting().getNewsReporter().getEngineType());
+                    newsReporterVoice.setGain(doc.getTtsSetting().getNewsReporter().getGain());
                     ttsSettingDTO.setNewsReporter(newsReporterVoice);
                 }
                 if (doc.getTtsSetting().getWeatherReporter() != null) {
@@ -137,6 +140,7 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
                     weatherReporterVoice.setId(doc.getTtsSetting().getWeatherReporter().getId());
                     weatherReporterVoice.setName(doc.getTtsSetting().getWeatherReporter().getName());
                     weatherReporterVoice.setEngineType(doc.getTtsSetting().getWeatherReporter().getEngineType());
+                    weatherReporterVoice.setGain(doc.getTtsSetting().getWeatherReporter().getGain());
                     ttsSettingDTO.setWeatherReporter(weatherReporterVoice);
                 }
                 dto.setTtsSetting(ttsSettingDTO);
@@ -183,6 +187,7 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
                 djVoice.setId(dto.getTtsSetting().getDj().getId());
                 djVoice.setName(dto.getTtsSetting().getDj().getName());
                 djVoice.setEngineType(dto.getTtsSetting().getDj().getEngineType());
+                djVoice.setGain(dto.getTtsSetting().getDj().getGain());
                 ttsSetting.setDj(djVoice);
             }
             if (dto.getTtsSetting().getCopilot() != null) {
@@ -190,6 +195,7 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
                 copilotVoice.setId(dto.getTtsSetting().getCopilot().getId());
                 copilotVoice.setName(dto.getTtsSetting().getCopilot().getName());
                 copilotVoice.setEngineType(dto.getTtsSetting().getCopilot().getEngineType());
+                copilotVoice.setGain(dto.getTtsSetting().getCopilot().getGain());
                 ttsSetting.setCopilot(copilotVoice);
             }
             if (dto.getTtsSetting().getNewsReporter() != null) {
@@ -197,6 +203,7 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
                 newsReporterVoice.setId(dto.getTtsSetting().getNewsReporter().getId());
                 newsReporterVoice.setName(dto.getTtsSetting().getNewsReporter().getName());
                 newsReporterVoice.setEngineType(dto.getTtsSetting().getNewsReporter().getEngineType());
+                newsReporterVoice.setGain(dto.getTtsSetting().getNewsReporter().getGain());
                 ttsSetting.setNewsReporter(newsReporterVoice);
             }
             if (dto.getTtsSetting().getWeatherReporter() != null) {
@@ -204,6 +211,7 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
                 weatherReporterVoice.setId(dto.getTtsSetting().getWeatherReporter().getId());
                 weatherReporterVoice.setName(dto.getTtsSetting().getWeatherReporter().getName());
                 weatherReporterVoice.setEngineType(dto.getTtsSetting().getWeatherReporter().getEngineType());
+                weatherReporterVoice.setGain(dto.getTtsSetting().getWeatherReporter().getGain());
                 ttsSetting.setWeatherReporter(weatherReporterVoice);
             }
             doc.setTtsSetting(ttsSetting);

@@ -74,7 +74,10 @@ public class AiAgentController extends AbstractSecuredController<AiAgent, AiAgen
                     return viewPage;
                 }))
                 .subscribe().with(
-                        viewPage -> rc.response().setStatusCode(200).end(JsonObject.mapFrom(viewPage).encode()),
+                        viewPage -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(JsonObject.mapFrom(viewPage).encode()),
                         rc::fail
                 );
     }
@@ -99,7 +102,10 @@ public class AiAgentController extends AbstractSecuredController<AiAgent, AiAgen
                             FormPage page = new FormPage();
                             page.addPayload(PayloadType.DOC_DATA, owner);
                             page.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());
-                            rc.response().setStatusCode(200).end(JsonObject.mapFrom(page).encode());
+                            rc.response()
+                                    .setStatusCode(200)
+                                    .putHeader("Content-Type", "application/json")
+                                    .end(JsonObject.mapFrom(page).encode());
                         },
                         rc::fail
                 );

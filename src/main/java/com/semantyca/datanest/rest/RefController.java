@@ -87,7 +87,10 @@ public class RefController extends BaseController {
                             return viewPage;
                         })
                         .subscribe().with(
-                                viewPage -> rc.response().setStatusCode(200).end(JsonObject.mapFrom(viewPage).encode()),
+                                viewPage -> rc.response()
+                                        .setStatusCode(200)
+                                        .putHeader("Content-Type", "application/json")
+                                        .end(JsonObject.mapFrom(viewPage).encode()),
                                 rc::fail
                         );
                 break;
@@ -114,7 +117,10 @@ public class RefController extends BaseController {
                             return viewPage;
                         })
                         .subscribe().with(
-                                viewPage -> rc.response().setStatusCode(200).end(JsonObject.mapFrom(viewPage).encode()),
+                                viewPage -> rc.response()
+                                        .setStatusCode(200)
+                                        .putHeader("Content-Type", "application/json")
+                                        .end(JsonObject.mapFrom(viewPage).encode()),
                                 rc::fail
                         );
                 break;
@@ -135,7 +141,10 @@ public class RefController extends BaseController {
                             return viewPage;
                         })
                         .subscribe().with(
-                                viewPage -> rc.response().setStatusCode(200).end(JsonObject.mapFrom(viewPage).encode()),
+                                viewPage -> rc.response()
+                                        .setStatusCode(200)
+                                        .putHeader("Content-Type", "application/json")
+                                        .end(JsonObject.mapFrom(viewPage).encode()),
                                 rc::fail
                         );
                 break;
@@ -159,7 +168,10 @@ public class RefController extends BaseController {
                             return viewPage;
                         })
                         .subscribe().with(
-                                viewPage -> rc.response().setStatusCode(200).end(JsonObject.mapFrom(viewPage).encode()),
+                                viewPage -> rc.response()
+                                        .setStatusCode(200)
+                                        .putHeader("Content-Type", "application/json")
+                                        .end(JsonObject.mapFrom(viewPage).encode()),
                                 rc::fail
                         );
                 break;
@@ -183,7 +195,10 @@ public class RefController extends BaseController {
                 View<CountryDTO> dtoEntries = new View<>(pagedCountries, totalCount, page, maxPage, size);
                 viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
 
-                rc.response().setStatusCode(200).end(JsonObject.mapFrom(viewPage).encode());
+                rc.response()
+                        .setStatusCode(200)
+                        .putHeader("Content-Type", "application/json")
+                        .end(JsonObject.mapFrom(viewPage).encode());
                 break;
 
             case "voices":
@@ -212,7 +227,10 @@ public class RefController extends BaseController {
                             return voiceViewPage;
                         })
                         .subscribe().with(
-                                voiceViewPage -> rc.response().setStatusCode(200).end(JsonObject.mapFrom(voiceViewPage).encode()),
+                                voiceViewPage -> rc.response()
+                                        .setStatusCode(200)
+                                        .putHeader("Content-Type", "application/json")
+                                        .end(JsonObject.mapFrom(voiceViewPage).encode()),
                                 rc::fail
                         );
                 break;

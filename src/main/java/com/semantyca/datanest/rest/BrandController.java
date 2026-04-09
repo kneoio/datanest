@@ -20,6 +20,7 @@ import com.semantyca.mixpla.model.filter.BrandFilter;
 import com.semantyca.officeframe.model.cnst.CountryCode;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.tuples.Tuple2;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
@@ -30,15 +31,7 @@ import jakarta.validation.Validator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
@@ -72,30 +65,12 @@ public class BrandController extends AbstractSecuredController<Brand, BrandDTO> 
     private void getAll(RoutingContext rc) {
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
-        String country = rc.request().getParam("country");
-        String query = rc.request().getParam("query");
-
-        BrandFilter filter = new BrandFilter();
-        String publicBrand = rc.request().getParam("publicBrand");
-        if (publicBrand != null && publicBrand.equals("true")) {
-            filter.setPublicBrand(true);
-            filter.setActivated(true);
-        }
-
-        String countries = rc.request().getParam("countries");
-        if (countries != null && !countries.isBlank()) {
-            List<CountryCode> countryList = Arrays.stream(countries.split(","))
-                .map(String::trim)
-                .map(CountryCode::valueOf)
-                .collect(Collectors.toList());
-            filter.setCountries(countryList);
-            filter.setActivated(true);
-        }
+        BrandFilter filter = parseFilterDTO(rc);
 
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
-                        service.getAllCount(user, country, query, filter),
-                        service.getAllDTO(size, (page - 1) * size, user, country, query, filter)
+                        service.getAllCount(user, filter),
+                        service.getAllDTO(size, (page - 1) * size, user, filter)
                 ).asTuple().map(tuple -> {
                     ViewPage viewPage = new ViewPage();
                     View<BrandDTO> dtoEntries = new View<>(tuple.getItem2(),
@@ -108,7 +83,10 @@ public class BrandController extends AbstractSecuredController<Brand, BrandDTO> 
                     return viewPage;
                 }))
                 .subscribe().with(
-                        viewPage -> rc.response().setStatusCode(200).end(JsonObject.mapFrom(viewPage).encode()),
+                        viewPage -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(JsonObject.mapFrom(viewPage).encode()),
                         throwable -> {
                             LOGGER.error("Failed to get all radio stations", throwable);
                             rc.fail(throwable);
@@ -140,7 +118,10 @@ public class BrandController extends AbstractSecuredController<Brand, BrandDTO> 
                             FormPage page = new FormPage();
                             page.addPayload(PayloadType.DOC_DATA, doc);
                             page.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());
-                            rc.response().setStatusCode(200).end(JsonObject.mapFrom(page).encode());
+                            rc.response()
+                                    .setStatusCode(200)
+                                    .putHeader("Content-Type", "application/json")
+                                    .end(JsonObject.mapFrom(page).encode());
                         },
                         throwable -> {
                             LOGGER.error("Failed to get radio station by id: {}", id, throwable);
@@ -231,6 +212,70 @@ public class BrandController extends AbstractSecuredController<Brand, BrandDTO> 
         } catch (IllegalArgumentException e) {
             rc.fail(400, new IllegalArgumentException("Invalid document ID format"));
         }
+    }
+
+    private BrandFilter parseFilterDTO(RoutingContext rc) {
+        String filterParam = rc.request().getParam("filter");
+        if (filterParam == null || filterParam.trim().isEmpty()) {
+            return null;
+        }
+        BrandFilter dto = new BrandFilter();
+        boolean any = false;
+        try {
+            JsonObject json = new JsonObject(filterParam);
+            
+            JsonArray c = json.getJsonArray("countries");
+            if (c != null && !c.isEmpty()) {
+                List<CountryCode> countries = new ArrayList<>();
+                for (Object o : c) {
+                    if (o instanceof String s) {
+                        try {
+                            countries.add(CountryCode.valueOf(s));
+                        } catch (IllegalArgumentException ignored) {
+                        }
+                    }
+                }
+                if (!countries.isEmpty()) {
+                    dto.setCountries(countries);
+                    any = true;
+                }
+            }
+            
+            JsonArray l = json.getJsonArray("labels");
+            if (l != null && !l.isEmpty()) {
+                List<UUID> labels = new ArrayList<>();
+                for (Object o : l) {
+                    if (o instanceof String str) {
+                        try {
+                            labels.add(UUID.fromString(str));
+                        } catch (IllegalArgumentException ignored) {
+                        }
+                    }
+                }
+                if (!labels.isEmpty()) {
+                    dto.setLabels(labels);
+                    any = true;
+                }
+            }
+            
+            if (json.containsKey("publicBrand")) {
+                dto.setPublicBrand(json.getBoolean("publicBrand", false));
+                any = true;
+            }
+            
+            if (json.containsKey("activated")) {
+                dto.setActivated(json.getBoolean("activated", false));
+                any = true;
+            } else if (json.containsKey("filterActivated")) {
+                dto.setActivated(json.getBoolean("filterActivated", false));
+                any = true;
+            }
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid filter JSON format: " + e.getMessage(), e);
+        }
+        return any ? dto : null;
     }
 
 }

@@ -119,7 +119,10 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                     return viewPage;
                 }))
                 .subscribe().with(
-                        viewPage -> rc.response().setStatusCode(200).end(JsonObject.mapFrom(viewPage).encode()),
+                        viewPage -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(JsonObject.mapFrom(viewPage).encode()),
                         t -> handleFailure(rc, t)
                 );
     }
@@ -142,7 +145,10 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                             SoundFragmentDTO doc = tuple.getItem1();
                             FormPage page = new FormPage();
                             page.addPayload(PayloadType.DOC_DATA, doc);
-                            rc.response().setStatusCode(200).end(JsonObject.mapFrom(page).encode());
+                            rc.response()
+                                    .setStatusCode(200)
+                                    .putHeader("Content-Type", "application/json")
+                                    .end(JsonObject.mapFrom(page).encode());
                         },
                         t -> handleFailure(rc, t)
                 );
@@ -168,7 +174,10 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                     return viewPage;
                 }))
                 .subscribe().with(
-                        viewPage -> rc.response().setStatusCode(200).end(JsonObject.mapFrom(viewPage).encode()),
+                        viewPage -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(JsonObject.mapFrom(viewPage).encode()),
                         t -> handleFailure(rc, t)
                 );
     }

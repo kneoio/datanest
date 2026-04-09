@@ -104,7 +104,10 @@ public class DraftController extends AbstractSecuredController<Draft, DraftDTO> 
                     return viewPage;
                 }))
                 .subscribe().with(
-                        viewPage -> rc.response().setStatusCode(200).end(JsonObject.mapFrom(viewPage).encode()),
+                        viewPage -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(JsonObject.mapFrom(viewPage).encode()),
                         throwable -> {
                             LOGGER.error("Failed to get all drafts", throwable);
                             rc.fail(throwable);
@@ -181,7 +184,10 @@ public class DraftController extends AbstractSecuredController<Draft, DraftDTO> 
                             FormPage page = new FormPage();
                             page.addPayload(PayloadType.DOC_DATA, doc);
                             page.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());
-                            rc.response().setStatusCode(200).end(JsonObject.mapFrom(page).encode());
+                            rc.response()
+                                    .setStatusCode(200)
+                                    .putHeader("Content-Type", "application/json")
+                                    .end(JsonObject.mapFrom(page).encode());
                         },
                         throwable -> {
                             LOGGER.error("Failed to get draft by id: {}", id, throwable);

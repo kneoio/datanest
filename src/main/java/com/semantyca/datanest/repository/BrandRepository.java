@@ -46,27 +46,14 @@ public class BrandRepository extends AsyncRepository {
         super(client, mapper, rlsRepository);
     }
 
-    public Uni<List<Brand>> getAll(int limit, int offset, boolean includeArchived, final IUser user, String country, String query) {
-        return getAll(limit, offset, includeArchived, user, country, query, null);
-    }
-
-    public Uni<List<Brand>> getAll(int limit, int offset, boolean includeArchived, final IUser user, String country, String query, BrandFilter filter) {
+    public Uni<List<Brand>> getAll(int limit, int offset, boolean includeArchived, final IUser user, BrandFilter filter) {
         StringBuilder sql = new StringBuilder();
         sql.append("SELECT * FROM ").append(entityData.getTableName()).append(" t, ")
                 .append(entityData.getRlsName()).append(" rls ")
                 .append("WHERE t.id = rls.entity_id AND rls.reader = $1");
 
-        int paramIndex = 2;
         if (!includeArchived) {
             sql.append(" AND t.archived = 0");
-        }
-        if (country != null && !country.isBlank()) {
-            sql.append(" AND t.country = $").append(paramIndex++);
-        }
-        if (query != null && !query.isBlank()) {
-            sql.append(" AND (t.search_name LIKE $").append(paramIndex)
-                    .append(" OR LOWER(t.description) LIKE $").append(paramIndex + 1).append(")");
-            paramIndex += 2;
         }
 
         if (filter != null && filter.isActivated()) {
@@ -79,14 +66,6 @@ public class BrandRepository extends AsyncRepository {
         }
 
         Tuple params = Tuple.tuple().addLong(user.getId());
-        if (country != null && !country.isBlank()) {
-            params.addString(country.toUpperCase());
-        }
-        if (query != null && !query.isBlank()) {
-            String q = "%" + query.toLowerCase() + "%";
-            params.addString(q);
-            params.addString(q);
-        }
 
         if (filter != null && filter.isActivated()) {
             addFilterParameters(params, filter);
@@ -95,31 +74,18 @@ public class BrandRepository extends AsyncRepository {
         return client.preparedQuery(sql.toString())
                 .execute(params)
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
-                .onItem().transform(this::from)
+                .onItem().transformToUniAndConcatenate(row -> from(row, false))
                 .collect().asList();
     }
 
-    public Uni<Integer> getAllCount(IUser user, boolean includeArchived, String country, String query) {
-        return getAllCount(user, includeArchived, country, query, null);
-    }
-
-    public Uni<Integer> getAllCount(IUser user, boolean includeArchived, String country, String query, BrandFilter filter) {
+    public Uni<Integer> getAllCount(IUser user, boolean includeArchived, BrandFilter filter) {
         StringBuilder sql = new StringBuilder();
         sql.append("SELECT COUNT(*) FROM ").append(entityData.getTableName()).append(" t, ")
                 .append(entityData.getRlsName()).append(" rls ")
                 .append("WHERE t.id = rls.entity_id AND rls.reader = $1");
 
-        int paramIndex = 2;
         if (!includeArchived) {
             sql.append(" AND t.archived = 0");
-        }
-        if (country != null && !country.isBlank()) {
-            sql.append(" AND t.country = $").append(paramIndex++);
-        }
-        if (query != null && !query.isBlank()) {
-            sql.append(" AND (t.search_name LIKE $").append(paramIndex)
-                    .append(" OR LOWER(t.description) LIKE $").append(paramIndex + 1).append(")");
-            paramIndex += 2;
         }
 
         if (filter != null && filter.isActivated()) {
@@ -127,14 +93,6 @@ public class BrandRepository extends AsyncRepository {
         }
 
         Tuple params = Tuple.tuple().addLong(user.getId());
-        if (country != null && !country.isBlank()) {
-            params.addString(country.toUpperCase());
-        }
-        if (query != null && !query.isBlank()) {
-            String q = "%" + query.toLowerCase() + "%";
-            params.addString(q);
-            params.addString(q);
-        }
 
         if (filter != null && filter.isActivated()) {
             addFilterParameters(params, filter);
@@ -160,7 +118,7 @@ public class BrandRepository extends AsyncRepository {
                 .onItem().transform(RowSet::iterator)
                 .onItem().transformToUni(iterator -> {
                     if (iterator.hasNext()) {
-                        return Uni.createFrom().item(from(iterator.next()));
+                        return from(iterator.next(), true);
                     } else {
                         return Uni.createFrom().failure(new DocumentHasNotFoundException(id));
                     }
@@ -174,7 +132,7 @@ public class BrandRepository extends AsyncRepository {
                 .onItem().transform(RowSet::iterator)
                 .onItem().transformToUni(iterator -> {
                     if (iterator.hasNext()) {
-                        return Uni.createFrom().item(from(iterator.next()));
+                        return from(iterator.next(), false);
                     } else {
                         return Uni.createFrom().failure(new DocumentHasNotFoundException(name));
                     }
@@ -196,7 +154,7 @@ public class BrandRepository extends AsyncRepository {
                 .onItem().transform(RowSet::iterator)
                 .onItem().transformToUni(iterator -> {
                     if (iterator.hasNext()) {
-                        return Uni.createFrom().item(from(iterator.next()));
+                        return from(iterator.next(), true);
                     } else {
                         return Uni.createFrom().failure(new DocumentHasNotFoundException(name));
                     }
@@ -251,6 +209,10 @@ public class BrandRepository extends AsyncRepository {
                                             updateBrandScripts(tx, id, station.getScripts())
                                                     .onItem().transform(v -> id)
                                     )
+                                    .onItem().transformToUni(id ->
+                                            upsertLabels(tx, id, station.getLabels())
+                                                    .onItem().transform(v -> id)
+                                    )
                     )
                     .onItem().transformToUni(id -> findById(id, user, true));
         });
@@ -303,13 +265,15 @@ public class BrandRepository extends AsyncRepository {
                                         if (rowSet.rowCount() == 0) {
                                             return Uni.createFrom().failure(new DocumentHasNotFoundException(id));
                                         }
-                                        return updateBrandScripts(tx, id, station.getScripts());
+                                        return updateBrandScripts(tx, id, station.getScripts())
+                                                .onItem().transformToUni(v -> upsertLabels(tx, id, station.getLabels()))
+                                                .onItem().transform(v -> id);
                                     })
                     ).onItem().transformToUni(stationId -> findById(stationId, user, true));
                 });
     }
 
-    private Brand from(Row row) {
+    private Uni<Brand> from(Row row, boolean includeLabels) {
         Brand doc = new Brand();
         setDefaultFields(doc, row);
 
@@ -380,7 +344,48 @@ public class BrandRepository extends AsyncRepository {
             doc.setOwner(mapper.convertValue(ownerJson.getMap(), Owner.class));
         }
 
-        return doc;
+        Uni<Brand> uni = Uni.createFrom().item(doc);
+
+        if (includeLabels) {
+            uni = uni.chain(d -> loadLabels(d.getId()).onItem().transform(labels -> {
+                d.setLabels(labels);
+                return d;
+            }));
+        } else {
+            doc.setLabels(List.of());
+        }
+
+        return uni;
+    }
+
+    private Uni<List<UUID>> loadLabels(UUID brandId) {
+        String sql = "SELECT label_id FROM kneobroadcaster__brand_labels WHERE brand_id = $1";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(brandId))
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transform(row -> row.getUUID("label_id"))
+                .collect().asList();
+    }
+
+    private Uni<Void> upsertLabels(io.vertx.mutiny.sqlclient.SqlClient tx, UUID brandId, List<UUID> labels) {
+        if (labels == null || labels.isEmpty()) {
+            return tx.preparedQuery("DELETE FROM kneobroadcaster__brand_labels WHERE brand_id = $1")
+                    .execute(Tuple.of(brandId))
+                    .replaceWithVoid();
+        }
+
+        String deleteSql = "DELETE FROM kneobroadcaster__brand_labels WHERE brand_id = $1";
+        String insertSql = "INSERT INTO kneobroadcaster__brand_labels (brand_id, label_id) VALUES ($1, $2) ON CONFLICT DO NOTHING";
+
+        return tx.preparedQuery(deleteSql)
+                .execute(Tuple.of(brandId))
+                .chain(() -> Multi.createFrom().iterable(labels)
+                        .onItem().transformToUni(labelId ->
+                                tx.preparedQuery(insertSql).execute(Tuple.of(brandId, labelId))
+                        )
+                        .merge()
+                        .collect().asList()
+                        .replaceWithVoid());
     }
 
     public Uni<Integer> archive(UUID id, IUser user) {
@@ -499,6 +504,17 @@ public class BrandRepository extends AsyncRepository {
             conditions.append(")");
         }
 
+        if (filter.getLabels() != null && !filter.getLabels().isEmpty()) {
+            conditions.append(" AND EXISTS (SELECT 1 FROM kneobroadcaster__brand_labels bl WHERE bl.brand_id = t.id AND bl.label_id IN (");
+            for (int i = 0; i < filter.getLabels().size(); i++) {
+                if (i > 0) {
+                    conditions.append(", ");
+                }
+                conditions.append("'").append(filter.getLabels().get(i).toString()).append("'");
+            }
+            conditions.append("))");
+        }
+
         if (filter.isPublicBrand()) {
             conditions.append(" AND t.public = 1");
         }
@@ -507,10 +523,6 @@ public class BrandRepository extends AsyncRepository {
     }
 
     private void addFilterParameters(Tuple params, BrandFilter filter) {
-        if (filter.getCountries() != null && !filter.getCountries().isEmpty()) {
-            for (CountryCode country : filter.getCountries()) {
-                params.addString(country.name());
-            }
-        }
+        // No parameters to add for now - countries, labels, and publicBrand are inline in SQL
     }
 }
