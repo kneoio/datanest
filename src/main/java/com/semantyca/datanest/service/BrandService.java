@@ -13,12 +13,16 @@ import com.semantyca.datanest.dto.radiostation.BrandDTO;
 import com.semantyca.datanest.dto.radiostation.BrandScriptEntryDTO;
 import com.semantyca.datanest.dto.radiostation.OwnerDTO;
 import com.semantyca.datanest.dto.radiostation.ProfileOverridingDTO;
+import com.semantyca.datanest.messaging.MetricPublisher;
 import com.semantyca.datanest.repository.BrandRepository;
 import com.semantyca.mixpla.model.brand.AiOverriding;
 import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.brand.BrandScriptEntry;
 import com.semantyca.mixpla.model.brand.Owner;
 import com.semantyca.mixpla.model.brand.ProfileOverriding;
+import com.semantyca.mixpla.dto.queue.metric.MetricEventType;
+import com.semantyca.mixpla.dto.queue.metric.ProcessType;
+import com.semantyca.mixpla.model.cnst.ManagedBy;
 import com.semantyca.mixpla.model.filter.BrandFilter;
 import com.semantyca.officeframe.model.cnst.CountryCode;
 import io.smallrye.mutiny.Uni;
@@ -32,6 +36,7 @@ import java.net.URI;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -45,17 +50,21 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
     ScriptService scriptService;
 
+    MetricPublisher metricPublisher;
+
     @Inject
     public BrandService(
             UserService userService,
             ScriptService scriptService,
             BrandRepository repository,
-            DatanestConfig datanestConfig
+            DatanestConfig datanestConfig,
+            MetricPublisher metricPublisher
     ) {
         super(userService);
         this.scriptService = scriptService;
         this.repository = repository;
         this.datanestConfig = datanestConfig;
+        this.metricPublisher = metricPublisher;
     }
 
     public Uni<List<BrandDTO>> getAllDTO(final int limit, final int offset, final IUser user, final BrandFilter filter) {
@@ -157,6 +166,25 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         return repository.archive(id, SuperUser.build());
     }
 
+    public Uni<Integer> closeBrand(String id, IUser user) {
+        assert repository != null;
+        UUID brandId = UUID.fromString(id);
+        return repository.findById(brandId, user, false)
+                .chain(brand -> repository.closeBrand(brandId, user)
+                        .invoke(count -> {
+                            if (count > 0) {
+                                metricPublisher.publishMetric(
+                                        brand.getSlugName(),
+                                        MetricEventType.WARNING,
+                                        ProcessType.INDEPENDENT,
+                                        "brand_closed",
+                                        Map.of("brandId", brandId.toString(), "closedBy", user.getUserName())
+                                );
+                            }
+                        })
+                );
+    }
+
     private Uni<BrandDTO> mapToDTO(Brand doc) {
         return Uni.combine().all().unis(
                 userService.getUserName(doc.getAuthor()),
@@ -245,7 +273,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         doc.setArchived(0);
         doc.setIsTemporary(dto.getIsTemporary() != null ? dto.getIsTemporary() : 0);
         doc.setPublicBrand(dto.getPublicBrand());
-        doc.setManagedBy(dto.getManagedBy());
+        doc.setManagedBy(ManagedBy.MIX);
         doc.setColor(dto.getColor());
         doc.setDescription(dto.getDescription());
         doc.setTitleFont(dto.getTitleFont());

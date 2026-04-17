@@ -32,7 +32,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
 
-import static com.semantyca.mixpla.repository.MixplaNameResolver.BRAND_STATS;
+import static com.semantyca.mixpla.repository.MixplaNameResolver.*;
 import static com.semantyca.mixpla.repository.MixplaNameResolver.RADIO_STATION;
 
 @ApplicationScoped
@@ -40,6 +40,8 @@ public class BrandRepository extends AsyncRepository {
     private static final Logger LOGGER = Logger.getLogger(BrandRepository.class);
     private static final EntityData entityData = MixplaNameResolver.create().getEntityNames(RADIO_STATION);
     private static final EntityData brandStats = MixplaNameResolver.create().getEntityNames(BRAND_STATS);
+    private static final EntityData soundFragmentEntityData = MixplaNameResolver.create().getEntityNames(SOUND_FRAGMENT);
+    private static final EntityData listenerEntityData = MixplaNameResolver.create().getEntityNames(LISTENER);
 
     @Inject
     public BrandRepository(Pool client, ObjectMapper mapper, RLSRepository rlsRepository) {
@@ -390,6 +392,57 @@ public class BrandRepository extends AsyncRepository {
 
     public Uni<Integer> archive(UUID id, IUser user) {
         return archive(id, entityData, user);
+    }
+
+    public Uni<Integer> closeBrand(UUID id, IUser user) {
+        return rlsRepository.findById(entityData.getRlsName(), user.getId(), id)
+                .onItem().transformToUni(permissions -> {
+                    if (!permissions[0]) {
+                        return Uni.createFrom().failure(new DocumentModificationAccessException(
+                                "User does not have edit permission", user.getUserName(), id));
+                    }
+
+                    return client.withTransaction(tx -> {
+                        String removeSfRlsSql = String.format(
+                                "DELETE FROM %s WHERE reader = $1 AND entity_id IN " +
+                                "(SELECT sound_fragment_id FROM kneobroadcaster__brand_sound_fragments WHERE brand_id = $2)",
+                                soundFragmentEntityData.getRlsName());
+
+                        String removeListenerRlsSql = String.format(
+                                "DELETE FROM %s WHERE reader = $1 AND entity_id IN " +
+                                "(SELECT listener_id FROM kneobroadcaster__listener_brands WHERE brand_id = $2)",
+                                listenerEntityData.getRlsName());
+
+                        String removeSfAssocSql =
+                                "DELETE FROM kneobroadcaster__brand_sound_fragments WHERE brand_id = $1";
+
+                        String removeListenerAssocSql =
+                                "DELETE FROM kneobroadcaster__listener_brands WHERE brand_id = $1";
+
+                        String removeBrandRlsSql = String.format(
+                                "DELETE FROM %s WHERE reader = $1 AND entity_id = $2",
+                                entityData.getRlsName());
+
+                        String setArchivedSql = String.format(
+                                "UPDATE %s SET archived = 2, last_mod_user = $1, last_mod_date = $2 WHERE id = $3",
+                                entityData.getTableName());
+
+                        OffsetDateTime now = OffsetDateTime.now();
+
+                        return tx.preparedQuery(removeSfRlsSql).execute(Tuple.of(user.getId(), id))
+                                .onItem().transformToUni(ignored ->
+                                        tx.preparedQuery(removeListenerRlsSql).execute(Tuple.of(user.getId(), id)))
+                                .onItem().transformToUni(ignored ->
+                                        tx.preparedQuery(removeSfAssocSql).execute(Tuple.of(id)))
+                                .onItem().transformToUni(ignored ->
+                                        tx.preparedQuery(removeListenerAssocSql).execute(Tuple.of(id)))
+                                .onItem().transformToUni(ignored ->
+                                        tx.preparedQuery(removeBrandRlsSql).execute(Tuple.of(user.getId(), id)))
+                                .onItem().transformToUni(ignored ->
+                                        tx.preparedQuery(setArchivedSql).execute(Tuple.of(user.getId(), now, id)))
+                                .onItem().transform(RowSet::rowCount);
+                    });
+                });
     }
 
     public Uni<Integer> delete(UUID id, IUser user) {
