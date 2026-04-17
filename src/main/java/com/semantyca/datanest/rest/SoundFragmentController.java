@@ -41,8 +41,7 @@ import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,7 +49,7 @@ import java.util.UUID;
 
 @ApplicationScoped
 public class SoundFragmentController extends AbstractSecuredController<SoundFragment, SoundFragmentDTO> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(SoundFragmentController.class);
+    private static final Logger LOGGER = Logger.getLogger(SoundFragmentController.class);
     private static final int STREAM_BUFFER_SIZE = 524288; // 512KB buffer for file streaming
 
     private SoundFragmentService service;
@@ -86,7 +85,6 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         BodyHandler jsonBodyHandler = BodyHandler.create().setHandleFileUploads(false);
         router.route(HttpMethod.GET, path).handler(this::get);
         router.route(HttpMethod.GET, path + "/available-soundfragments").handler(this::getForBrand);
-        //router.route(HttpMethod.GET, path + "/available-soundfragments/:id").handler(this::getForBrand);
         router.route(HttpMethod.GET, path + "/:id").handler(this::getById);
         router.route(HttpMethod.GET, path + "/files/:id/:slug").handler(this::getBySlugName);
         router.route(HttpMethod.POST, path + "/bulk-brand-update").handler(jsonBodyHandler).handler(this::bulkBrandUpdate);
@@ -221,7 +219,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                 .chain(user -> fileUploadService.processDirectStream(rc, uploadId, "sound-fragments-controller", entityId, user, true))
                 .subscribe().with(
                         dto -> {
-                            LOGGER.info("Upload done: {}", uploadId);
+                            LOGGER.infof("Upload done: %s", uploadId);
                             rc.response()
                                     .setStatusCode(200)
                                     .putHeader("Content-Type", "application/json")
@@ -435,7 +433,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                     }
                 }
                 if (!genres.isEmpty()) {
-                   // dto.setGenres(genres);
+                    dto.setGenre(genres);
                     any = true;
                 }
             }
@@ -451,7 +449,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                     }
                 }
                 if (!sources.isEmpty()) {
-                   // dto.setSources(sources);
+                    dto.setSource(sources);
                     any = true;
                 }
             }
@@ -483,7 +481,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                     }
                 }
                 if (!types.isEmpty()) {
-                   // dto.setTypes(types);
+                    dto.setType(types);
                     any = true;
                 }
             }
