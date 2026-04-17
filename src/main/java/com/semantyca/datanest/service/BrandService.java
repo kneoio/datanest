@@ -127,10 +127,6 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         return repository.findById(id, user, false).chain(this::mapToDTO);
     }
 
-    public Uni<OffsetDateTime> findLastAccessTimeByStationName(String stationName) {
-        return repository.findLastAccessTimeByStationName(stationName);
-    }
-
     public Uni<BrandDTO> upsert(String id, BrandDTO dto, IUser user, LanguageCode code) {
         assert repository != null;
         LOGGER.info("Upserting radio station with DTO scripts: {}", dto.getScripts());

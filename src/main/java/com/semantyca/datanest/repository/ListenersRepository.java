@@ -449,21 +449,6 @@ public class ListenersRepository extends AsyncRepository {
         return getDocumentAccessInfo(documentId, entityData, user);
     }
 
-    public Uni<Listener> findByUserDataField(String fieldName, String fieldValue) {
-        String sql = "SELECT t.* FROM " + entityData.getTableName() + " t WHERE t.user_data->$1 = $2 LIMIT 1";
-
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(fieldName, fieldValue))
-                .onItem().transformToUni(rows -> {
-                    var it = rows.iterator();
-                    if (it.hasNext()) {
-                        return Uni.createFrom().item(from(it.next()));
-                    } else {
-                        return Uni.createFrom().nullItem();
-                    }
-                });
-    }
-
     public Uni<Listener> findByUserId(Long userId) {
         String sql = "SELECT * FROM " + entityData.getTableName() + " WHERE user_id = $1 AND archived = 0";
         return client.preparedQuery(sql)
