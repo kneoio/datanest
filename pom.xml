@@ -48,6 +48,16 @@
             <version>1.3.44</version>
         </dependency>
 
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-oidc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-oidc-client</artifactId>
+        </dependency>
+
+
         <!-- Quarkus Core -->
         <dependency>
             <groupId>io.quarkus</groupId>
