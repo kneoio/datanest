@@ -481,7 +481,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         List<UUID> brandIds = brandId !=null ? List.of(brandId) : List.of();
         
         assert refService != null;
-        return genreService.getByFuzzyIdentifier(metadata.getGenre())
+        String genreIdentifier = metadata.getGenre() != null ? metadata.getGenre() : "other";
+        return genreService.getByFuzzyIdentifier(genreIdentifier)
                 .chain(genres -> {
                     List<UUID> genreIds = genres.stream().map(DataEntity::getId).collect(Collectors.toList());
                     fragment.setGenres(genreIds);
