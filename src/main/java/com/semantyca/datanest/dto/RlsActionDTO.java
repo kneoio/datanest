@@ -9,7 +9,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class RlsActionDTO {
     private RlsActionType action;
-    private Long userId;
+    private long userId;
     private boolean canEdit;
     private boolean canDelete;
 }
