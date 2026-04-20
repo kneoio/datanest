@@ -107,7 +107,7 @@ public class DraftController extends AbstractSecuredController<Draft, DraftDTO> 
                         viewPage -> rc.response()
                                 .setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")
-                                .end(JsonObject.mapFrom(viewPage).encode()),
+                                .end(io.vertx.core.json.Json.encode(viewPage)),
                         throwable -> {
                             LOGGER.error("Failed to get all drafts", throwable);
                             rc.fail(throwable);
@@ -187,7 +187,7 @@ public class DraftController extends AbstractSecuredController<Draft, DraftDTO> 
                             rc.response()
                                     .setStatusCode(200)
                                     .putHeader("Content-Type", "application/json")
-                                    .end(JsonObject.mapFrom(page).encode());
+                                    .end(io.vertx.core.json.Json.encode(page));
                         },
                         throwable -> {
                             LOGGER.error("Failed to get draft by id: {}", id, throwable);
@@ -224,7 +224,7 @@ public class DraftController extends AbstractSecuredController<Draft, DraftDTO> 
             getContextUser(rc, false, true)
                     .chain(user -> service.upsert(id, dto, user, LanguageCode.en))
                     .subscribe().with(
-                            doc -> rc.response().setStatusCode(id == null ? 201 : 200).end(JsonObject.mapFrom(doc).encode()),
+                            doc -> rc.response().setStatusCode(id == null ? 201 : 200).end(io.vertx.core.json.Json.encode(doc)),
                             throwable -> handleFailure(rc, throwable)
                     );
         } catch (Exception e) {

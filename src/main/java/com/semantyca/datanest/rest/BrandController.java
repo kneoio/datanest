@@ -87,7 +87,7 @@
                             viewPage -> rc.response()
                                     .setStatusCode(200)
                                     .putHeader("Content-Type", "application/json")
-                                    .end(JsonObject.mapFrom(viewPage).encode()),
+                                    .end(io.vertx.core.json.Json.encode(viewPage)),
                             throwable -> {
                                 LOGGER.error("Failed to get all radio stations", throwable);
                                 rc.fail(throwable);
@@ -122,7 +122,7 @@
                                 rc.response()
                                         .setStatusCode(200)
                                         .putHeader("Content-Type", "application/json")
-                                        .end(JsonObject.mapFrom(page).encode());
+                                        .end(io.vertx.core.json.Json.encode(page));
                             },
                             throwable -> {
                                 LOGGER.error("Failed to get radio station by id: {}", id, throwable);
@@ -159,7 +159,7 @@
                 getContextUser(rc, false, true)
                         .chain(user -> service.upsert(id, dto, user, LanguageCode.en))
                         .subscribe().with(
-                                doc -> rc.response().setStatusCode(id == null ? 201 : 200).end(JsonObject.mapFrom(doc).encode()),
+                                doc -> rc.response().setStatusCode(id == null ? 201 : 200).end(io.vertx.core.json.Json.encode(doc)),
                                 throwable -> {
                                     LOGGER.error("Failed to upsert radio station with id: {}", id, throwable);
                                     rc.fail(throwable);

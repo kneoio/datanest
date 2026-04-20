@@ -90,7 +90,7 @@ public class RefController extends BaseController {
                                 viewPage -> rc.response()
                                         .setStatusCode(200)
                                         .putHeader("Content-Type", "application/json")
-                                        .end(JsonObject.mapFrom(viewPage).encode()),
+                                        .end(io.vertx.core.json.Json.encode(viewPage)),
                                 rc::fail
                         );
                 break;
@@ -120,7 +120,7 @@ public class RefController extends BaseController {
                                 viewPage -> rc.response()
                                         .setStatusCode(200)
                                         .putHeader("Content-Type", "application/json")
-                                        .end(JsonObject.mapFrom(viewPage).encode()),
+                                        .end(io.vertx.core.json.Json.encode(viewPage)),
                                 rc::fail
                         );
                 break;
@@ -144,7 +144,7 @@ public class RefController extends BaseController {
                                 viewPage -> rc.response()
                                         .setStatusCode(200)
                                         .putHeader("Content-Type", "application/json")
-                                        .end(JsonObject.mapFrom(viewPage).encode()),
+                                        .end(io.vertx.core.json.Json.encode(viewPage)),
                                 rc::fail
                         );
                 break;
@@ -171,7 +171,7 @@ public class RefController extends BaseController {
                                 viewPage -> rc.response()
                                         .setStatusCode(200)
                                         .putHeader("Content-Type", "application/json")
-                                        .end(JsonObject.mapFrom(viewPage).encode()),
+                                        .end(io.vertx.core.json.Json.encode(viewPage)),
                                 rc::fail
                         );
                 break;
@@ -198,7 +198,7 @@ public class RefController extends BaseController {
                 rc.response()
                         .setStatusCode(200)
                         .putHeader("Content-Type", "application/json")
-                        .end(JsonObject.mapFrom(viewPage).encode());
+                        .end(io.vertx.core.json.Json.encode(viewPage));
                 break;
 
             case "voices":
@@ -230,7 +230,7 @@ public class RefController extends BaseController {
                                 voiceViewPage -> rc.response()
                                         .setStatusCode(200)
                                         .putHeader("Content-Type", "application/json")
-                                        .end(JsonObject.mapFrom(voiceViewPage).encode()),
+                                        .end(io.vertx.core.json.Json.encode(voiceViewPage)),
                                 rc::fail
                         );
                 break;

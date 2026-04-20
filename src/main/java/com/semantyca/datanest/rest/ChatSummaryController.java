@@ -87,7 +87,7 @@ public class ChatSummaryController extends AbstractSecuredController<ChatSummary
                         viewPage -> rc.response()
                                 .setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")
-                                .end(JsonObject.mapFrom(viewPage).encode()),
+                                .end(io.vertx.core.json.Json.encode(viewPage)),
                         rc::fail
                 );
     }
@@ -113,7 +113,7 @@ public class ChatSummaryController extends AbstractSecuredController<ChatSummary
                             rc.response()
                                     .setStatusCode(200)
                                     .putHeader("Content-Type", "application/json")
-                                    .end(JsonObject.mapFrom(page).encode());
+                                    .end(io.vertx.core.json.Json.encode(page));
                         },
                         rc::fail
                 );

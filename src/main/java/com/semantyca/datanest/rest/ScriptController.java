@@ -108,7 +108,7 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
                         viewPage -> rc.response()
                                 .setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")
-                                .end(JsonObject.mapFrom(viewPage).encode()),
+                                .end(io.vertx.core.json.Json.encode(viewPage)),
                         rc::fail
                 );
     }
@@ -201,7 +201,7 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
                         viewPage -> rc.response()
                                 .setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")
-                                .end(JsonObject.mapFrom(viewPage).encode()),
+                                .end(io.vertx.core.json.Json.encode(viewPage)),
                         rc::fail
                 );
     }
@@ -228,7 +228,7 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
                             rc.response()
                                     .setStatusCode(200)
                                     .putHeader("Content-Type", "application/json")
-                                    .end(JsonObject.mapFrom(page).encode());
+                                    .end(io.vertx.core.json.Json.encode(page));
                         },
                         rc::fail
                 );
@@ -334,7 +334,7 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
                         viewPage -> rc.response()
                                 .setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")
-                                .end(JsonObject.mapFrom(viewPage).encode()),
+                                .end(io.vertx.core.json.Json.encode(viewPage)),
                         rc::fail
                 );
     }
@@ -363,7 +363,7 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
                             viewPage -> rc.response()
                                     .setStatusCode(200)
                                     .putHeader("Content-Type", "application/json")
-                                    .end(JsonObject.mapFrom(viewPage).encode()),
+                                    .end(io.vertx.core.json.Json.encode(viewPage)),
                             rc::fail
                     );
         } catch (IllegalArgumentException e) {
@@ -387,7 +387,7 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
                                         .setStatusCode(200)
                                         .putHeader("Content-Type", "application/json")
                                         .putHeader("Content-Disposition", "attachment; filename=\"script-" + id + ".json\"")
-                                        .end(JsonObject.mapFrom(exportDTO).encodePrettily());
+                                        .end(io.vertx.core.json.Json.encodePrettily(exportDTO));
                             },
                             rc::fail
                     );
@@ -411,7 +411,7 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
                                 viewPage.addPayload(PayloadType.DOC_DATA, scriptDTO);
                                 rc.response()
                                         .setStatusCode(201)
-                                        .end(JsonObject.mapFrom(viewPage).encode());
+                                        .end(io.vertx.core.json.Json.encode(viewPage));
                             },
                             failure -> {
                                 if (failure instanceof PgException pgEx) {
@@ -562,7 +562,7 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
                             dto -> rc.response()
                                     .setStatusCode(200)
                                     .putHeader("Content-Type", "application/json")
-                                    .end(JsonObject.mapFrom(dto).encode()),
+                                    .end(io.vertx.core.json.Json.encode(dto)),
                             rc::fail
                     );
         } catch (Exception e) {
@@ -592,7 +592,7 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
                                 FormPage page = new FormPage();
                                 page.addPayload(PayloadType.DOC_DATA, clonedScript);
                                 page.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());
-                                rc.response().setStatusCode(201).end(JsonObject.mapFrom(page).encode());
+                                rc.response().setStatusCode(201).end(io.vertx.core.json.Json.encode(page));
                             },
                             rc::fail
                     );

@@ -49,6 +49,9 @@ public class DatanestApplication {
     @Inject
     ChatSummaryController chatSummaryController;
 
+    @Inject
+    BulkACLController bulkACLController;
+
     void setupRoutes(@Observes Router router) {
         brandController.setupRoutes(router);
         draftController.setupRoutes(router);
@@ -63,5 +66,6 @@ public class DatanestApplication {
         refController.setupRoutes(router);
         aiAgentController.setupRoutes(router);
         chatSummaryController.setupRoutes(router);
+        bulkACLController.setupRoutes(router);
     }
 }

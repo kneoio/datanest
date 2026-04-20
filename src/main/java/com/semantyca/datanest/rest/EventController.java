@@ -86,7 +86,7 @@ public class EventController extends AbstractSecuredController<Event, EventDTO> 
                         viewPage -> rc.response()
                                 .setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")
-                                .end(JsonObject.mapFrom(viewPage).encode()),
+                                .end(io.vertx.core.json.Json.encode(viewPage)),
                         rc::fail
                 );
     }
@@ -117,7 +117,7 @@ public class EventController extends AbstractSecuredController<Event, EventDTO> 
                             rc.response()
                                     .setStatusCode(200)
                                     .putHeader("Content-Type", "application/json")
-                                    .end(JsonObject.mapFrom(page).encode());
+                                    .end(io.vertx.core.json.Json.encode(page));
                         },
                         rc::fail
                 );
@@ -145,7 +145,7 @@ public class EventController extends AbstractSecuredController<Event, EventDTO> 
                         viewPage -> rc.response()
                                 .setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")
-                                .end(JsonObject.mapFrom(viewPage).encode()),
+                                .end(io.vertx.core.json.Json.encode(viewPage)),
                         rc::fail
                 );
     }

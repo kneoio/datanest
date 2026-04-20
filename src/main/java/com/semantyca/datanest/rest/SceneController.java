@@ -83,7 +83,7 @@ public class SceneController extends AbstractSecuredController<Scene, SceneDTO> 
                         viewPage -> rc.response()
                                 .setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")
-                                .end(JsonObject.mapFrom(viewPage).encode()),
+                                .end(io.vertx.core.json.Json.encode(viewPage)),
                         rc::fail
                 );
     }
@@ -154,7 +154,7 @@ public class SceneController extends AbstractSecuredController<Scene, SceneDTO> 
                             viewPage -> rc.response()
                                     .setStatusCode(200)
                                     .putHeader("Content-Type", "application/json")
-                                    .end(JsonObject.mapFrom(viewPage).encode()),
+                                    .end(io.vertx.core.json.Json.encode(viewPage)),
                             rc::fail
                     );
         } catch (IllegalArgumentException e) {
@@ -184,7 +184,7 @@ public class SceneController extends AbstractSecuredController<Scene, SceneDTO> 
                             rc.response()
                                     .setStatusCode(200)
                                     .putHeader("Content-Type", "application/json")
-                                    .end(JsonObject.mapFrom(page).encode());
+                                    .end(io.vertx.core.json.Json.encode(page));
                         },
                         rc::fail
                 );

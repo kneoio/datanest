@@ -363,7 +363,24 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
         }).onItem().transformToUni(id -> findById(id, user.getId(), true, true, true));
     }
 
+    public Uni<Void> bulkUpdateACL(UUID entityId, List<RlsActionDTO> actions, IUser user) {
+        LOGGER.info("bulkUpdateACL: entityId={}, userId={}, actionsCount={}", entityId, user.getId(), actions.size());
+        return rlsRepository.findById(entityData.getRlsName(), user.getId(), entityId)
+                .onItem().transformToUni(permissions -> {
+                    LOGGER.info("bulkUpdateACL: permissions[0]={} for entity={}", permissions[0], entityId);
+                    if (!permissions[0]) {
+                        return Uni.createFrom().failure(new DocumentModificationAccessException(
+                                "User does not have edit permission", user.getUserName(), entityId));
+                    }
+                    return client.withTransaction(tx -> applyRlsActions(tx, entityId, actions));
+                });
+    }
+
     private Uni<Void> applyRlsActions(SqlClient tx, UUID entityId, List<RlsActionDTO> actions) {
+        LOGGER.info("applyRlsActions: table={}, entityId={}, actions count={}", entityData.getRlsName(), entityId, actions.size());
+        for (RlsActionDTO a : actions) {
+            LOGGER.info("  action={}, userId={}, canEdit={}, canDelete={}", a.getAction(), a.getUserId(), a.isCanEdit(), a.isCanDelete());
+        }
         if (actions.isEmpty()) {
             return Uni.createFrom().voidItem();
         }

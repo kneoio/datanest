@@ -103,7 +103,7 @@ public class PromptController extends AbstractSecuredController<Prompt, PromptDT
                         viewPage -> rc.response()
                                 .setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")
-                                .end(JsonObject.mapFrom(viewPage).encode()),
+                                .end(io.vertx.core.json.Json.encode(viewPage)),
                         throwable -> {
                             LOGGER.error("Failed to get all prompts", throwable);
                             rc.fail(throwable);
@@ -185,7 +185,7 @@ public class PromptController extends AbstractSecuredController<Prompt, PromptDT
                             rc.response()
                                     .setStatusCode(200)
                                     .putHeader("Content-Type", "application/json")
-                                    .end(JsonObject.mapFrom(page).encode());
+                                    .end(io.vertx.core.json.Json.encode(page));
                         },
                         rc::fail
                 );
@@ -241,7 +241,7 @@ public class PromptController extends AbstractSecuredController<Prompt, PromptDT
                             response -> rc.response()
                                     .setStatusCode(200)
                                     .putHeader("Content-Type", "application/json")
-                                    .end(JsonObject.mapFrom(response).encode()),
+                                    .end(io.vertx.core.json.Json.encode(response)),
                             rc::fail
                     );
 
