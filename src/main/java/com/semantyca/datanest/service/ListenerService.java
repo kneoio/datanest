@@ -91,21 +91,6 @@ public class ListenerService extends AbstractService<Listener, ListenerDTO> {
                 .chain(this::mapToDTO);
     }
 
-    public Uni<Listener> getByUserId(long id) {
-        assert repository != null;
-        return repository.findByUserId(id);
-    }
-
-    public Uni<List<UUID>> getListenersBrands(UUID listener) {
-        assert repository != null;
-        return repository.getBrandsForListener(listener);
-    }
-
-    public Uni<Void> addBrandToListener(UUID listenerId, UUID brandId) {
-        assert repository != null;
-        return repository.addBrandToListener(listenerId, brandId);
-    }
-
     public Uni<List<BrandListenerDTO>> getBrandListeners(String brandName, int limit, final int offset, IUser user, ListenerFilter filter) {
         assert repository != null;
         assert brandService != null;
@@ -132,13 +117,9 @@ public class ListenerService extends AbstractService<Listener, ListenerDTO> {
     public Uni<ListenerDTO> upsert(String id, ListenerDTO dto, String stationSlug, IUser user) {
         assert brandService != null;
         assert repository != null;
-        
-        System.out.println("[UPSERT] id=" + id + ", dto.id=" + dto.getId() + ", stationSlug=" + stationSlug);
-        
         Listener listener = buildEntity(dto);
 
         if (id == null) {
-            System.out.println("[UPSERT] Taking INSERT path");
             if (stationSlug == null) {
                 return ensureUserExists(listener, dto.getEmail())
                         .chain(userId -> {
@@ -156,7 +137,6 @@ public class ListenerService extends AbstractService<Listener, ListenerDTO> {
                         .chain(this::mapToDTO);
             }
         } else {
-            System.out.println("[UPSERT] Taking UPDATE path");
             UUID listenerUUID = UUID.fromString(id);
             if (stationSlug == null) {
                 return repository.update(listenerUUID, listener, dto.getListenerOf(), user)
@@ -208,6 +188,7 @@ public class ListenerService extends AbstractService<Listener, ListenerDTO> {
     }
 
     private Uni<ListenerDTO> mapToDTO(Listener doc) {
+        assert repository != null;
         return Uni.combine().all().unis(
                 userService.getUserName(doc.getAuthor()),
                 userService.getUserName(doc.getLastModifier()),
@@ -221,7 +202,6 @@ public class ListenerService extends AbstractService<Listener, ListenerDTO> {
             dto.setLastModifier(tuple.getItem2());
             dto.setLastModifiedDate(doc.getLastModifiedDate());
             dto.setUserId(doc.getUserId());
-            dto.setArchived(doc.getArchived());
             dto.setLocalizedName(doc.getLocalizedName());
             dto.setNickName(doc.getNickName());
             if (doc.getUserData() != null) {
@@ -241,7 +221,6 @@ public class ListenerService extends AbstractService<Listener, ListenerDTO> {
 
     private Listener buildEntity(ListenerDTO dto) {
         Listener doc = new Listener();
-        doc.setArchived(dto.getArchived());
         doc.setLocalizedName(dto.getLocalizedName());
         doc.setNickName(dto.getNickName());
         if (dto.getUserData() != null && !dto.getUserData().isEmpty()) {
@@ -274,12 +253,6 @@ public class ListenerService extends AbstractService<Listener, ListenerDTO> {
                                 .map(this::mapToDocumentAccessDTO)
                                 .collect(Collectors.toList())
                 );
-    }
-
-    @Override
-    public Uni<Integer> delete(String id, IUser user) {
-        assert repository != null;
-        return repository.delete(UUID.fromString(id), user);
     }
 
     public Uni<Integer> archive(String id, IUser user) {

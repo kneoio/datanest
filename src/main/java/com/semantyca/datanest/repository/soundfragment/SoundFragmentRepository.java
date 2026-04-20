@@ -15,7 +15,6 @@ import com.semantyca.core.service.external.hetzner.HetznerStorageService;
 import com.semantyca.core.util.WebHelper;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
-import com.semantyca.mixpla.model.soundfragment.BrandSoundFragment;
 import com.semantyca.mixpla.model.soundfragment.SoundFragment;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Multi;
@@ -29,7 +28,6 @@ import org.slf4j.LoggerFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -568,24 +566,6 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                 .addUUID(id);
 
         return tx.preparedQuery(updateSql).execute(params);
-    }
-
-    public Uni<SoundFragment> findByArtistAndDate(String artist, LocalDateTime startOfDay, LocalDateTime endOfDay) {
-        String sql = "SELECT * FROM " + entityData.getTableName() + " " +
-                "WHERE artist = $1 AND reg_date >= $2 AND reg_date < $3 AND archived = 0 " +
-                "ORDER BY reg_date DESC LIMIT 1";
-
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(artist, startOfDay, endOfDay))
-                .onItem().transform(RowSet::iterator)
-                .onItem().transformToUni(iterator -> {
-                    if (iterator.hasNext()) {
-                        Row row = iterator.next();
-                        return from(row, false, false, false);
-                    } else {
-                        return Uni.createFrom().nullItem();
-                    }
-                });
     }
 
     public Uni<List<DocumentAccessInfo>> getDocumentAccessInfo(UUID documentId, IUser user) {
