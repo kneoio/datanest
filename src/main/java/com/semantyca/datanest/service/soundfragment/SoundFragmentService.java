@@ -212,7 +212,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
 
         if ("new".equalsIgnoreCase(id) || id == null) {
             entity.setSource(SourceType.USER_UPLOAD);
-            return repository.insert(entity, dto.getRepresentedInBrands(), user)
+            return repository.insert(entity, dto.getRepresentedInBrands(), dto.getRlsActions(), user)
                     .chain(doc -> moveFilesForNewEntity(doc, fileMetadataList, user))
                     .chain(doc -> mapToDTO(doc, true, null))
                     .onFailure().invoke(failure -> {
@@ -224,7 +224,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                 );
                     });
         } else {
-            return repository.update(UUID.fromString(id), entity, dto.getRepresentedInBrands(), user)
+            return repository.update(UUID.fromString(id), entity, dto.getRepresentedInBrands(), dto.getRlsActions(), user)
                     .chain(doc -> mapToDTO(doc, true, null))
                     .onFailure().invoke(failure -> {
                         LOGGER.warn("Entity update failed, cleaning up files for user: {}, entity: {}",
@@ -302,7 +302,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                                     updatedBrandIds = new ArrayList<>();
                                                 }
 
-                                                return repository.update(documentId, fragment, updatedBrandIds, user);
+                                                return repository.update(documentId, fragment, updatedBrandIds, Collections.emptyList(), user);
                                             })
                                             .onFailure().recoverWithItem(throwable -> {
                                                 LOGGER.error("Failed to update document {}: {}", documentId, throwable.getMessage());
@@ -479,12 +479,13 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         List<UUID> brandIds = brandId !=null ? List.of(brandId) : List.of();
         
         assert refService != null;
-        return genreService.getByFuzzyIdentifier(metadata.getGenre())
+        String genreIdentifier = metadata.getGenre() != null ? metadata.getGenre() : "other";
+        return genreService.getByFuzzyIdentifier(genreIdentifier)
                 .chain(genres -> {
                     List<UUID> genreIds = genres.stream().map(DataEntity::getId).collect(Collectors.toList());
                     fragment.setGenres(genreIds);
                     assert repository != null;
-                    return repository.insert(fragment, brandIds, user);
+                    return repository.insert(fragment, brandIds, Collections.emptyList(), user);
                 });
     }
 
