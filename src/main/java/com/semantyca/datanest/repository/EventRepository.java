@@ -12,7 +12,7 @@ import com.semantyca.core.repository.exception.DocumentModificationAccessExcepti
 import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.table.EntityData;
 import com.semantyca.datanest.dto.RlsActionDTO;
-import com.semantyca.datanest.dto.RlsActionType;
+import com.semantyca.datanest.repository.RlsActionUtil;
 import com.semantyca.mixpla.model.Event;
 import com.semantyca.mixpla.model.PlaylistRequest;
 import com.semantyca.mixpla.model.ScenePrompt;
@@ -240,42 +240,7 @@ public class EventRepository extends AsyncRepository implements SchedulableRepos
     }
 
     private Uni<Void> applyRlsActions(SqlClient tx, UUID entityId, List<RlsActionDTO> actions) {
-        LOGGER.info("applyRlsActions: table={}, entityId={}, actions count={}", entityData.getRlsName(), entityId, actions.size());
-        for (RlsActionDTO a : actions) {
-            LOGGER.info("  action={}, userId={}, canEdit={}, canDelete={}", a.getAction(), a.getUserId(), a.isCanEdit(), a.isCanDelete());
-        }
-        if (actions.isEmpty()) {
-            return Uni.createFrom().voidItem();
-        }
-
-        String grantSql = String.format(
-                "INSERT INTO %s (reader, entity_id, can_edit, can_delete) VALUES ($1, $2, $3, $4) " +
-                "ON CONFLICT (reader, entity_id) DO UPDATE SET " +
-                "can_edit = EXCLUDED.can_edit, can_delete = EXCLUDED.can_delete, reading_time = now()",
-                entityData.getRlsName()
-        );
-        String revokeSql = String.format(
-                "DELETE FROM %s WHERE reader = $1 AND entity_id = $2",
-                entityData.getRlsName()
-        );
-
-        List<Uni<Void>> unis = new ArrayList<>();
-        for (RlsActionDTO action : actions) {
-            if (action.getAction() == RlsActionType.GRANT) {
-                unis.add(tx.preparedQuery(grantSql)
-                        .execute(Tuple.of(action.getUserId(), entityId, action.isCanEdit(), action.isCanDelete()))
-                        .onItem().ignore().andContinueWithNull());
-            } else if (action.getAction() == RlsActionType.REVOKE) {
-                unis.add(tx.preparedQuery(revokeSql)
-                        .execute(Tuple.of(action.getUserId(), entityId))
-                        .onItem().ignore().andContinueWithNull());
-            }
-        }
-
-        if (unis.isEmpty()) {
-            return Uni.createFrom().voidItem();
-        }
-        return Uni.combine().all().unis(unis).discardItems();
+        return RlsActionUtil.applyRlsActions(tx, entityData.getRlsName(), entityId, actions);
     }
 
     public Uni<Integer> archive(UUID id, IUser user) {

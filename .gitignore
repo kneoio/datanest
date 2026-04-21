@@ -30,3 +30,4 @@ application-dev.properties
 application-prod.properties
 .env
 
+/out/
