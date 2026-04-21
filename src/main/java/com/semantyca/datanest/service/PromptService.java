@@ -7,6 +7,7 @@ import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.PromptDTO;
+import com.semantyca.datanest.dto.RlsActionDTO;
 import com.semantyca.datanest.repository.prompt.PromptRepository;
 import com.semantyca.mixpla.model.Prompt;
 import com.semantyca.mixpla.model.filter.PromptFilter;
@@ -65,10 +66,11 @@ public class PromptService extends AbstractService<Prompt, PromptDTO> {
 
     public Uni<PromptDTO> upsert(String id, PromptDTO dto, IUser user) {
         Prompt entity = buildEntity(dto);
+        List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
         if (id == null) {
-            return repository.insert(entity, user).chain(this::mapToDTO);
+            return repository.insert(entity, rlsActions, user).chain(this::mapToDTO);
         } else {
-            return repository.update(UUID.fromString(id), entity, user).chain(this::mapToDTO);
+            return repository.update(UUID.fromString(id), entity, rlsActions, user).chain(this::mapToDTO);
         }
     }
 

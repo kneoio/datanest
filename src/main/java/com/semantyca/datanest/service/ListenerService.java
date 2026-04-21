@@ -11,6 +11,7 @@ import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.dto.BrandListenerDTO;
 import com.semantyca.datanest.dto.ListenerDTO;
+import com.semantyca.datanest.dto.RlsActionDTO;
 import com.semantyca.datanest.repository.ListenersRepository;
 import com.semantyca.mixpla.model.BrandListener;
 import com.semantyca.mixpla.model.Listener;
@@ -118,13 +119,14 @@ public class ListenerService extends AbstractService<Listener, ListenerDTO> {
         assert brandService != null;
         assert repository != null;
         Listener listener = buildEntity(dto);
+        List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
 
         if (id == null) {
             if (stationSlug == null) {
                 return ensureUserExists(listener, dto.getEmail())
                         .chain(userId -> {
                             listener.setUserId(userId);
-                            return repository.insert(listener, dto.getListenerOf(), user);
+                            return repository.insert(listener, dto.getListenerOf(), rlsActions, user);
                         })
                         .chain(this::mapToDTO);
             } else {
@@ -132,14 +134,14 @@ public class ListenerService extends AbstractService<Listener, ListenerDTO> {
                         .chain(station -> ensureUserExists(listener, dto.getEmail())
                                 .chain(userId -> {
                                     listener.setUserId(userId);
-                                    return repository.insert(listener, List.of(station.getId()), user);
+                                    return repository.insert(listener, List.of(station.getId()), rlsActions, user);
                                 }))
                         .chain(this::mapToDTO);
             }
         } else {
             UUID listenerUUID = UUID.fromString(id);
             if (stationSlug == null) {
-                return repository.update(listenerUUID, listener, dto.getListenerOf(), user)
+                return repository.update(listenerUUID, listener, dto.getListenerOf(), rlsActions, user)
                         .chain(updatedListener -> {
                             if (dto.getEmail() != null && !dto.getEmail().isEmpty()) {
                                 return userService.updateEmail(dto.getUserId(), dto.getEmail(), user)
@@ -152,7 +154,7 @@ public class ListenerService extends AbstractService<Listener, ListenerDTO> {
                 return getBrand(stationSlug)
                         .chain(station -> repository.getBrandsForListener(listenerUUID)
                                 .chain(stationIds -> {
-                                    return repository.update(listenerUUID, listener, stationIds, user);
+                                    return repository.update(listenerUUID, listener, stationIds, rlsActions, user);
                                 }))
                         .chain(this::mapToDTO);
             }
