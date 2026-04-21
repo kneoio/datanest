@@ -13,4 +13,5 @@ import java.util.UUID;
 public class BulkACLRequestDTO {
     private List<UUID> documentIds;
     private List<RlsActionDTO> actions;
+    private String resourceType;
 }
