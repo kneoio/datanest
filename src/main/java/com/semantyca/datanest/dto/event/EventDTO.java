@@ -3,6 +3,7 @@ package com.semantyca.datanest.dto.event;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
 import com.semantyca.core.dto.scheduler.ScheduleDTO;
+import com.semantyca.datanest.dto.RlsActionDTO;
 import com.semantyca.datanest.dto.ScenePromptDTO;
 import com.semantyca.datanest.dto.StagePlaylistDTO;
 import jakarta.validation.constraints.NotNull;
@@ -12,6 +13,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -31,5 +33,7 @@ public class EventDTO extends AbstractDTO {
     private String priority;
     private List<ScenePromptDTO> actions;
     private StagePlaylistDTO stagePlaylist;
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    private List<RlsActionDTO> rlsActions = new ArrayList<>();
 
 }

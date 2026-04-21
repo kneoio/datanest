@@ -2,6 +2,7 @@ package com.semantyca.datanest.dto.radiostation;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
+import com.semantyca.datanest.dto.RlsActionDTO;
 import com.semantyca.core.dto.validation.ValidCountry;
 import com.semantyca.core.dto.validation.ValidLocalizedName;
 import com.semantyca.core.model.cnst.LanguageCode;
@@ -16,6 +17,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
@@ -70,5 +72,7 @@ public class BrandDTO extends AbstractDTO {
     private List<BrandScriptEntryDTO> scripts;
     private OwnerDTO owner;
     private List<UUID> labels;
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    private List<RlsActionDTO> rlsActions = new ArrayList<>();
 
 }

@@ -9,6 +9,8 @@ import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.exception.DocumentModificationAccessException;
 import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.table.EntityData;
+import com.semantyca.datanest.dto.RlsActionDTO;
+import com.semantyca.datanest.dto.RlsActionType;
 import com.semantyca.mixpla.model.aiagent.AiAgent;
 import com.semantyca.mixpla.model.aiagent.LanguagePreference;
 import com.semantyca.mixpla.model.aiagent.TTSSetting;
@@ -111,6 +113,10 @@ public class AiAgentRepository extends AsyncRepository {
     }
 
     public Uni<AiAgent> insert(AiAgent agent, IUser user) {
+        return insert(agent, List.of(), user);
+    }
+
+    public Uni<AiAgent> insert(AiAgent agent, List<RlsActionDTO> rlsActions, IUser user) {
         OffsetDateTime nowTime = OffsetDateTime.now();
 
         String sql = "INSERT INTO " + entityData.getTableName() +
@@ -136,12 +142,17 @@ public class AiAgentRepository extends AsyncRepository {
                             Uni<Void> labelsUni = upsertLabels(tx, id, agent.getLabels());
                             return labelsUni
                                     .onItem().transformToUni(ignored -> insertRLSPermissions(tx, id, entityData, user))
+                                    .onItem().transformToUni(ignored -> applyRlsActions(tx, id, rlsActions))
                                     .onItem().transform(ignored -> id);
                         })
         ).onItem().transformToUni(id -> findById(id, user, true));
     }
 
     public Uni<AiAgent> update(UUID id, AiAgent agent, IUser user) {
+        return update(id, agent, List.of(), user);
+    }
+
+    public Uni<AiAgent> update(UUID id, AiAgent agent, List<RlsActionDTO> rlsActions, IUser user) {
         return Uni.createFrom().deferred(() -> {
             try {
                 return rlsRepository.findById(entityData.getRlsName(), user.getId(), id)
@@ -177,6 +188,7 @@ public class AiAgentRepository extends AsyncRepository {
                                             return Uni.createFrom().failure(new DocumentHasNotFoundException(id));
                                         }
                                         return upsertLabels(client, id, agent.getLabels())
+                                                .onItem().transformToUni(ignored -> applyRlsActions(client, id, rlsActions))
                                                 .onItem().transformToUni(ignored -> findById(id, user, true));
                                     });
                         });
@@ -209,6 +221,45 @@ public class AiAgentRepository extends AsyncRepository {
                                 .onItem().transform(RowSet::rowCount);
                     });
                 });
+    }
+
+    private Uni<Void> applyRlsActions(SqlClient tx, UUID entityId, List<RlsActionDTO> actions) {
+        LOGGER.infof("applyRlsActions: table=%s, entityId=%s, actions count=%d", entityData.getRlsName(), entityId, actions.size());
+        for (RlsActionDTO a : actions) {
+            LOGGER.infof("  action=%s, userId=%d, canEdit=%b, canDelete=%b", a.getAction(), a.getUserId(), a.isCanEdit(), a.isCanDelete());
+        }
+        if (actions.isEmpty()) {
+            return Uni.createFrom().voidItem();
+        }
+
+        String grantSql = String.format(
+                "INSERT INTO %s (reader, entity_id, can_edit, can_delete) VALUES ($1, $2, $3, $4) " +
+                "ON CONFLICT (reader, entity_id) DO UPDATE SET " +
+                "can_edit = EXCLUDED.can_edit, can_delete = EXCLUDED.can_delete, reading_time = now()",
+                entityData.getRlsName()
+        );
+        String revokeSql = String.format(
+                "DELETE FROM %s WHERE reader = $1 AND entity_id = $2",
+                entityData.getRlsName()
+        );
+
+        List<Uni<Void>> unis = new ArrayList<>();
+        for (RlsActionDTO action : actions) {
+            if (action.getAction() == RlsActionType.GRANT) {
+                unis.add(tx.preparedQuery(grantSql)
+                        .execute(Tuple.of(action.getUserId(), entityId, action.isCanEdit(), action.isCanDelete()))
+                        .onItem().ignore().andContinueWithNull());
+            } else if (action.getAction() == RlsActionType.REVOKE) {
+                unis.add(tx.preparedQuery(revokeSql)
+                        .execute(Tuple.of(action.getUserId(), entityId))
+                        .onItem().ignore().andContinueWithNull());
+            }
+        }
+
+        if (unis.isEmpty()) {
+            return Uni.createFrom().voidItem();
+        }
+        return Uni.combine().all().unis(unis).discardItems();
     }
 
     private AiAgent from(Row row) {

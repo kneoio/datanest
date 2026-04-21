@@ -2,10 +2,12 @@ package com.semantyca.datanest.dto.aiagent;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
+import com.semantyca.datanest.dto.RlsActionDTO;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,4 +23,6 @@ public class AiAgentDTO extends AbstractDTO {
     private UUID copilot;
     private TTSSettingDTO ttsSetting;
     private List<UUID> labels;
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    private List<RlsActionDTO> rlsActions = new ArrayList<>();
 }

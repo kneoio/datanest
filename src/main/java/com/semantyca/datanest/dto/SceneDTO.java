@@ -2,10 +2,12 @@ package com.semantyca.datanest.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
+import com.semantyca.datanest.dto.RlsActionDTO;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,4 +27,6 @@ public class SceneDTO extends AbstractDTO {
     private int seqNum;
     private List<Integer> weekdays;
     private boolean oneTimeRun;
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    private List<RlsActionDTO> rlsActions = new ArrayList<>();
 }

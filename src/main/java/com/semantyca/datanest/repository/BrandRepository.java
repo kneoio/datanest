@@ -9,6 +9,8 @@ import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.exception.DocumentModificationAccessException;
 import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.table.EntityData;
+import com.semantyca.datanest.dto.RlsActionDTO;
+import com.semantyca.datanest.dto.RlsActionType;
 import com.semantyca.mixpla.model.brand.*;
 import com.semantyca.mixpla.model.cnst.ManagedBy;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
@@ -164,6 +166,10 @@ public class BrandRepository extends AsyncRepository {
     }
 
     public Uni<Brand> insert(Brand station, IUser user) {
+        return insert(station, List.of(), user);
+    }
+
+    public Uni<Brand> insert(Brand station, List<RlsActionDTO> rlsActions, IUser user) {
         return Uni.createFrom().deferred(() -> {
             String sql = "INSERT INTO " + entityData.getTableName() +
                     " (author, reg_date, last_mod_user, last_mod_date, country, time_zone, managing_mode, color, loc_name, ai_overriding, profile_overriding, bit_rate, slug_name, description, profile_id, ai_agent_id, one_time_stream_policy, submission_policy, messaging_policy, title_font, popularity_rate, is_temporary, public, owner) " +
@@ -215,12 +221,20 @@ public class BrandRepository extends AsyncRepository {
                                             upsertLabels(tx, id, station.getLabels())
                                                     .onItem().transform(v -> id)
                                     )
+                                    .onItem().transformToUni(id ->
+                                            applyRlsActions(tx, id, rlsActions)
+                                                    .onItem().transform(v -> id)
+                                    )
                     )
                     .onItem().transformToUni(id -> findById(id, user, true));
         });
     }
 
     public Uni<Brand> update(UUID id, Brand station, IUser user) {
+        return update(id, station, List.of(), user);
+    }
+
+    public Uni<Brand> update(UUID id, Brand station, List<RlsActionDTO> rlsActions, IUser user) {
         return rlsRepository.findById(entityData.getRlsName(), user.getId(), id)
                 .onItem().transformToUni(permissions -> {
                     if (!permissions[0]) {
@@ -269,6 +283,7 @@ public class BrandRepository extends AsyncRepository {
                                         }
                                         return updateBrandScripts(tx, id, station.getScripts())
                                                 .onItem().transformToUni(v -> upsertLabels(tx, id, station.getLabels()))
+                                                .onItem().transformToUni(v -> applyRlsActions(tx, id, rlsActions))
                                                 .onItem().transform(v -> id);
                                     })
                     ).onItem().transformToUni(stationId -> findById(stationId, user, true));
@@ -388,6 +403,45 @@ public class BrandRepository extends AsyncRepository {
                         .merge()
                         .collect().asList()
                         .replaceWithVoid());
+    }
+
+    private Uni<Void> applyRlsActions(SqlClient tx, UUID entityId, List<RlsActionDTO> actions) {
+        LOGGER.info("applyRlsActions: table={}, entityId={}, actions count={}", entityData.getRlsName(), entityId, actions.size());
+        for (RlsActionDTO a : actions) {
+            LOGGER.info("  action={}, userId={}, canEdit={}, canDelete={}", a.getAction(), a.getUserId(), a.isCanEdit(), a.isCanDelete());
+        }
+        if (actions.isEmpty()) {
+            return Uni.createFrom().voidItem();
+        }
+
+        String grantSql = String.format(
+                "INSERT INTO %s (reader, entity_id, can_edit, can_delete) VALUES ($1, $2, $3, $4) " +
+                "ON CONFLICT (reader, entity_id) DO UPDATE SET " +
+                "can_edit = EXCLUDED.can_edit, can_delete = EXCLUDED.can_delete, reading_time = now()",
+                entityData.getRlsName()
+        );
+        String revokeSql = String.format(
+                "DELETE FROM %s WHERE reader = $1 AND entity_id = $2",
+                entityData.getRlsName()
+        );
+
+        List<Uni<Void>> unis = new ArrayList<>();
+        for (RlsActionDTO action : actions) {
+            if (action.getAction() == RlsActionType.GRANT) {
+                unis.add(tx.preparedQuery(grantSql)
+                        .execute(Tuple.of(action.getUserId(), entityId, action.isCanEdit(), action.isCanDelete()))
+                        .onItem().ignore().andContinueWithNull());
+            } else if (action.getAction() == RlsActionType.REVOKE) {
+                unis.add(tx.preparedQuery(revokeSql)
+                        .execute(Tuple.of(action.getUserId(), entityId))
+                        .onItem().ignore().andContinueWithNull());
+            }
+        }
+
+        if (unis.isEmpty()) {
+            return Uni.createFrom().voidItem();
+        }
+        return Uni.combine().all().unis(unis).discardItems();
     }
 
     public Uni<Integer> archive(UUID id, IUser user) {

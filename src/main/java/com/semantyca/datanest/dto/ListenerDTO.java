@@ -2,6 +2,7 @@ package com.semantyca.datanest.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractReferenceDTO;
+import com.semantyca.datanest.dto.RlsActionDTO;
 import com.semantyca.core.model.cnst.LanguageCode;
 import jakarta.validation.constraints.Email;
 import lombok.Builder;
@@ -10,6 +11,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
@@ -33,4 +35,6 @@ public class ListenerDTO extends AbstractReferenceDTO {
     private Map<String, String> userData = new HashMap<>();
     private List<UUID> listenerOf;
     private List<UUID> labels;
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    private List<RlsActionDTO> rlsActions = new ArrayList<>();
 }

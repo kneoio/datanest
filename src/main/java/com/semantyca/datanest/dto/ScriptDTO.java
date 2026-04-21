@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
-
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -30,4 +30,6 @@ public class ScriptDTO extends AbstractDTO {
     private List<UUID> brands;
     private List<SceneDTO> scenes;
     private List<ScriptVariable> requiredVariables;
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    private List<RlsActionDTO> rlsActions = new ArrayList<>();
 }

@@ -9,6 +9,8 @@ import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.exception.DocumentModificationAccessException;
 import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.table.EntityData;
+import com.semantyca.datanest.dto.RlsActionDTO;
+import com.semantyca.datanest.dto.RlsActionType;
 import com.semantyca.mixpla.model.Prompt;
 import com.semantyca.mixpla.model.ScenePrompt;
 import com.semantyca.mixpla.model.cnst.PromptType;
@@ -17,10 +19,7 @@ import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonObject;
-import io.vertx.mutiny.sqlclient.Pool;
-import io.vertx.mutiny.sqlclient.Row;
-import io.vertx.mutiny.sqlclient.RowSet;
-import io.vertx.mutiny.sqlclient.Tuple;
+import io.vertx.mutiny.sqlclient.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.slf4j.Logger;
@@ -153,6 +152,10 @@ public class PromptRepository extends AsyncRepository {
     }
 
     public Uni<Prompt> insert(Prompt prompt, IUser user) {
+        return insert(prompt, List.of(), user);
+    }
+
+    public Uni<Prompt> insert(Prompt prompt, List<RlsActionDTO> rlsActions, IUser user) {
         return Uni.createFrom().deferred(() -> {
             try {
                 String sql = "INSERT INTO " + entityData.getTableName() +
@@ -186,6 +189,7 @@ public class PromptRepository extends AsyncRepository {
                                         .onItem().transform(result -> result.iterator().next().getUUID("id"))
                                         .onItem().transformToUni(id ->
                                                 insertRLSPermissions(tx, id, entityData, user)
+                                                        .onItem().transformToUni(ignored -> applyRlsActions(tx, id, rlsActions))
                                                         .onItem().transform(ignored -> id)
                                         )
                         )
@@ -197,6 +201,10 @@ public class PromptRepository extends AsyncRepository {
     }
 
     public Uni<Prompt> update(UUID id, Prompt prompt, IUser user) {
+        return update(id, prompt, List.of(), user);
+    }
+
+    public Uni<Prompt> update(UUID id, Prompt prompt, List<RlsActionDTO> rlsActions, IUser user) {
         return Uni.createFrom().deferred(() -> {
             try {
                 return rlsRepository.findById(entityData.getRlsName(), user.getId(), id)
@@ -235,13 +243,53 @@ public class PromptRepository extends AsyncRepository {
                                         if (rowSet.rowCount() == 0) {
                                             return Uni.createFrom().failure(new DocumentHasNotFoundException(id));
                                         }
-                                        return findById(id, user, true);
+                                        return applyRlsActions(client, id, rlsActions)
+                                                .onItem().transformToUni(ignored -> findById(id, user, true));
                                     });
                         });
             } catch (Exception e) {
                 return Uni.createFrom().failure(e);
             }
         });
+    }
+
+    private Uni<Void> applyRlsActions(SqlClient tx, UUID entityId, List<RlsActionDTO> actions) {
+        LOGGER.info("applyRlsActions: table={}, entityId={}, actions count={}", entityData.getRlsName(), entityId, actions.size());
+        for (RlsActionDTO a : actions) {
+            LOGGER.info("  action={}, userId={}, canEdit={}, canDelete={}", a.getAction(), a.getUserId(), a.isCanEdit(), a.isCanDelete());
+        }
+        if (actions.isEmpty()) {
+            return Uni.createFrom().voidItem();
+        }
+
+        String grantSql = String.format(
+                "INSERT INTO %s (reader, entity_id, can_edit, can_delete) VALUES ($1, $2, $3, $4) " +
+                "ON CONFLICT (reader, entity_id) DO UPDATE SET " +
+                "can_edit = EXCLUDED.can_edit, can_delete = EXCLUDED.can_delete, reading_time = now()",
+                entityData.getRlsName()
+        );
+        String revokeSql = String.format(
+                "DELETE FROM %s WHERE reader = $1 AND entity_id = $2",
+                entityData.getRlsName()
+        );
+
+        List<Uni<Void>> unis = new ArrayList<>();
+        for (RlsActionDTO action : actions) {
+            if (action.getAction() == RlsActionType.GRANT) {
+                unis.add(tx.preparedQuery(grantSql)
+                        .execute(Tuple.of(action.getUserId(), entityId, action.isCanEdit(), action.isCanDelete()))
+                        .onItem().ignore().andContinueWithNull());
+            } else if (action.getAction() == RlsActionType.REVOKE) {
+                unis.add(tx.preparedQuery(revokeSql)
+                        .execute(Tuple.of(action.getUserId(), entityId))
+                        .onItem().ignore().andContinueWithNull());
+            }
+        }
+
+        if (unis.isEmpty()) {
+            return Uni.createFrom().voidItem();
+        }
+        return Uni.combine().all().unis(unis).discardItems();
     }
 
     private Prompt from(Row row) {
