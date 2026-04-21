@@ -5,6 +5,7 @@ import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
+import com.semantyca.datanest.dto.RlsActionDTO;
 import com.semantyca.datanest.dto.SceneDTO;
 import com.semantyca.datanest.dto.ScenePromptDTO;
 import com.semantyca.datanest.dto.StagePlaylistDTO;
@@ -80,11 +81,12 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
 
     public Uni<SceneDTO> upsert(String id, UUID scriptId, SceneDTO dto, IUser user) {
         Scene entity = buildEntity(dto);
+        List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
         if (id == null) {
             entity.setScriptId(scriptId);
-            return repository.insert(entity, user).chain(this::mapToDTO);
+            return repository.insert(entity, rlsActions, user).chain(this::mapToDTO);
         } else {
-            return repository.update(UUID.fromString(id), entity, user).chain(this::mapToDTO);
+            return repository.update(UUID.fromString(id), entity, rlsActions, user).chain(this::mapToDTO);
         }
     }
 

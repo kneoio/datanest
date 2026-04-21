@@ -14,6 +14,7 @@ import com.semantyca.datanest.dto.DraftDTO;
 import com.semantyca.datanest.dto.PromptDTO;
 import com.semantyca.datanest.dto.SceneDTO;
 import com.semantyca.datanest.dto.ScenePromptDTO;
+import com.semantyca.datanest.dto.RlsActionDTO;
 import com.semantyca.datanest.dto.ScriptDTO;
 import com.semantyca.datanest.dto.ScriptExportDTO;
 import com.semantyca.datanest.dto.StagePlaylistDTO;
@@ -140,19 +141,20 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         assert repository != null;
         assert scriptSceneService != null;
         
+        List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
         return extractRequiredVariables(dto.getScenes())
                 .chain(requiredVariables -> {
                     Script entity = buildEntity(dto);
                     entity.setRequiredVariables(requiredVariables);
-                    
+
                     if (id == null) {
-                        return repository.insert(entity, user)
+                        return repository.insert(entity, rlsActions, user)
                                 .chain(script -> processScenes(script.getId(), dto.getScenes(), user)
                                         .replaceWith(script))
                                 .chain(script -> mapToDTO(script, user));
                     } else {
                         UUID scriptId = UUID.fromString(id);
-                        return repository.update(scriptId, entity, user)
+                        return repository.update(scriptId, entity, rlsActions, user)
                                 .chain(script -> processScenes(scriptId, dto.getScenes(), user)
                                         .replaceWith(script))
                                 .chain(script -> mapToDTO(script, user));

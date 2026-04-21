@@ -17,6 +17,7 @@ import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.ScenePromptDTO;
 import com.semantyca.datanest.dto.StagePlaylistDTO;
+import com.semantyca.datanest.dto.RlsActionDTO;
 import com.semantyca.datanest.dto.event.EventDTO;
 import com.semantyca.datanest.dto.event.EventEntryDTO;
 import com.semantyca.datanest.repository.EventRepository;
@@ -107,12 +108,13 @@ public class EventService extends AbstractService<Event, EventDTO> {
         assert repository != null;
 
         Event entity = buildEntity(dto);
+        List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
 
         Uni<Event> saveOperation;
         if (id == null) {
-            saveOperation = repository.insert(entity, user);
+            saveOperation = repository.insert(entity, rlsActions, user);
         } else {
-            saveOperation = repository.update(UUID.fromString(id), entity, user);
+            saveOperation = repository.update(UUID.fromString(id), entity, rlsActions, user);
         }
 
         return saveOperation.chain(this::mapToDTO);

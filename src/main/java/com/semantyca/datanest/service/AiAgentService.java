@@ -7,6 +7,7 @@ import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
+import com.semantyca.datanest.dto.RlsActionDTO;
 import com.semantyca.datanest.dto.aiagent.AiAgentDTO;
 import com.semantyca.datanest.dto.aiagent.LanguagePreferenceDTO;
 import com.semantyca.datanest.dto.aiagent.TTSSettingDTO;
@@ -78,10 +79,11 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
 
     public Uni<AiAgentDTO> upsert(String id, AiAgentDTO dto, IUser user, LanguageCode code) {
         AiAgent entity = buildEntity(dto);
+        List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
         if (id == null || id.isEmpty()) {
-            return repository.insert(entity, user).chain(this::mapToDTO);
+            return repository.insert(entity, rlsActions, user).chain(this::mapToDTO);
         } else {
-            return repository.update(UUID.fromString(id), entity, user).chain(this::mapToDTO);
+            return repository.update(UUID.fromString(id), entity, rlsActions, user).chain(this::mapToDTO);
         }
     }
 

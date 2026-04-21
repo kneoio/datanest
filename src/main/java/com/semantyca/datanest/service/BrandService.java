@@ -8,6 +8,7 @@ import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.config.DatanestConfig;
+import com.semantyca.datanest.dto.RlsActionDTO;
 import com.semantyca.datanest.dto.radiostation.*;
 import com.semantyca.datanest.messaging.MetricPublisher;
 import com.semantyca.datanest.repository.BrandRepository;
@@ -133,12 +134,14 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         Brand entity = buildEntity(dto);
         LOGGER.info("Built entity with scripts: {}", entity.getScripts());
 
+        List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
+
         Uni<Brand> saveOperation;
         if (id == null) {
             entity.setPopularityRate(5);
-            saveOperation = repository.insert(entity, user);
+            saveOperation = repository.insert(entity, rlsActions, user);
         } else {
-            saveOperation = repository.update(UUID.fromString(id), entity, user);
+            saveOperation = repository.update(UUID.fromString(id), entity, rlsActions, user);
         }
 
         return saveOperation.chain(this::mapToDTO);
