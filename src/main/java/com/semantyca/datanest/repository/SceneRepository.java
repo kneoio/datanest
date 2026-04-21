@@ -185,10 +185,6 @@ public class SceneRepository extends AsyncRepository {
         ).onItem().transformToUni(id -> findById(id, user, true));
     }
 
-    public Uni<Scene> update(UUID id, Scene scene, IUser user) {
-        return update(id, scene, List.of(), user);
-    }
-
     public Uni<Scene> update(UUID id, Scene scene, List<RlsActionDTO> rlsActions, IUser user) {
         return rlsRepository.findById(entityData.getRlsName(), user.getId(), id)
                 .onItem().transformToUni(permissions -> {
@@ -287,10 +283,12 @@ public class SceneRepository extends AsyncRepository {
         } else {
             doc.setStartTime(List.of());
         }
-        doc.setDurationSeconds(row.getInteger("duration_seconds"));
+        Integer durationSeconds = row.getInteger("duration_seconds");
+        if (durationSeconds != null) doc.setDurationSeconds(durationSeconds);
         Integer seqNum = row.getInteger("seq_num");
         if (seqNum != null) doc.setSeqNum(seqNum);
-        doc.setOneTimeRun(row.getBoolean("one_time_run"));
+        Boolean oneTimeRun = row.getBoolean("one_time_run");
+        if (oneTimeRun != null) doc.setOneTimeRun(oneTimeRun);
         Double talk = row.getDouble("talkativity");
         if (talk != null) doc.setTalkativity(talk);
         Object[] weekdaysArr = row.getArrayOfIntegers("weekdays");
