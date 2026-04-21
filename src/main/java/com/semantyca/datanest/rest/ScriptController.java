@@ -44,10 +44,8 @@ import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class ScriptController extends AbstractSecuredController<Script, ScriptDTO> {
-    @Inject
-    ScriptService service;
-    @Inject
-    BrandScriptUpdateService brandScriptUpdateService;
+    private ScriptService service;
+    private BrandScriptUpdateService brandScriptUpdateService;
     private Validator validator;
 
     public ScriptController() {
@@ -411,6 +409,7 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
                                 viewPage.addPayload(PayloadType.DOC_DATA, scriptDTO);
                                 rc.response()
                                         .setStatusCode(201)
+                                        .putHeader("Content-Type", "application/json")
                                         .end(io.vertx.core.json.Json.encode(viewPage));
                             },
                             failure -> {
@@ -475,7 +474,7 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
                     }
                 })
                 .subscribe().with(
-                        nodes -> rc.response().setStatusCode(200).end(new JsonArray(nodes).encode()),
+                        nodes -> rc.response().setStatusCode(200).putHeader("Content-Type", "application/json").end(new JsonArray(nodes).encode()),
                         rc::fail
                 );
     }
@@ -592,7 +591,7 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
                                 FormPage page = new FormPage();
                                 page.addPayload(PayloadType.DOC_DATA, clonedScript);
                                 page.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());
-                                rc.response().setStatusCode(201).end(io.vertx.core.json.Json.encode(page));
+                                rc.response().setStatusCode(201).putHeader("Content-Type", "application/json").end(io.vertx.core.json.Json.encode(page));
                             },
                             rc::fail
                     );

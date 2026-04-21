@@ -36,8 +36,7 @@ import java.util.stream.Collectors;
 @ApplicationScoped
 public class ProfileController extends AbstractSecuredController<Profile, ProfileDTO> {
 
-    @Inject
-    ProfileService service;
+    private ProfileService service;
     private Validator validator;
 
     public ProfileController() {

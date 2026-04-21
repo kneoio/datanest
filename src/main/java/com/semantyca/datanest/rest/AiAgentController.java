@@ -28,9 +28,7 @@ import java.util.UUID;
 @ApplicationScoped
 public class AiAgentController extends AbstractSecuredController<AiAgent, AiAgentDTO> {
 
-    @Inject
-    AiAgentService service;
-
+    private AiAgentService service;
     private Validator validator;
 
     public AiAgentController() {

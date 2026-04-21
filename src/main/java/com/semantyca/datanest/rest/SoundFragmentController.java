@@ -335,7 +335,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                             updated -> {
                                 JsonObject response = new JsonObject();
                                 response.put("updated", updated);
-                                rc.response().setStatusCode(200).end(response.encode());
+                                rc.response().setStatusCode(200).putHeader("Content-Type", "application/json").end(response.encode());
                             },
                             t -> handleFailure(rc, t)
                     );

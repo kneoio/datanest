@@ -224,7 +224,7 @@ public class DraftController extends AbstractSecuredController<Draft, DraftDTO> 
             getContextUser(rc, false, true)
                     .chain(user -> service.upsert(id, dto, user, LanguageCode.en))
                     .subscribe().with(
-                            doc -> rc.response().setStatusCode(id == null ? 201 : 200).end(io.vertx.core.json.Json.encode(doc)),
+                            doc -> rc.response().setStatusCode(id == null ? 201 : 200).putHeader("Content-Type", "application/json").end(io.vertx.core.json.Json.encode(doc)),
                             throwable -> handleFailure(rc, throwable)
                     );
         } catch (Exception e) {

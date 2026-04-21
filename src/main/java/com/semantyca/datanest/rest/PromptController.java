@@ -46,8 +46,7 @@ import java.util.stream.Collectors;
 public class PromptController extends AbstractSecuredController<Prompt, PromptDTO> {
     private static final Logger LOGGER = LoggerFactory.getLogger(PromptController.class);
 
-    @Inject
-    PromptService service;
+    private PromptService service;
     private Validator validator;
 
     @Inject
