@@ -36,5 +36,6 @@ public class ListenerDTO extends AbstractReferenceDTO {
     private List<UUID> listenerOf;
     private List<UUID> labels;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    @Builder.Default
     private List<RlsActionDTO> rlsActions = new ArrayList<>();
 }

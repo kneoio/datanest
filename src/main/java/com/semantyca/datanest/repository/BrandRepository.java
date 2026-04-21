@@ -24,12 +24,14 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
+import io.vertx.mutiny.sqlclient.SqlClient;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
@@ -406,9 +408,9 @@ public class BrandRepository extends AsyncRepository {
     }
 
     private Uni<Void> applyRlsActions(SqlClient tx, UUID entityId, List<RlsActionDTO> actions) {
-        LOGGER.info("applyRlsActions: table={}, entityId={}, actions count={}", entityData.getRlsName(), entityId, actions.size());
+        LOGGER.infof("applyRlsActions: table=%s, entityId=%s, actions count=%s", entityData.getRlsName(), entityId, actions.size());
         for (RlsActionDTO a : actions) {
-            LOGGER.info("  action={}, userId={}, canEdit={}, canDelete={}", a.getAction(), a.getUserId(), a.isCanEdit(), a.isCanDelete());
+            LOGGER.infof("  action=%s, userId=%s, canEdit=%s, canDelete=%s", a.getAction(), a.getUserId(), a.isCanEdit(), a.isCanDelete());
         }
         if (actions.isEmpty()) {
             return Uni.createFrom().voidItem();

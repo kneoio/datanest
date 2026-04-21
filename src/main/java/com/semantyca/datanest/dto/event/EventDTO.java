@@ -8,6 +8,7 @@ import com.semantyca.datanest.dto.ScenePromptDTO;
 import com.semantyca.datanest.dto.StagePlaylistDTO;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -34,6 +35,7 @@ public class EventDTO extends AbstractDTO {
     private List<ScenePromptDTO> actions;
     private StagePlaylistDTO stagePlaylist;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    @Builder.Default
     private List<RlsActionDTO> rlsActions = new ArrayList<>();
 
 }
