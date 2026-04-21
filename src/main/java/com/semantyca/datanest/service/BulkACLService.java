@@ -3,6 +3,8 @@ package com.semantyca.datanest.service;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.datanest.dto.BulkACLRequestDTO;
 import com.semantyca.datanest.dto.RlsActionDTO;
+import com.semantyca.datanest.repository.*;
+import com.semantyca.datanest.repository.prompt.PromptRepository;
 import com.semantyca.datanest.repository.soundfragment.SoundFragmentRepository;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonObject;
@@ -35,10 +37,36 @@ public class BulkACLService {
     private final Map<String, List<Consumer<SseEvent>>> subscribers = new ConcurrentHashMap<>();
 
     private final SoundFragmentRepository soundFragmentRepository;
+    private final BrandRepository brandRepository;
+    private final EventRepository eventRepository;
+    private final ScriptRepository scriptRepository;
+    private final SceneRepository sceneRepository;
+    private final AiAgentRepository aiAgentRepository;
+    private final ProfileRepository profileRepository;
+    private final ListenersRepository listenersRepository;
+    private final PromptRepository promptRepository;
 
     @Inject
-    public BulkACLService(SoundFragmentRepository soundFragmentRepository) {
+    public BulkACLService(
+            SoundFragmentRepository soundFragmentRepository,
+            BrandRepository brandRepository,
+            EventRepository eventRepository,
+            ScriptRepository scriptRepository,
+            SceneRepository sceneRepository,
+            AiAgentRepository aiAgentRepository,
+            ProfileRepository profileRepository,
+            ListenersRepository listenersRepository,
+            PromptRepository promptRepository
+    ) {
         this.soundFragmentRepository = soundFragmentRepository;
+        this.brandRepository = brandRepository;
+        this.eventRepository = eventRepository;
+        this.scriptRepository = scriptRepository;
+        this.sceneRepository = sceneRepository;
+        this.aiAgentRepository = aiAgentRepository;
+        this.profileRepository = profileRepository;
+        this.listenersRepository = listenersRepository;
+        this.promptRepository = promptRepository;
     }
 
     public void subscribe(String jobId, Consumer<SseEvent> consumer) {
@@ -74,6 +102,11 @@ public class BulkACLService {
     public void startJob(String jobId, BulkACLRequestDTO request, IUser user) {
         if (jobId == null || jobId.isBlank()) throw new IllegalArgumentException("jobId is required");
 
+        String resourceType = request.getResourceType();
+        if (resourceType == null || resourceType.isBlank()) {
+            throw new IllegalArgumentException("resourceType is required");
+        }
+
         List<UUID> documentIds = request.getDocumentIds();
         List<RlsActionDTO> actions = request.getActions();
 
@@ -83,7 +116,7 @@ public class BulkACLService {
         st.failed = 0;
         st.finished = false;
         jobs.put(jobId, st);
-        LOGGER.info("Bulk ACL job started: jobId={}, total={}, actions={}", jobId, st.total, actions);
+        LOGGER.info("Bulk ACL job started: jobId={}, resourceType={}, total={}, actions={}", jobId, resourceType, st.total, actions);
 
         emit(jobId, "started", new JsonObject().put("total", st.total));
 
@@ -93,7 +126,7 @@ public class BulkACLService {
             return;
         }
 
-        processSequential(jobId, documentIds, 0, actions, user)
+        processSequential(jobId, documentIds, 0, actions, resourceType, user)
                 .subscribe().with(
                         ignored -> {},
                         err -> {
@@ -104,8 +137,23 @@ public class BulkACLService {
                 );
     }
 
+    private Uni<Void> bulkUpdateACLForResource(String resourceType, UUID documentId, List<RlsActionDTO> actions, IUser user) {
+        return switch (resourceType) {
+            case "soundfragments" -> soundFragmentRepository.bulkUpdateACL(documentId, actions, user);
+            case "brands" -> brandRepository.bulkUpdateACL(documentId, actions, user);
+            case "events" -> eventRepository.bulkUpdateACL(documentId, actions, user);
+            case "scripts" -> scriptRepository.bulkUpdateACL(documentId, actions, user);
+            case "scenes" -> sceneRepository.bulkUpdateACL(documentId, actions, user);
+            case "aiagents" -> aiAgentRepository.bulkUpdateACL(documentId, actions, user);
+            case "profiles" -> profileRepository.bulkUpdateACL(documentId, actions, user);
+            case "listeners" -> listenersRepository.bulkUpdateACL(documentId, actions, user);
+            case "prompts" -> promptRepository.bulkUpdateACL(documentId, actions, user);
+            default -> Uni.createFrom().failure(new IllegalArgumentException("Unknown resourceType: " + resourceType));
+        };
+    }
+
     private Uni<Void> processSequential(String jobId, List<UUID> documentIds, int idx,
-                                        List<RlsActionDTO> actions, IUser user) {
+                                        List<RlsActionDTO> actions, String resourceType, IUser user) {
         if (idx >= documentIds.size()) {
             JobState st = jobs.get(jobId);
             if (st != null) {
@@ -121,7 +169,7 @@ public class BulkACLService {
         UUID documentId = documentIds.get(idx);
 
         LOGGER.info("Processing document {}/{}: {}", idx + 1, documentIds.size(), documentId);
-        return soundFragmentRepository.bulkUpdateACL(documentId, actions, user)
+        return bulkUpdateACLForResource(resourceType, documentId, actions, user)
                 .onItem().invoke(v -> {
                     JobState st = jobs.get(jobId);
                     if (st != null) st.done += 1;
@@ -141,6 +189,6 @@ public class BulkACLService {
                             .put("message", err.getMessage()));
                     return null;
                 })
-                .chain(ignored -> processSequential(jobId, documentIds, idx + 1, actions, user));
+                .chain(ignored -> processSequential(jobId, documentIds, idx + 1, actions, resourceType, user));
     }
 }

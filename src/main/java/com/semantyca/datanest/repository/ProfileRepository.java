@@ -200,6 +200,17 @@ public class ProfileRepository extends AsyncRepository {
         return getAllCount(user.getId(), entityData.getTableName(), entityData.getRlsName());
     }
 
+    public Uni<Void> bulkUpdateACL(UUID entityId, List<RlsActionDTO> actions, IUser user) {
+        return rlsRepository.findById(entityData.getRlsName(), user.getId(), entityId)
+                .onItem().transformToUni(permissions -> {
+                    if (!permissions[0]) {
+                        return Uni.createFrom().failure(new DocumentModificationAccessException(
+                                "User does not have edit permission", user.getUserName(), entityId));
+                    }
+                    return client.withTransaction(tx -> applyRlsActions(tx, entityId, actions));
+                });
+    }
+
     private Uni<Void> applyRlsActions(SqlClient tx, UUID entityId, List<RlsActionDTO> actions) {
         return RlsActionUtil.applyRlsActions(tx, entityData.getRlsName(), entityId, actions);
     }

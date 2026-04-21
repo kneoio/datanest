@@ -87,9 +87,16 @@ public class BulkACLController extends AbstractSecuredController<Object, BulkACL
                 actions.add(actionsArray.getJsonObject(i).mapTo(RlsActionDTO.class));
             }
 
+            String resourceType = body.getString("resourceType");
+            if (resourceType == null || resourceType.isBlank()) {
+                rc.fail(400, new IllegalArgumentException("resourceType is required"));
+                return;
+            }
+
             BulkACLRequestDTO request = new BulkACLRequestDTO();
             request.setDocumentIds(documentIds);
             request.setActions(actions);
+            request.setResourceType(resourceType);
 
             getContextUser(rc, false, true)
                     .subscribe().with(
