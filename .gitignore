@@ -31,3 +31,4 @@ application-prod.properties
 .env
 
 /out/
+/.cursor/

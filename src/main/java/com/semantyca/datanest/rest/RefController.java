@@ -11,7 +11,7 @@ import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.datanest.dto.ProfileDTO;
 import com.semantyca.datanest.dto.actions.AiAgentActionsFactory;
 import com.semantyca.datanest.dto.actions.ProfileActionsFactory;
-import com.semantyca.datanest.dto.aiagent.AiAgentDTO;
+import com.semantyca.datanest.dto.aiagent.AiAgentFlatDTO;
 import com.semantyca.datanest.dto.aiagent.VoiceDTO;
 import com.semantyca.datanest.service.AiAgentService;
 import com.semantyca.datanest.service.ProfileService;
@@ -69,12 +69,12 @@ public class RefController extends BaseController {
                 SuperUser su = SuperUser.build();
                 Uni.combine().all().unis(
                                 aiAgentService.getAllCount(su),
-                                aiAgentService.getAll(size, (page - 1) * size, su)
+                                aiAgentService.getAllFlat(size, (page - 1) * size, su)
                         )
                         .asTuple()
                         .map(tuple -> {
                             ViewPage viewPage = new ViewPage();
-                            View<AiAgentDTO> dtoEntries = new View<>(
+                            View<AiAgentFlatDTO> dtoEntries = new View<>(
                                     tuple.getItem2(),
                                     tuple.getItem1(),
                                     page,

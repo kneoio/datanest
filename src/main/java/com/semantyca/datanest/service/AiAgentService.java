@@ -7,8 +7,10 @@ import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
+import com.semantyca.datanest.dto.LabelFlatDTO;
 import com.semantyca.datanest.dto.RlsActionDTO;
 import com.semantyca.datanest.dto.aiagent.AiAgentDTO;
+import com.semantyca.datanest.dto.aiagent.AiAgentFlatDTO;
 import com.semantyca.datanest.dto.aiagent.LanguagePreferenceDTO;
 import com.semantyca.datanest.dto.aiagent.TTSSettingDTO;
 import com.semantyca.datanest.dto.aiagent.VoiceDTO;
@@ -18,6 +20,8 @@ import com.semantyca.mixpla.model.aiagent.LanguagePreference;
 import com.semantyca.mixpla.model.aiagent.TTSSetting;
 import com.semantyca.mixpla.model.aiagent.Voice;
 import com.semantyca.mixpla.model.cnst.LlmType;
+import com.semantyca.officeframe.dto.LabelDTO;
+import com.semantyca.officeframe.service.LabelService;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -34,14 +38,17 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
     private static final Logger LOGGER = LoggerFactory.getLogger(AiAgentService.class);
 
     private final AiAgentRepository repository;
+    private final LabelService labelService;
 
     @Inject
     public AiAgentService(
             UserService userService,
-            AiAgentRepository repository
+            AiAgentRepository repository,
+            LabelService labelService
     ) {
         super(userService);
         this.repository = repository;
+        this.labelService = labelService;
     }
 
     public Uni<List<AiAgentDTO>> getAll(final int limit, final int offset, final IUser user) {
@@ -77,6 +84,43 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
         return repository.findById(id, user, false).chain(this::mapToDTO);
     }
 
+    public Uni<List<AiAgentFlatDTO>> getAllFlat(final int limit, final int offset, final IUser user) {
+        return repository.getAll(limit, offset, false, user)
+                .chain(list -> {
+                    if (list.isEmpty()) {
+                        return Uni.createFrom().item(List.of());
+                    }
+                    List<Uni<AiAgentFlatDTO>> unis = list.stream()
+                            .map(this::mapToFlatDTO)
+                            .collect(Collectors.toList());
+                    return Uni.join().all(unis).andFailFast();
+                });
+    }
+
+    private Uni<AiAgentFlatDTO> mapToFlatDTO(AiAgent doc) {
+        AiAgentFlatDTO dto = new AiAgentFlatDTO();
+        dto.setId(doc.getId());
+        dto.setName(doc.getName());
+        dto.setDescription(doc.getDescription());
+        if (doc.getPreferredLang() != null && !doc.getPreferredLang().isEmpty()) {
+            List<LanguagePreferenceDTO> langPrefDTOs = doc.getPreferredLang().stream()
+                    .map(pref -> new LanguagePreferenceDTO(pref.getLanguageTag().tag(), pref.getWeight()))
+                    .toList();
+            dto.setPreferredLang(langPrefDTOs);
+        }
+        if (doc.getLabels() != null && !doc.getLabels().isEmpty()) {
+            List<Uni<LabelDTO>> labelUnis = doc.getLabels().stream()
+                    .map(labelId -> labelService.getDTO(labelId, null, LanguageCode.en))
+                    .collect(Collectors.toList());
+            return Uni.join().all(labelUnis).andFailFast()
+                    .map(labels -> {
+                        dto.setLabels(labels.stream().map(LabelFlatDTO::from).toList());
+                        return dto;
+                    });
+        }
+        return Uni.createFrom().item(dto);
+    }
+
     public Uni<AiAgentDTO> upsert(String id, AiAgentDTO dto, IUser user, LanguageCode code) {
         AiAgent entity = buildEntity(dto);
         List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
@@ -99,7 +143,8 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
             dto.setLastModifier(tuple.getItem2());
             dto.setLastModifiedDate(doc.getLastModifiedDate());
             dto.setName(doc.getName());
-            
+            dto.setDescription(doc.getDescription());
+
             if (doc.getPreferredLang() != null && !doc.getPreferredLang().isEmpty()) {
                 List<LanguagePreferenceDTO> langPrefDTOs = doc.getPreferredLang().stream()
                         .map(pref -> new LanguagePreferenceDTO(pref.getLanguageTag().tag(), pref.getWeight()))
@@ -160,6 +205,7 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
         AiAgent doc = new AiAgent();
         doc.setId(dto.getId());
         doc.setName(dto.getName());
+        doc.setDescription(dto.getDescription());
         doc.setCopilot(dto.getCopilot());
         
         if (dto.getLabels() != null && !dto.getLabels().isEmpty()) {
