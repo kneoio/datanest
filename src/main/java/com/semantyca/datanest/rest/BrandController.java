@@ -105,7 +105,6 @@
                             BrandDTO dto = new BrandDTO();
                             dto.setLocalizedName(new EnumMap<>(LanguageCode.class));
                             dto.getLocalizedName().put(LanguageCode.en, "");
-                            dto.setManagedBy(ManagedBy.MIX);
                             dto.setColor(WebHelper.generateRandomBrightColor());
                             dto.setBitRate(128000);
                             return Uni.createFrom().item(Tuple2.of(dto, user));

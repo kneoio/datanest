@@ -42,8 +42,6 @@ public class BrandDTO extends AbstractDTO {
     @NotBlank(message = "Country cannot be empty")
     @ValidCountry(message = "It is not available for the country")
     private String country;
-    @Deprecated
-    private ManagedBy managedBy;
     private URL hlsUrl;
     private URL iceCastUrl;
     private URL mp3Url;
