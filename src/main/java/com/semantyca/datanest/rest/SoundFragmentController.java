@@ -414,14 +414,24 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
 
     private SoundFragmentFilter parseFilterDTO(RoutingContext rc) {
         List<SourceType> allowedSources = List.of(SourceType.USER_UPLOAD, SourceType.CONTRIBUTION);
+        List<PlaylistItemType> allowedTypes = List.of(
+                PlaylistItemType.SONG,
+                PlaylistItemType.ADVERTISEMENT,
+                PlaylistItemType.JINGLE,
+                PlaylistItemType.JINGLE_INTRO,
+                PlaylistItemType.JINGLE_OUTRO,
+                PlaylistItemType.BACKGROUND_LOOP
+        );
         String filterParam = rc.request().getParam("filter");
         if (filterParam == null || filterParam.trim().isEmpty()) {
             SoundFragmentFilter dto = new SoundFragmentFilter();
             dto.setSource(allowedSources);
+            dto.setType(allowedTypes);
             return dto;
         }
         SoundFragmentFilter dto = new SoundFragmentFilter();
         dto.setSource(allowedSources);
+        dto.setType(allowedTypes);
         try {
             JsonObject json = new JsonObject(filterParam);
             JsonArray g = json.getJsonArray("genre");
@@ -474,17 +484,20 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
             }
             JsonArray t = json.getJsonArray("type");
             if (t != null && !t.isEmpty()) {
-                List<PlaylistItemType> types = new ArrayList<>();
+                List<PlaylistItemType> requestedTypes = new ArrayList<>();
                 for (Object o : t) {
                     if (o instanceof String str) {
                         try {
-                            types.add(PlaylistItemType.valueOf(str));
+                            PlaylistItemType playlistItemType = PlaylistItemType.valueOf(str);
+                            if (allowedTypes.contains(playlistItemType) && !requestedTypes.contains(playlistItemType)) {
+                                requestedTypes.add(playlistItemType);
+                            }
                         } catch (IllegalArgumentException ignored) {
                         }
                     }
                 }
-                if (!types.isEmpty()) {
-                    dto.setType(types);
+                if (!requestedTypes.isEmpty()) {
+                    dto.setType(requestedTypes);
                 }
             }
             String searchTerm = json.getString("searchTerm");
