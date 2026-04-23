@@ -4,8 +4,6 @@ import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
 
-import java.util.List;
-
 @ConfigMapping(prefix = "datanest")
 public interface DatanestConfig {
     @WithName("host")
@@ -25,5 +23,15 @@ public interface DatanestConfig {
     @WithDefault("ffprobe")
     String getFfprobePath();
 
+    @WithName("anthropic.api-key")
+    String getAnthropicApiKey();
+
+    @WithName("anthropic.model")
+    @WithDefault("claude-sonnet-4-20250514")
+    String getAnthropicModel();
+
+    @WithName("anthropic.master-prompt-translate.max-tokens")
+    @WithDefault("4096")
+    long getAnthropicMasterPromptTranslateMaxTokens();
 
 }

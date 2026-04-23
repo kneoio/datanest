@@ -11,12 +11,12 @@ import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.ProblemDetailsUtil;
 import com.semantyca.core.util.RuntimeUtil;
-import com.semantyca.datanest.agent.AgentClient;
 import com.semantyca.datanest.dto.PromptDTO;
-import com.semantyca.datanest.dto.agentrest.PromptTestReqDTO;
+import com.semantyca.datanest.dto.agentrest.MasterPromptTranslateReqDTO;
 import com.semantyca.datanest.dto.agentrest.TranslateReqDTO;
 import com.semantyca.datanest.service.PromptService;
 import com.semantyca.datanest.service.TranslateService;
+import com.semantyca.datanest.service.prompt.MasterPromptTranslateAnthropicService;
 import com.semantyca.mixpla.model.Prompt;
 import com.semantyca.mixpla.model.cnst.PromptType;
 import com.semantyca.mixpla.model.filter.PromptFilter;
@@ -49,20 +49,24 @@ public class PromptController extends AbstractSecuredController<Prompt, PromptDT
     private PromptService service;
     private Validator validator;
 
-    @Inject
-    AgentClient agentClient;
     private TranslateService translateService;
+    private MasterPromptTranslateAnthropicService masterPromptTranslateAnthropicService;
 
     public PromptController() {
         super(null);
     }
 
     @Inject
-    public PromptController(UserService userService, PromptService service, Validator validator, TranslateService translateService) {
+    public PromptController(UserService userService,
+                            PromptService service,
+                            Validator validator,
+                            TranslateService translateService,
+                            MasterPromptTranslateAnthropicService masterPromptTranslateAnthropicService) {
         super(userService);
         this.service = service;
         this.validator = validator;
         this.translateService = translateService;
+        this.masterPromptTranslateAnthropicService = masterPromptTranslateAnthropicService;
     }
 
     public void setupRoutes(Router router) {
@@ -263,11 +267,11 @@ public class PromptController extends AbstractSecuredController<Prompt, PromptDT
         try {
             if (!validateJsonBody(rc)) return;
 
-            PromptTestReqDTO dto = rc.body().asJsonObject().mapTo(PromptTestReqDTO.class);
+            MasterPromptTranslateReqDTO dto = rc.body().asJsonObject().mapTo(MasterPromptTranslateReqDTO.class);
             if (!validateDTO(rc, dto, validator)) return;
 
             getContextUser(rc, false, true)
-                    .chain(user -> agentClient.testPrompt(dto.getPrompt(), dto.getDraft(), dto.getLlmType()))
+                    .chain(ignoredUser -> masterPromptTranslateAnthropicService.translateMasterPrompt(dto))
                     .subscribe().with(
                             response -> rc.response()
                                     .setStatusCode(200)
