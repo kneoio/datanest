@@ -14,8 +14,10 @@ import com.semantyca.datanest.dto.DraftDTO;
 import com.semantyca.datanest.dto.PromptDTO;
 import com.semantyca.datanest.dto.SceneDTO;
 import com.semantyca.datanest.dto.ScenePromptDTO;
+import com.semantyca.datanest.dto.LabelFlatDTO;
 import com.semantyca.datanest.dto.RlsActionDTO;
 import com.semantyca.datanest.dto.ScriptDTO;
+import com.semantyca.datanest.dto.ScriptFlatDTO;
 import com.semantyca.datanest.dto.ScriptExportDTO;
 import com.semantyca.datanest.dto.StagePlaylistDTO;
 
@@ -30,6 +32,8 @@ import com.semantyca.mixpla.model.ScenePrompt;
 import com.semantyca.mixpla.model.Script;
 import com.semantyca.mixpla.model.cnst.SceneTimingMode;
 import com.semantyca.mixpla.model.filter.ScriptFilter;
+import com.semantyca.officeframe.dto.LabelDTO;
+import com.semantyca.officeframe.service.LabelService;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -50,6 +54,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
     private final SceneService scriptSceneService;
     private final PromptService promptService;
     private final DraftService draftService;
+    private final LabelService labelService;
 
     protected ScriptService() {
         super();
@@ -57,15 +62,24 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         this.scriptSceneService = null;
         this.promptService = null;
         this.draftService = null;
+        this.labelService = null;
     }
 
     @Inject
-    public ScriptService(UserService userService, ScriptRepository repository, SceneService scriptSceneService, PromptService promptService, DraftService draftService) {
+    public ScriptService(
+            UserService userService,
+            ScriptRepository repository,
+            SceneService scriptSceneService,
+            PromptService promptService,
+            DraftService draftService,
+            LabelService labelService
+    ) {
         super(userService);
         this.repository = repository;
         this.scriptSceneService = scriptSceneService;
         this.promptService = promptService;
         this.draftService = draftService;
+        this.labelService = labelService;
     }
 
     public Uni<List<ScriptDTO>> getAllDTO(final int limit, final int offset, final IUser user) {
@@ -95,6 +109,46 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
     public Uni<Integer> getAllCount(final IUser user, final ScriptFilter filter) {
         assert repository != null;
         return repository.getAllCount(user, false, filter);
+    }
+
+    public Uni<List<ScriptFlatDTO>> getAllFlat(final int limit, final int offset, final IUser user) {
+        assert repository != null;
+        return repository.getAll(limit, offset, false, user, null)
+                .chain(list -> {
+                    if (list.isEmpty()) {
+                        return Uni.createFrom().item(List.of());
+                    }
+                    List<Uni<ScriptFlatDTO>> unis = list.stream()
+                            .map(this::mapToFlatDTO)
+                            .collect(Collectors.toList());
+                    return Uni.join().all(unis).andFailFast();
+                });
+    }
+
+    private Uni<ScriptFlatDTO> mapToFlatDTO(Script script) {
+        ScriptFlatDTO dto = new ScriptFlatDTO();
+        dto.setId(script.getId());
+        dto.setName(script.getName());
+        dto.setSlugName(script.getSlugName());
+        dto.setDescription(script.getDescription());
+        if (script.getLanguageTag() != null) {
+            dto.setLanguageTag(script.getLanguageTag().tag());
+        }
+        if (script.getTimingMode() != null) {
+            dto.setTimingMode(script.getTimingMode().name());
+        }
+        dto.setAccessLevel(script.getAccessLevel());
+        if (script.getLabels() == null || script.getLabels().isEmpty()) {
+            return Uni.createFrom().item(dto);
+        }
+        List<Uni<LabelDTO>> labelUnis = script.getLabels().stream()
+                .map(labelId -> labelService.getDTO(labelId, null, LanguageCode.en))
+                .collect(Collectors.toList());
+        return Uni.join().all(labelUnis).andFailFast()
+                .map(fullLabels -> {
+                    dto.setTags(fullLabels.stream().map(LabelFlatDTO::from).toList());
+                    return dto;
+                });
     }
 
     public Uni<List<ScriptDTO>> getAllShared(final int limit, final int offset, final IUser user) {
@@ -857,7 +911,6 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         clonedDraftDTO.setContent(originalDraft.getContent());
         clonedDraftDTO.setLanguageTag(originalDraft.getLanguageTag().tag());
         clonedDraftDTO.setEnabled(originalDraft.isEnabled());
-        clonedDraftDTO.setMaster(originalDraft.isMaster());
         clonedDraftDTO.setLocked(originalDraft.isLocked());
         clonedDraftDTO.setMasterId(originalDraft.getMasterId());
         clonedDraftDTO.setVersion(originalDraft.getVersion());

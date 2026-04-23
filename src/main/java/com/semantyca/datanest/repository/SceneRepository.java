@@ -35,7 +35,19 @@ import static com.semantyca.mixpla.repository.MixplaNameResolver.SCRIPT_SCENE;
 @ApplicationScoped
 public class SceneRepository extends AsyncRepository {
     private static final EntityData entityData = MixplaNameResolver.create().getEntityNames(SCRIPT_SCENE);
+    /** 6am as start of "broadcast day" for ordering (times before 6am sort after evening). */
+    private static final int BROADCAST_DAY_ANCHOR_SEC = 6 * 60 * 60;
     private final PromptRepository promptRepository;
+
+    /**
+     * SQL expression: sort position from 6am (first slot in {@code start_time} JSON array); empty/null last.
+     */
+    private static String broadcastDayStartTimeSortKey(String tableAlias) {
+        return "CASE WHEN (" + tableAlias + ".start_time->>0) IS NOT NULL "
+                + "THEN MOD((EXTRACT(EPOCH FROM (" + tableAlias + ".start_time->>0)::time) - " + BROADCAST_DAY_ANCHOR_SEC
+                + " + 86400)::numeric, 86400) "
+                + "ELSE NULL END";
+    }
 
     @Inject
     public SceneRepository(Pool client, ObjectMapper mapper, RLSRepository rlsRepository, PromptRepository promptRepository) {
@@ -55,7 +67,7 @@ public class SceneRepository extends AsyncRepository {
         if (filter != null && filter.isActivated() && filter.getScriptId() != null) {
             sql += " AND t.script_id = '" + filter.getScriptId() + "'";
         }
-        sql += " ORDER BY s.name ASC, t.seq_num ASC, t.start_time ASC";
+        sql += " ORDER BY t.script_id ASC, " + broadcastDayStartTimeSortKey("t") + " ASC NULLS LAST, t.seq_num ASC";
         if (limit > 0) {
             sql += String.format(" LIMIT %s OFFSET %s", limit, offset);
         }
@@ -90,7 +102,7 @@ public class SceneRepository extends AsyncRepository {
         if (!includeArchived) {
             sql += " AND t.archived = 0";
         }
-        sql += " ORDER BY t.seq_num ASC, t.start_time ";
+        sql += " ORDER BY t.seq_num ASC, " + broadcastDayStartTimeSortKey("t") + " ASC NULLS LAST";
         if (limit > 0) {
             sql += String.format(" LIMIT %s OFFSET %s", limit, offset);
         }

@@ -6,6 +6,7 @@ import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.ProfileDTO;
+import com.semantyca.datanest.dto.ProfileFlatDTO;
 import com.semantyca.datanest.dto.RlsActionDTO;
 import com.semantyca.datanest.repository.ProfileRepository;
 import com.semantyca.mixpla.model.Profile;
@@ -41,6 +42,20 @@ public class ProfileService extends AbstractService<Profile, ProfileDTO> {
                         return Uni.join().all(unis).andFailFast();
                     }
                 });
+    }
+
+    public Uni<List<ProfileFlatDTO>> getAllFlat(final int limit, final int offset, final IUser user) {
+        return repository.getAll(limit, offset, false, user)
+                .map(list -> list.stream().map(this::mapToFlatDTO).collect(Collectors.toList()));
+    }
+
+    private ProfileFlatDTO mapToFlatDTO(Profile profile) {
+        ProfileFlatDTO dto = new ProfileFlatDTO();
+        dto.setId(profile.getId());
+        dto.setName(profile.getName());
+        dto.setDescription(profile.getDescription());
+        dto.setExplicitContent(profile.isExplicitContent());
+        return dto;
     }
 
     public Uni<Integer> getAllCount(final IUser user) {

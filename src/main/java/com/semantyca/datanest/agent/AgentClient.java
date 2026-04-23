@@ -62,11 +62,13 @@ public class AgentClient {
     public Uni<AgentRespDTO> translate(String toTranslate, TranslationType translationType, LanguageTag languageTag, CountryCode countryCode) {
         String endpoint = config.getAgentUrl() + "/translate";
 
+        CountryCode country = countryCode != null ? countryCode : CountryCode.UNKNOWN;
+
         JsonObject payload = new JsonObject();
         payload.put("toTranslate", toTranslate);
         payload.put("translationType", translationType);
         payload.put("language", languageTag.name());
-        payload.put("country", countryCode.name());
+        payload.put("country", country.name());
 
         return webClient
                 .postAbs(endpoint)

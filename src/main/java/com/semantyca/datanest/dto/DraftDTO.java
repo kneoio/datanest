@@ -17,7 +17,6 @@ public class DraftDTO extends AbstractDTO {
     private String languageTag;
     private Integer archived;
     private boolean enabled;
-    private boolean master;
     private boolean locked;
     private UUID masterId;
     private double version;

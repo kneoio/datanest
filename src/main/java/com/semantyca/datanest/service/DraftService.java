@@ -154,7 +154,6 @@ public class DraftService extends AbstractService<Draft, DraftDTO> {
             dto.setLanguageTag(doc.getLanguageTag().tag());
             dto.setArchived(doc.getArchived());
             dto.setEnabled(doc.isEnabled());
-            dto.setMaster(doc.isMaster());
             dto.setLocked(doc.isLocked());
             dto.setMasterId(doc.getMasterId());
             dto.setVersion(doc.getVersion());
@@ -170,7 +169,6 @@ public class DraftService extends AbstractService<Draft, DraftDTO> {
         doc.setLanguageTag(LanguageTag.fromTag(dto.getLanguageTag()));
         doc.setArchived(dto.getArchived());
         doc.setEnabled(dto.isEnabled());
-        doc.setMaster(dto.isMaster());
         doc.setLocked(dto.isLocked());
         doc.setMasterId(dto.getMasterId());
         doc.setVersion(dto.getVersion());

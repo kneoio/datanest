@@ -9,7 +9,6 @@ import com.semantyca.core.repository.exception.DocumentModificationAccessExcepti
 import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.table.EntityData;
 import com.semantyca.datanest.dto.RlsActionDTO;
-import com.semantyca.datanest.repository.RlsActionUtil;
 import com.semantyca.mixpla.model.Profile;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Multi;
@@ -21,7 +20,6 @@ import jakarta.inject.Inject;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 

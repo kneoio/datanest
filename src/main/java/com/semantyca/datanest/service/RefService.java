@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.user.SuperUser;
+import com.semantyca.datanest.dto.GenreFlatDTO;
 import com.semantyca.datanest.dto.aiagent.VoiceDTO;
 import com.semantyca.mixpla.model.cnst.TTSEngineType;
 import com.semantyca.mixpla.model.filter.VoiceFilter;
@@ -52,7 +53,11 @@ public class RefService {
     }
 
     public Uni<List<GenreDTO>> getAllGenres(final int limit, final int offset) {
-        return genreService.getAll(limit, offset,null, LanguageCode.en);
+        return genreService.getAll(limit, offset, null, LanguageCode.en);
+    }
+
+    public Uni<List<GenreFlatDTO>> getAllGenresFlat(final int limit, final int offset) {
+        return getAllGenres(limit, offset).map(list -> list.stream().map(GenreFlatDTO::from).toList());
     }
 
     public Uni<Integer> getAllVoicesCount(TTSEngineType engineType) {

@@ -22,7 +22,7 @@ public class TranslateReqDTO {
     private TranslationType translationType;
     @NotNull
     private String languageTag;
-    @NotNull
+    /** If null, the translate agent is called with {@code CountryCode.UNKNOWN}. */
     private CountryCode countryCode;
     private double version;
 }

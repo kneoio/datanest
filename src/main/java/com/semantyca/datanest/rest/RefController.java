@@ -8,19 +8,21 @@ import com.semantyca.core.dto.view.ViewPage;
 import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.util.RuntimeUtil;
-import com.semantyca.datanest.dto.ProfileDTO;
+import com.semantyca.datanest.dto.ProfileFlatDTO;
 import com.semantyca.datanest.dto.actions.AiAgentActionsFactory;
 import com.semantyca.datanest.dto.actions.ProfileActionsFactory;
+import com.semantyca.datanest.dto.GenreFlatDTO;
+import com.semantyca.datanest.dto.LabelFlatDTO;
+import com.semantyca.datanest.dto.ScriptFlatDTO;
 import com.semantyca.datanest.dto.aiagent.AiAgentFlatDTO;
 import com.semantyca.datanest.dto.aiagent.VoiceDTO;
 import com.semantyca.datanest.service.AiAgentService;
 import com.semantyca.datanest.service.ProfileService;
 import com.semantyca.datanest.service.RefService;
+import com.semantyca.datanest.service.ScriptService;
 import com.semantyca.mixpla.model.cnst.TTSEngineType;
 import com.semantyca.mixpla.model.filter.VoiceFilter;
 import com.semantyca.officeframe.dto.CountryDTO;
-import com.semantyca.officeframe.dto.GenreDTO;
-import com.semantyca.officeframe.dto.LabelDTO;
 import com.semantyca.officeframe.model.cnst.CountryCode;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.http.HttpMethod;
@@ -52,6 +54,9 @@ public class RefController extends BaseController {
 
     @Inject
     ProfileService profileService;
+
+    @Inject
+    ScriptService scriptService;
 
     public void setupRoutes(Router router) {
         router.route(HttpMethod.GET, "/datanest/dictionary/:type").handler(this::getDictionary);
@@ -95,16 +100,44 @@ public class RefController extends BaseController {
                         );
                 break;
 
-            case "profiles":
-                SuperUser suProfiles = SuperUser.build();
+            case "scripts":
+                SuperUser suScripts = SuperUser.build();
                 Uni.combine().all().unis(
-                                profileService.getAllCount(suProfiles),
-                                profileService.getAll(size, (page - 1) * size, suProfiles)
+                                scriptService.getAllCount(suScripts, null),
+                                scriptService.getAllFlat(size, (page - 1) * size, suScripts)
                         )
                         .asTuple()
                         .map(tuple -> {
                             ViewPage viewPage = new ViewPage();
-                            View<ProfileDTO> dtoEntries = new View<>(
+                            View<ScriptFlatDTO> dtoEntries = new View<>(
+                                    tuple.getItem2(),
+                                    tuple.getItem1(),
+                                    page,
+                                    countMaxPage(tuple.getItem1(), size),
+                                    size);
+                            viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
+                            viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());
+                            return viewPage;
+                        })
+                        .subscribe().with(
+                                viewPage -> rc.response()
+                                        .setStatusCode(200)
+                                        .putHeader("Content-Type", "application/json")
+                                        .end(io.vertx.core.json.Json.encode(viewPage)),
+                                rc::fail
+                        );
+                break;
+
+            case "profiles":
+                SuperUser suProfiles = SuperUser.build();
+                Uni.combine().all().unis(
+                                profileService.getAllCount(suProfiles),
+                                profileService.getAllFlat(size, (page - 1) * size, suProfiles)
+                        )
+                        .asTuple()
+                        .map(tuple -> {
+                            ViewPage viewPage = new ViewPage();
+                            View<ProfileFlatDTO> dtoEntries = new View<>(
                                     tuple.getItem2(),
                                     tuple.getItem1(),
                                     page,
@@ -127,13 +160,13 @@ public class RefController extends BaseController {
             case "genres":
                 Uni.combine().all().unis(
                                 service.getAllGenresCount(),
-                                service.getAllGenres(size, (page - 1) * size)
+                                service.getAllGenresFlat(size, (page - 1) * size)
                         )
                         .asTuple()
                         .map(tuple -> {
                             ViewPage viewPage = new ViewPage();
                             viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());
-                            View<GenreDTO> dtoEntries = new View<>(tuple.getItem2(),
+                            View<GenreFlatDTO> dtoEntries = new View<>(tuple.getItem2(),
                                     tuple.getItem1(), page,
                                     countMaxPage(tuple.getItem1(), size),
                                     size);
@@ -157,10 +190,13 @@ public class RefController extends BaseController {
                 }
                 service.getSoundFragmentLabels(category)
                         .map(labels -> {
+                            List<LabelFlatDTO> flat = labels.stream()
+                                    .map(LabelFlatDTO::from)
+                                    .toList();
                             ViewPage viewPage = new ViewPage();
                             viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());
-                            int totalCount = labels.size();
-                            View<LabelDTO> dtoEntries = new View<>(labels,
+                            int totalCount = flat.size();
+                            View<LabelFlatDTO> dtoEntries = new View<>(flat,
                                     totalCount, page,
                                     countMaxPage(totalCount, size),
                                     size);
