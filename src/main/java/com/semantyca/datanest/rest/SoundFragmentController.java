@@ -413,12 +413,15 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
     }
 
     private SoundFragmentFilter parseFilterDTO(RoutingContext rc) {
+        List<SourceType> allowedSources = List.of(SourceType.USER_UPLOAD, SourceType.CONTRIBUTION);
         String filterParam = rc.request().getParam("filter");
         if (filterParam == null || filterParam.trim().isEmpty()) {
-            return null;
+            SoundFragmentFilter dto = new SoundFragmentFilter();
+            dto.setSource(allowedSources);
+            return dto;
         }
         SoundFragmentFilter dto = new SoundFragmentFilter();
-        boolean any = false;
+        dto.setSource(allowedSources);
         try {
             JsonObject json = new JsonObject(filterParam);
             JsonArray g = json.getJsonArray("genre");
@@ -434,23 +437,24 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                 }
                 if (!genres.isEmpty()) {
                     dto.setGenre(genres);
-                    any = true;
                 }
             }
             JsonArray s = json.getJsonArray("source");
             if (s != null && !s.isEmpty()) {
-                List<SourceType> sources = new ArrayList<>();
+                List<SourceType> requestedSources = new ArrayList<>();
                 for (Object o : s) {
                     if (o instanceof String str) {
                         try {
-                            sources.add(SourceType.valueOf(str));
+                            SourceType sourceType = SourceType.valueOf(str);
+                            if (allowedSources.contains(sourceType) && !requestedSources.contains(sourceType)) {
+                                requestedSources.add(sourceType);
+                            }
                         } catch (IllegalArgumentException ignored) {
                         }
                     }
                 }
-                if (!sources.isEmpty()) {
-                    dto.setSource(sources);
-                    any = true;
+                if (!requestedSources.isEmpty()) {
+                    dto.setSource(requestedSources);
                 }
             }
             JsonArray l = json.getJsonArray("labels");
@@ -466,7 +470,6 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                 }
                 if (!labels.isEmpty()) {
                     dto.setLabels(labels);
-                    any = true;
                 }
             }
             JsonArray t = json.getJsonArray("type");
@@ -482,27 +485,23 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                 }
                 if (!types.isEmpty()) {
                     dto.setType(types);
-                    any = true;
                 }
             }
             String searchTerm = json.getString("searchTerm");
             if (searchTerm != null && !searchTerm.trim().isEmpty()) {
                 dto.setSearchTerm(searchTerm.trim());
-                any = true;
             }
             if (json.containsKey("activated")) {
                 dto.setActivated(json.getBoolean("activated", false));
-                any = true;
             } else if (json.containsKey("filterActivated")) {
                 dto.setActivated(json.getBoolean("filterActivated", false));
-                any = true;
             }
         } catch (IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
             throw new IllegalArgumentException("Invalid filter JSON format: " + e.getMessage(), e);
         }
-        return any ? dto : null;
+        return dto;
     }
 
     protected void handleFailure(RoutingContext rc, Throwable throwable) {
