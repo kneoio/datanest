@@ -15,7 +15,11 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -41,6 +45,56 @@ public class PromptService extends AbstractService<Prompt, PromptDTO> {
                         return Uni.join().all(unis).andFailFast();
                     }
                 });
+    }
+
+    public Uni<List<PromptDTO>> getAllGroupedDTO(final int limit, final int offset, final IUser user, final PromptFilter filter) {
+        return repository.getAllMasters(limit, offset, false, user, filter)
+                .chain(masters -> {
+                    if (masters.isEmpty()) {
+                        return Uni.createFrom().item(List.of());
+                    }
+                    List<UUID> masterIds = masters.stream().map(Prompt::getId).toList();
+                    return repository.findChildrenByMasterIds(masterIds, user)
+                            .chain(children -> {
+                                List<Uni<PromptDTO>> masterUnis = masters.stream()
+                                        .map(this::mapToDTO)
+                                        .collect(Collectors.toList());
+                                return Uni.join().all(masterUnis).andFailFast()
+                                        .chain(masterDtos -> {
+                                            if (children.isEmpty()) {
+                                                return Uni.createFrom().item(masterDtos);
+                                            }
+                                            List<Uni<PromptDTO>> childUnis = children.stream()
+                                                    .map(this::mapToDTO)
+                                                    .collect(Collectors.toList());
+                                            return Uni.join().all(childUnis).andFailFast()
+                                                    .map(childDtos -> {
+                                                        Map<UUID, List<PromptDTO>> byMaster = new HashMap<>();
+                                                        for (int i = 0; i < children.size(); i++) {
+                                                            UUID mid = children.get(i).getMasterId();
+                                                            if (mid != null) {
+                                                                byMaster.computeIfAbsent(mid, k -> new ArrayList<>())
+                                                                        .add(childDtos.get(i));
+                                                            }
+                                                        }
+                                                        for (PromptDTO p : masterDtos) {
+                                                            List<PromptDTO> ch = byMaster.get(p.getId());
+                                                            if (ch != null && !ch.isEmpty()) {
+                                                                ch.sort(Comparator.comparing(
+                                                                        PromptDTO::getLanguageTag,
+                                                                        Comparator.nullsLast(String::compareTo)));
+                                                                p.setChildren(ch);
+                                                            }
+                                                        }
+                                                        return masterDtos;
+                                                    });
+                                        });
+                            });
+                });
+    }
+
+    public Uni<Integer> getAllMastersCount(final IUser user, final PromptFilter filter) {
+        return repository.getAllMastersCount(user, false, filter);
     }
 
     public Uni<List<Prompt>> getAll(final int limit, final int offset, final IUser user, final PromptFilter filter) {

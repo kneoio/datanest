@@ -63,9 +63,78 @@ public class PromptRepository extends AsyncRepository {
                 .collect().asList();
     }
 
+    public Uni<List<Prompt>> getAllMasters(int limit, int offset, boolean includeArchived, final IUser user, final PromptFilter filter) {
+        String sql = queryBuilder.buildGetAllMastersQuery(
+                entityData.getTableName(),
+                entityData.getRlsName(),
+                user.getId(),
+                includeArchived,
+                filter,
+                limit,
+                offset
+        );
+
+        return client.query(sql)
+                .execute()
+                .onFailure().invoke(throwable -> LOGGER.error("Failed to retrieve master prompts for user: {}", user.getId(), throwable))
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transform(this::from)
+                .collect().asList();
+    }
+
+    public Uni<List<Prompt>> findChildrenByMasterIds(List<UUID> masterIds, IUser user) {
+        if (masterIds == null || masterIds.isEmpty()) {
+            return Uni.createFrom().item(List.of());
+        }
+
+        StringBuilder placeholders = new StringBuilder();
+        for (int i = 0; i < masterIds.size(); i++) {
+            if (i > 0) {
+                placeholders.append(',');
+            }
+            placeholders.append('$').append(i + 2);
+        }
+
+        String sql = "SELECT theTable.* " +
+                "FROM " + entityData.getTableName() + " theTable " +
+                "JOIN " + entityData.getRlsName() + " rls ON theTable.id = rls.entity_id " +
+                "WHERE rls.reader = $1 AND theTable.archived = 0 AND theTable.is_master = false " +
+                "AND theTable.master_id IN (" + placeholders + ") " +
+                "ORDER BY theTable.language_tag ASC";
+
+        Tuple params = Tuple.tuple().addLong(user.getId());
+        for (UUID id : masterIds) {
+            params.addUUID(id);
+        }
+
+        return client.preparedQuery(sql)
+                .execute(params)
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transform(this::from)
+                .collect().asList();
+    }
+
     public Uni<Integer> getAllCount(IUser user, boolean includeArchived, final PromptFilter filter) {
         String sql = "SELECT COUNT(*) FROM " + entityData.getTableName() + " t, " + entityData.getRlsName() + " rls " +
                 "WHERE t.id = rls.entity_id AND rls.reader = " + user.getId();
+
+        if (!includeArchived) {
+            sql += " AND t.archived = 0";
+        }
+
+        if (filter != null && filter.isActivated()) {
+            sql += queryBuilder.buildFilterConditions(filter);
+        }
+
+        return client.query(sql)
+                .execute()
+                .onItem().transform(rows -> rows.iterator().next().getInteger(0));
+    }
+
+    public Uni<Integer> getAllMastersCount(IUser user, boolean includeArchived, final PromptFilter filter) {
+        String sql = "SELECT COUNT(*) FROM " + entityData.getTableName() + " t, " + entityData.getRlsName() + " rls " +
+                "WHERE t.id = rls.entity_id AND rls.reader = " + user.getId() +
+                " AND t.is_master = true";
 
         if (!includeArchived) {
             sql += " AND t.archived = 0";

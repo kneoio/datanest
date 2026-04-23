@@ -29,6 +29,31 @@ public class PromptQueryBuilder {
         return sql.toString();
     }
 
+    /** {@link #buildGetAllQuery} restricted to {@code t.is_master = true}. */
+    public String buildGetAllMastersQuery(String tableName, String rlsName, long userId, boolean includeArchived,
+                                          PromptFilter filter, int limit, int offset) {
+        StringBuilder sql = new StringBuilder()
+                .append("SELECT * FROM ").append(tableName).append(" t, ").append(rlsName).append(" rls ")
+                .append("WHERE t.id = rls.entity_id AND rls.reader = ").append(userId)
+                .append(" AND t.is_master = true");
+
+        if (!includeArchived) {
+            sql.append(" AND t.archived = 0");
+        }
+
+        if (filter != null && filter.isActivated()) {
+            sql.append(buildFilterConditions(filter));
+        }
+
+        sql.append(" ORDER BY t.last_mod_date DESC");
+
+        if (limit > 0) {
+            sql.append(String.format(" LIMIT %s OFFSET %s", limit, offset));
+        }
+
+        return sql.toString();
+    }
+
     String buildFilterConditions(PromptFilter filter) {
         StringBuilder conditions = new StringBuilder();
 

@@ -71,6 +71,7 @@ public class PromptController extends AbstractSecuredController<Prompt, PromptDT
         router.post(path + "/translate/start").handler(this::translateStart);
         router.get(path + "/translate/stream").handler(this::translateStream);
         router.get(path).handler(this::getAll);
+        router.get(path + "/grouped").handler(this::getAllGrouped);
         router.post(path + "/test").handler(this::test);
         router.get(path + "/:id").handler(this::getById);
         router.post(path).handler(this::upsert);
@@ -105,6 +106,37 @@ public class PromptController extends AbstractSecuredController<Prompt, PromptDT
                                 .end(io.vertx.core.json.Json.encode(viewPage)),
                         throwable -> {
                             LOGGER.error("Failed to get all prompts", throwable);
+                            rc.fail(throwable);
+                        }
+                );
+    }
+
+    private void getAllGrouped(RoutingContext rc) {
+        int page = Integer.parseInt(rc.request().getParam("page", "1"));
+        int size = Integer.parseInt(rc.request().getParam("size", "10"));
+        PromptFilter filter = parseFilterDTO(rc);
+
+        getContextUser(rc, false, true)
+                .chain(user -> Uni.combine().all().unis(
+                        service.getAllMastersCount(user, filter),
+                        service.getAllGroupedDTO(size, (page - 1) * size, user, filter)
+                ).asTuple().map(tuple -> {
+                    ViewPage viewPage = new ViewPage();
+                    View<PromptDTO> dtoEntries = new View<>(tuple.getItem2(),
+                            tuple.getItem1(), page,
+                            RuntimeUtil.countMaxPage(tuple.getItem1(), size),
+                            size);
+                    viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
+                    viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());
+                    return viewPage;
+                }))
+                .subscribe().with(
+                        viewPage -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(io.vertx.core.json.Json.encode(viewPage)),
+                        throwable -> {
+                            LOGGER.error("Failed to get grouped prompts", throwable);
                             rc.fail(throwable);
                         }
                 );
