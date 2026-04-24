@@ -200,6 +200,10 @@ public abstract class SoundFragmentRepositoryAbstract extends AsyncRepository {
             conditions.append(")");
         }
 
+        if (filter.getAuthor() > 0) {
+            conditions.append(" AND t.author = ").append(filter.getAuthor());
+        }
+
         return conditions.toString();
     }
 }

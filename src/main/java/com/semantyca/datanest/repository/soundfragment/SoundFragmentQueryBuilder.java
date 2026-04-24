@@ -84,6 +84,10 @@ public class SoundFragmentQueryBuilder {
             conditions.append(")");
         }
 
+        if (filter.getAuthor() > 0) {
+            conditions.append(" AND t.author = ").append(filter.getAuthor());
+        }
+
         return conditions.toString();
     }
 }

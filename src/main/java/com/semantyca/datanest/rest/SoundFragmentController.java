@@ -504,6 +504,10 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
             if (searchTerm != null && !searchTerm.trim().isEmpty()) {
                 dto.setSearchTerm(searchTerm.trim());
             }
+            Integer author = json.getInteger("author");
+            if (author != null && author > 0) {
+                dto.setAuthor(author);
+            }
             if (json.containsKey("activated")) {
                 dto.setActivated(json.getBoolean("activated", false));
             } else if (json.containsKey("filterActivated")) {
