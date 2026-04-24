@@ -121,7 +121,7 @@ public class ListenerService extends AbstractService<Listener, ListenerDTO> {
         Listener listener = buildEntity(dto);
         List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
 
-        if (id == null) {
+        if ("new".equalsIgnoreCase(id) || id == null || id.isBlank()) {
             if (stationSlug == null) {
                 return ensureUserExists(listener, dto.getEmail())
                         .chain(userId -> {

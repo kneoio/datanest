@@ -121,7 +121,7 @@ public class PromptService extends AbstractService<Prompt, PromptDTO> {
     public Uni<PromptDTO> upsert(String id, PromptDTO dto, IUser user) {
         Prompt entity = buildEntity(dto);
         List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
-        if (id == null) {
+        if ("new".equalsIgnoreCase(id) || id == null || id.isBlank()) {
             return repository.insert(entity, rlsActions, user).chain(this::mapToDTO);
         } else {
             return repository.update(UUID.fromString(id), entity, rlsActions, user).chain(this::mapToDTO);

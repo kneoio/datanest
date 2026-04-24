@@ -2,11 +2,15 @@ package com.semantyca.datanest.service;
 
 import com.semantyca.core.model.JobState;
 import com.semantyca.core.model.cnst.LanguageTag;
+import com.semantyca.core.model.cnst.TranslationType;
 import com.semantyca.core.model.user.IUser;
-import com.semantyca.datanest.agent.AgentClient;
+import com.semantyca.datanest.dto.agentrest.AgentRespDTO;
+import com.semantyca.datanest.dto.agentrest.MasterPromptTranslateReqDTO;
 import com.semantyca.datanest.dto.agentrest.TranslateReqDTO;
-import com.semantyca.mixpla.model.Draft;
+import com.semantyca.datanest.service.prompt.MasterPromptTranslateAnthropicService;
 import com.semantyca.mixpla.model.Prompt;
+import com.semantyca.mixpla.model.cnst.LlmType;
+import com.semantyca.officeframe.model.cnst.CountryCode;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonObject;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -26,8 +30,7 @@ import java.util.function.Consumer;
 public class TranslateService {
     private static final Logger LOGGER = LoggerFactory.getLogger(TranslateService.class);
 
-    private final AgentClient agentClient;
-    private final DraftService draftService;
+    private final MasterPromptTranslateAnthropicService masterPromptTranslateAnthropicService;
     private final PromptService promptService;
 
     public record SseEvent(String type, JsonObject data) {}
@@ -36,9 +39,8 @@ public class TranslateService {
     private final Map<String, List<Consumer<SseEvent>>> subscribers = new ConcurrentHashMap<>();
 
     @Inject
-    public TranslateService(AgentClient agentClient, DraftService draftService, PromptService promptService) {
-        this.agentClient = agentClient;
-        this.draftService = draftService;
+    public TranslateService(MasterPromptTranslateAnthropicService masterPromptTranslateAnthropicService, PromptService promptService) {
+        this.masterPromptTranslateAnthropicService = masterPromptTranslateAnthropicService;
         this.promptService = promptService;
     }
 
@@ -69,10 +71,6 @@ public class TranslateService {
                 try { c.accept(ev); } catch (Exception ignore) { }
             }
         }
-    }
-
-    public void startJobForDrafts(String jobId, List<TranslateReqDTO> dtos, IUser user) {
-        startJob(jobId, dtos, user, this::translateAndUpsertDraft);
     }
 
     public void startJobForPrompts(String jobId, List<TranslateReqDTO> dtos, IUser user) {
@@ -146,43 +144,6 @@ public class TranslateService {
                 .replaceWithVoid();
     }
 
-    private Uni<Draft> translateAndUpsertDraft(TranslateReqDTO dto, IUser user) {
-        LanguageTag targetTranslation = LanguageTag.fromTag(dto.getLanguageTag());
-        return draftService.getById(dto.getMasterId(), user)
-                .chain(originalDraft -> {
-                    if (originalDraft.getLanguageTag() == targetTranslation) {
-                        return Uni.createFrom().nullItem();
-                    }
-
-                    return agentClient.translate(dto.getToTranslate(), dto.getTranslationType(), targetTranslation, dto.getCountryCode())
-                            .chain(resp -> {
-                                String translatedContent = resp != null ? resp.getResult() : null;
-                                if (translatedContent == null || translatedContent.isBlank()) {
-                                    return Uni.createFrom().nullItem();
-                                }
-                                return draftService.findByMasterAndLanguage(dto.getMasterId(), targetTranslation, false)
-                                        .chain(existing -> {
-                                            if (existing != null && existing.isLocked()) {
-                                                existing.setContent(StringEscapeUtils.unescapeHtml4(translatedContent));
-                                                existing.setVersion(dto.getVersion());
-                                                return draftService.update(existing.getId(), existing, user);
-                                            } else {
-                                                Draft doc = new Draft();
-                                                doc.setContent(StringEscapeUtils.unescapeHtml4(translatedContent));
-                                                doc.setLanguageTag(targetTranslation);
-                                                doc.setEnabled(true);
-                                                doc.setMaster(false);
-                                                doc.setLocked(true);
-                                                doc.setTitle(updateTitleWithLanguage(originalDraft.getTitle(), targetTranslation));
-                                                doc.setMasterId(originalDraft.getId());
-                                                doc.setVersion(dto.getVersion());
-                                                return draftService.insert(doc, user);
-                                            }
-                                        });
-                            });
-                });
-    }
-
     private Uni<Prompt> translateAndUpsertPrompt(TranslateReqDTO dto, IUser user) {
         LanguageTag targetTranslation = LanguageTag.fromTag(dto.getLanguageTag());
         return promptService.getById(dto.getMasterId(), user)
@@ -191,7 +152,7 @@ public class TranslateService {
                         return Uni.createFrom().nullItem();
                     }
 
-                    return agentClient.translate(dto.getToTranslate(), dto.getTranslationType(), targetTranslation, dto.getCountryCode())
+                    return translateWithAnthropic(dto.getToTranslate(), dto.getTranslationType(), targetTranslation, dto.getCountryCode())
                             .chain(resp -> {
                                 String translatedContent = resp != null ? resp.getResult() : null;
                                 if (translatedContent == null || translatedContent.isBlank()) {
@@ -224,6 +185,25 @@ public class TranslateService {
                                         });
                             });
                 });
+    }
+
+    private Uni<AgentRespDTO> translateWithAnthropic(
+            String toTranslate,
+            TranslationType translationType,
+            LanguageTag languageTag,
+            CountryCode countryCode
+    ) {
+        MasterPromptTranslateReqDTO req = new MasterPromptTranslateReqDTO();
+        req.setPrompt(toTranslate);
+        req.setTargetLanguageTag(languageTag.tag());
+        req.setDraft("translationType: " + translationType + "\n"
+                + "country: " + (countryCode != null ? countryCode.name() : "UNKNOWN"));
+        req.setLlmType(resolveDefaultLlmType());
+        return masterPromptTranslateAnthropicService.translateMasterPrompt(req);
+    }
+
+    private LlmType resolveDefaultLlmType() {
+        return LlmType.values()[0];
     }
 
     private String updateTitleWithLanguage(String originalTitle, LanguageTag languageCode) {

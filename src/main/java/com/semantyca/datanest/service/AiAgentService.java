@@ -124,7 +124,7 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
     public Uni<AiAgentDTO> upsert(String id, AiAgentDTO dto, IUser user, LanguageCode code) {
         AiAgent entity = buildEntity(dto);
         List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
-        if (id == null || id.isEmpty()) {
+        if ("new".equalsIgnoreCase(id) || id == null || id.isBlank()) {
             return repository.insert(entity, rlsActions, user).chain(this::mapToDTO);
         } else {
             return repository.update(UUID.fromString(id), entity, rlsActions, user).chain(this::mapToDTO);

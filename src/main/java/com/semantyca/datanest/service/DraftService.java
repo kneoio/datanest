@@ -101,7 +101,7 @@ public class DraftService extends AbstractService<Draft, DraftDTO> {
 
     public Uni<DraftDTO> upsert(String id, DraftDTO dto, IUser user, LanguageCode code) {
         Draft entity = buildEntity(dto);
-        Uni<Draft> saveOperation = (id == null)
+        Uni<Draft> saveOperation = ("new".equalsIgnoreCase(id) || id == null || id.isBlank())
                 ? repository.insert(entity, user)
                 : repository.update(UUID.fromString(id), entity, user);
         return saveOperation
@@ -120,10 +120,6 @@ public class DraftService extends AbstractService<Draft, DraftDTO> {
 
     public Uni<Integer> archive(String id, IUser user) {
         return repository.archive(UUID.fromString(id), user);
-    }
-
-    public Uni<Draft> findByMasterAndLanguage(UUID masterId, LanguageTag languageTag, boolean includeArchived) {
-        return repository.findByMasterAndLanguage(masterId, languageTag, includeArchived);
     }
 
     public Uni<String> testDraft(DraftTestReqDTO dto, IUser user) {
@@ -151,7 +147,6 @@ public class DraftService extends AbstractService<Draft, DraftDTO> {
             dto.setTitle(doc.getTitle());
             dto.setContent(doc.getContent());
             dto.setDescription(doc.getDescription());
-            dto.setLanguageTag(doc.getLanguageTag().tag());
             dto.setArchived(doc.getArchived());
             dto.setEnabled(doc.isEnabled());
             dto.setLocked(doc.isLocked());
@@ -166,7 +161,7 @@ public class DraftService extends AbstractService<Draft, DraftDTO> {
         doc.setTitle(dto.getTitle());
         doc.setContent(dto.getContent());
         doc.setDescription(dto.getDescription());
-        doc.setLanguageTag(LanguageTag.fromTag(dto.getLanguageTag()));
+        doc.setLanguageTag(LanguageTag.EN_US);
         doc.setArchived(dto.getArchived());
         doc.setEnabled(dto.isEnabled());
         doc.setLocked(dto.isLocked());

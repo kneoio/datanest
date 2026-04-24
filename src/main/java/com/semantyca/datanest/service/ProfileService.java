@@ -79,7 +79,7 @@ public class ProfileService extends AbstractService<Profile, ProfileDTO> {
     public Uni<ProfileDTO> upsert(String id, ProfileDTO dto, IUser user, LanguageCode code) {
         Profile entity = buildEntity(dto);
         List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
-        if (id == null) {
+        if ("new".equalsIgnoreCase(id) || id == null || id.isBlank()) {
             return repository.insert(entity, rlsActions, user).chain(this::mapToDTO);
         } else {
             return repository.update(UUID.fromString(id), entity, rlsActions, user).chain(this::mapToDTO);

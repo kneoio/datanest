@@ -201,7 +201,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                     Script entity = buildEntity(dto);
                     entity.setRequiredVariables(requiredVariables);
 
-                    if (id == null) {
+                    if ("new".equalsIgnoreCase(id) || id == null || id.isBlank()) {
                         return repository.insert(entity, rlsActions, user)
                                 .chain(script -> processScenes(script.getId(), dto.getScenes(), user)
                                         .replaceWith(script))
@@ -909,7 +909,6 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         DraftDTO clonedDraftDTO = new DraftDTO();
         clonedDraftDTO.setTitle(originalDraft.getTitle());
         clonedDraftDTO.setContent(originalDraft.getContent());
-        clonedDraftDTO.setLanguageTag(originalDraft.getLanguageTag().tag());
         clonedDraftDTO.setEnabled(originalDraft.isEnabled());
         clonedDraftDTO.setLocked(originalDraft.isLocked());
         clonedDraftDTO.setMasterId(originalDraft.getMasterId());

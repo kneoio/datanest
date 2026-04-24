@@ -82,7 +82,7 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
     public Uni<SceneDTO> upsert(String id, UUID scriptId, SceneDTO dto, IUser user) {
         Scene entity = buildEntity(dto);
         List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
-        if (id == null) {
+        if ("new".equalsIgnoreCase(id) || id == null || id.isBlank()) {
             entity.setScriptId(scriptId);
             return repository.insert(entity, rlsActions, user).chain(this::mapToDTO);
         } else {

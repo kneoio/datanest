@@ -111,7 +111,7 @@ public class EventService extends AbstractService<Event, EventDTO> {
         List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
 
         Uni<Event> saveOperation;
-        if (id == null) {
+        if ("new".equalsIgnoreCase(id) || id == null || id.isBlank()) {
             saveOperation = repository.insert(entity, rlsActions, user);
         } else {
             saveOperation = repository.update(UUID.fromString(id), entity, rlsActions, user);

@@ -137,7 +137,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
 
         Uni<Brand> saveOperation;
-        if (id == null) {
+        if ("new".equalsIgnoreCase(id) || id == null || id.isBlank()) {
             entity.setPopularityRate(5);
             saveOperation = repository.insert(entity, rlsActions, user);
         } else {

@@ -14,7 +14,6 @@ public class DraftDTO extends AbstractDTO {
     private String title;
     private String content;
     private String description;
-    private String languageTag;
     private Integer archived;
     private boolean enabled;
     private boolean locked;
