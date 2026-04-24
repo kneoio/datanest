@@ -125,7 +125,6 @@ public class DraftRepository extends AsyncRepository {
                         .addString(draft.getDescription())
                         .addString(draft.getLanguageTag().tag())
                         .addBoolean(draft.isEnabled())
-                        .addBoolean(draft.isMaster())
                         .addBoolean(draft.isLocked())
                         .addUUID(draft.getMasterId())
                         .addDouble(draft.getVersion());
@@ -155,7 +154,6 @@ public class DraftRepository extends AsyncRepository {
                         .addString(draft.getDescription())
                         .addString(draft.getLanguageTag().tag())
                         .addBoolean(draft.isEnabled())
-                        .addBoolean(draft.isMaster())
                         .addBoolean(draft.isLocked())
                         .addUUID(draft.getMasterId())
                         .addDouble(draft.getVersion())
@@ -207,7 +205,6 @@ public class DraftRepository extends AsyncRepository {
         doc.setDescription(row.getString("description"));
         doc.setArchived(row.getInteger("archived"));
         doc.setEnabled(row.getBoolean("enabled"));
-        doc.setMaster(row.getBoolean("is_master"));
         doc.setLocked(row.getBoolean("locked"));
         UUID masterId = row.getUUID("master_id");
         if (masterId != null) {
