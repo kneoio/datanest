@@ -23,13 +23,7 @@ import com.semantyca.datanest.dto.StagePlaylistDTO;
 
 import com.semantyca.datanest.repository.ScriptRepository;
 import com.semantyca.datanest.util.ScriptVariableExtractor;
-import com.semantyca.mixpla.model.BrandScript;
-import com.semantyca.mixpla.model.Draft;
-import com.semantyca.mixpla.model.PlaylistRequest;
-import com.semantyca.mixpla.model.Prompt;
-import com.semantyca.mixpla.model.Scene;
-import com.semantyca.mixpla.model.ScenePrompt;
-import com.semantyca.mixpla.model.Script;
+import com.semantyca.mixpla.model.*;
 import com.semantyca.mixpla.model.cnst.SceneTimingMode;
 import com.semantyca.mixpla.model.filter.ScriptFilter;
 import com.semantyca.officeframe.dto.LabelDTO;
@@ -470,15 +464,15 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                             
                             return promptService.getByIds(promptIds, user)
                                     .chain(prompts -> {
-                                        Map<UUID, Prompt> promptMap = prompts.stream()
-                                                .collect(Collectors.toMap(Prompt::getId, p -> p));
+                                        Map<UUID, DjPrompt> promptMap = prompts.stream()
+                                                .collect(Collectors.toMap(DjPrompt::getId, p -> p));
                                         
                                         if (!extended) {
                                             return Uni.createFrom().item(mapToExportDTO(script, scenes, promptMap, Map.of(), extended));
                                         }
                                         
                                         List<UUID> draftIds = prompts.stream()
-                                                .map(Prompt::getDraftId)
+                                                .map(DjPrompt::getDraftId)
                                                 .filter(Objects::nonNull)
                                                 .distinct()
                                                 .collect(Collectors.toList());
@@ -498,7 +492,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                 );
     }
 
-    private ScriptExportDTO mapToExportDTO(Script script, List<Scene> scenes, Map<UUID, Prompt> promptMap, Map<UUID, Draft> draftMap, boolean extended) {
+    private ScriptExportDTO mapToExportDTO(Script script, List<Scene> scenes, Map<UUID, DjPrompt> promptMap, Map<UUID, Draft> draftMap, boolean extended) {
         ScriptExportDTO dto = new ScriptExportDTO();
         dto.setName(script.getName());
         dto.setDescription(script.getDescription());
@@ -515,7 +509,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         return dto;
     }
 
-    private ScriptExportDTO.SceneExportDTO mapSceneToExportDTO(Scene scene, Map<UUID, Prompt> promptMap, Map<UUID, Draft> draftMap, boolean extended) {
+    private ScriptExportDTO.SceneExportDTO mapSceneToExportDTO(Scene scene, Map<UUID, DjPrompt> promptMap, Map<UUID, Draft> draftMap, boolean extended) {
         ScriptExportDTO.SceneExportDTO dto = new ScriptExportDTO.SceneExportDTO();
         dto.setTitle(scene.getTitle());
         dto.setStartTime(scene.getStartTime());
@@ -532,11 +526,11 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         return dto;
     }
 
-    private ScriptExportDTO.ScenePromptExportDTO mapPromptToExportDTO(ScenePrompt scenePrompt, Map<UUID, Prompt> promptMap, Map<UUID, Draft> draftMap, boolean extended) {
+    private ScriptExportDTO.ScenePromptExportDTO mapPromptToExportDTO(ScenePrompt scenePrompt, Map<UUID, DjPrompt> promptMap, Map<UUID, Draft> draftMap, boolean extended) {
         ScriptExportDTO.ScenePromptExportDTO dto = new ScriptExportDTO.ScenePromptExportDTO();
         dto.setId(scenePrompt.getPromptId());
         
-        Prompt prompt = promptMap.get(scenePrompt.getPromptId());
+        DjPrompt prompt = promptMap.get(scenePrompt.getPromptId());
         if (prompt != null) {
             dto.setTitle(prompt.getTitle());
             if (extended) {
@@ -621,7 +615,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                         return importScene(scriptId, sceneDTO, user, null).replaceWithVoid();
                     }
                     
-                    List<Uni<Prompt>> promptUnis = uniquePrompts.values().stream()
+                    List<Uni<DjPrompt>> promptUnis = uniquePrompts.values().stream()
                             .map(action -> createPromptFromExport(action, user))
                             .collect(Collectors.toList());
                     
@@ -650,8 +644,8 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         return Uni.join().all(sceneUnis).andFailFast().replaceWithVoid();
     }
 
-    private Uni<Prompt> createPromptFromExport(ScriptExportDTO.ScenePromptExportDTO exportDTO, IUser user) {
-        Prompt prompt = new Prompt();
+    private Uni<DjPrompt> createPromptFromExport(ScriptExportDTO.ScenePromptExportDTO exportDTO, IUser user) {
+        DjPrompt prompt = new DjPrompt();
         prompt.setTitle(exportDTO.getTitle() + " (imported)");
         prompt.setPrompt(exportDTO.getPrompt());
         
@@ -820,7 +814,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
 
         return promptService.getByIds(promptIds, user)
                 .chain(originalPrompts -> {
-                    List<Uni<Prompt>> clonedPromptUnis = originalPrompts.stream()
+                    List<Uni<DjPrompt>> clonedPromptUnis = originalPrompts.stream()
                             .map(originalPrompt -> clonePrompt(originalPrompt, user))
                             .collect(Collectors.toList());
 
@@ -842,12 +836,12 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                 });
     }
 
-    private Uni<Prompt> clonePrompt(Prompt originalPrompt, IUser user) {
+    private Uni<DjPrompt> clonePrompt(DjPrompt originalPrompt, IUser user) {
         assert promptService != null;
         assert draftService != null;
 
         if (originalPrompt.getDraftId() == null) {
-            Prompt clonedPrompt = new Prompt();
+            DjPrompt clonedPrompt = new DjPrompt();
             clonedPrompt.setTitle(originalPrompt.getTitle());
             clonedPrompt.setPrompt(originalPrompt.getPrompt());
             clonedPrompt.setDescription(originalPrompt.getDescription());
@@ -867,7 +861,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         return draftService.getById(originalPrompt.getDraftId(), user)
                 .chain(originalDraft -> cloneDraft(originalDraft, user))
                 .chain(clonedDraft -> {
-                    Prompt clonedPrompt = new Prompt();
+                    DjPrompt clonedPrompt = new DjPrompt();
                     clonedPrompt.setTitle(originalPrompt.getTitle());
                     clonedPrompt.setPrompt(originalPrompt.getPrompt());
                     clonedPrompt.setDescription(originalPrompt.getDescription());
@@ -885,7 +879,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                     return promptService.insert(clonedPrompt, user);
                 })
                 .onFailure().recoverWithUni(failure -> {
-                    Prompt clonedPrompt = new Prompt();
+                    DjPrompt clonedPrompt = new DjPrompt();
                     clonedPrompt.setTitle(originalPrompt.getTitle());
                     clonedPrompt.setPrompt(originalPrompt.getPrompt());
                     clonedPrompt.setDescription(originalPrompt.getDescription());

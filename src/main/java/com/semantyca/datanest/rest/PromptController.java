@@ -17,7 +17,7 @@ import com.semantyca.datanest.dto.agentrest.TranslateReqDTO;
 import com.semantyca.datanest.service.PromptService;
 import com.semantyca.datanest.service.TranslateService;
 import com.semantyca.datanest.service.prompt.MasterPromptTranslateAnthropicService;
-import com.semantyca.mixpla.model.Prompt;
+import com.semantyca.mixpla.model.DjPrompt;
 import com.semantyca.mixpla.model.cnst.PromptType;
 import com.semantyca.mixpla.model.filter.PromptFilter;
 import io.smallrye.mutiny.Uni;
@@ -43,7 +43,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
-public class PromptController extends AbstractSecuredController<Prompt, PromptDTO> {
+public class PromptController extends AbstractSecuredController<DjPrompt, PromptDTO> {
     private static final Logger LOGGER = LoggerFactory.getLogger(PromptController.class);
 
     private PromptService service;

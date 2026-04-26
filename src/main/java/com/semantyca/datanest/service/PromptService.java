@@ -9,7 +9,7 @@ import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.PromptDTO;
 import com.semantyca.datanest.dto.RlsActionDTO;
 import com.semantyca.datanest.repository.prompt.PromptRepository;
-import com.semantyca.mixpla.model.Prompt;
+import com.semantyca.mixpla.model.DjPrompt;
 import com.semantyca.mixpla.model.filter.PromptFilter;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -24,7 +24,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
-public class PromptService extends AbstractService<Prompt, PromptDTO> {
+public class PromptService extends AbstractService<DjPrompt, PromptDTO> {
     private final PromptRepository repository;
 
     @Inject
@@ -53,7 +53,7 @@ public class PromptService extends AbstractService<Prompt, PromptDTO> {
                     if (masters.isEmpty()) {
                         return Uni.createFrom().item(List.of());
                     }
-                    List<UUID> masterIds = masters.stream().map(Prompt::getId).toList();
+                    List<UUID> masterIds = masters.stream().map(DjPrompt::getId).toList();
                     return repository.findChildrenByMasterIds(masterIds, user)
                             .chain(children -> {
                                 List<Uni<PromptDTO>> masterUnis = masters.stream()
@@ -97,7 +97,7 @@ public class PromptService extends AbstractService<Prompt, PromptDTO> {
         return repository.getAllMastersCount(user, false, filter);
     }
 
-    public Uni<List<Prompt>> getAll(final int limit, final int offset, final IUser user, final PromptFilter filter) {
+    public Uni<List<DjPrompt>> getAll(final int limit, final int offset, final IUser user, final PromptFilter filter) {
         return repository.getAll(limit, offset, false, user, filter);
     }
 
@@ -105,11 +105,11 @@ public class PromptService extends AbstractService<Prompt, PromptDTO> {
         return repository.getAllCount(user, false, filter);
     }
 
-    public Uni<Prompt> getById(UUID id, IUser user) {
+    public Uni<DjPrompt> getById(UUID id, IUser user) {
         return repository.findById(id, user, false);
     }
 
-    public Uni<List<Prompt>> getByIds(List<UUID> ids, IUser user) {
+    public Uni<List<DjPrompt>> getByIds(List<UUID> ids, IUser user) {
         return repository.findByIds(ids, user);
     }
 
@@ -119,7 +119,7 @@ public class PromptService extends AbstractService<Prompt, PromptDTO> {
     }
 
     public Uni<PromptDTO> upsert(String id, PromptDTO dto, IUser user) {
-        Prompt entity = buildEntity(dto);
+        DjPrompt entity = buildEntity(dto);
         List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
         if ("new".equalsIgnoreCase(id) || id == null || id.isBlank()) {
             return repository.insert(entity, rlsActions, user).chain(this::mapToDTO);
@@ -128,11 +128,11 @@ public class PromptService extends AbstractService<Prompt, PromptDTO> {
         }
     }
 
-    public Uni<Prompt> insert(Prompt entity, IUser user) {
+    public Uni<DjPrompt> insert(DjPrompt entity, IUser user) {
         return repository.insert(entity, user);
     }
 
-    public Uni<Prompt> update(UUID id, Prompt entity, IUser user) {
+    public Uni<DjPrompt> update(UUID id, DjPrompt entity, IUser user) {
         return repository.update(id, entity, user);
     }
 
@@ -145,11 +145,11 @@ public class PromptService extends AbstractService<Prompt, PromptDTO> {
         return repository.delete(UUID.fromString(id), user);
     }
 
-    public Uni<Prompt> findByMasterAndLanguage(UUID masterId, LanguageTag languageCode, boolean includeArchived) {
+    public Uni<DjPrompt> findByMasterAndLanguage(UUID masterId, LanguageTag languageCode, boolean includeArchived) {
         return repository.findByMasterAndLanguage(masterId, languageCode, includeArchived);
     }
 
-    private Uni<PromptDTO> mapToDTO(Prompt doc) {
+    private Uni<PromptDTO> mapToDTO(DjPrompt doc) {
         return Uni.combine().all().unis(
                 userService.getUserName(doc.getAuthor()),
                 userService.getUserName(doc.getLastModifier())
@@ -177,8 +177,8 @@ public class PromptService extends AbstractService<Prompt, PromptDTO> {
         });
     }
 
-    private Prompt buildEntity(PromptDTO dto) {
-        Prompt doc = new Prompt();
+    private DjPrompt buildEntity(PromptDTO dto) {
+        DjPrompt doc = new DjPrompt();
         doc.setId(dto.getId());
         doc.setEnabled(dto.isEnabled());
         doc.setPrompt(dto.getPrompt());

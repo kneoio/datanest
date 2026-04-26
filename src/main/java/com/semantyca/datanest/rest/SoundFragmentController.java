@@ -99,7 +99,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
     private void get(RoutingContext rc) {
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
-        SoundFragmentFilter filter = parseFilterDTO(rc);
+        SoundFragmentFilter filter = parseFilterDTOForAdmin(rc);
 
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
@@ -156,7 +156,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         String brandName = rc.request().getParam("brand");
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
-        SoundFragmentFilter filter = parseFilterDTO(rc);
+        SoundFragmentFilter filter = parseFilterDTOForBrand(rc);
 
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
@@ -412,16 +412,27 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         }
     }
 
-    private SoundFragmentFilter parseFilterDTO(RoutingContext rc) {
-        List<SourceType> allowedSources = List.of(SourceType.USER_UPLOAD, SourceType.CONTRIBUTION);
+    private SoundFragmentFilter parseFilterDTOForAdmin(RoutingContext rc) {
+        return parseFilterDTO(rc, null);
+    }
+
+    private SoundFragmentFilter parseFilterDTOForBrand(RoutingContext rc) {
+        return parseFilterDTO(rc, List.of(SourceType.USER_UPLOAD, SourceType.CONTRIBUTION));
+    }
+
+    private SoundFragmentFilter parseFilterDTO(RoutingContext rc, List<SourceType> allowedSources) {
         String filterParam = rc.request().getParam("filter");
         if (filterParam == null || filterParam.trim().isEmpty()) {
             SoundFragmentFilter dto = new SoundFragmentFilter();
-            dto.setSource(allowedSources);
+            if (allowedSources != null) {
+                dto.setSource(allowedSources);
+            }
             return dto;
         }
         SoundFragmentFilter dto = new SoundFragmentFilter();
-        dto.setSource(allowedSources);
+        if (allowedSources != null) {
+            dto.setSource(allowedSources);
+        }
         boolean hasConcreteFilters = false;
         try {
             JsonObject json = new JsonObject(filterParam);
@@ -448,7 +459,8 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                     if (o instanceof String str) {
                         try {
                             SourceType sourceType = SourceType.valueOf(str);
-                            if (allowedSources.contains(sourceType) && !requestedSources.contains(sourceType)) {
+                            boolean sourceAllowed = allowedSources == null || allowedSources.contains(sourceType);
+                            if (sourceAllowed && !requestedSources.contains(sourceType)) {
                                 requestedSources.add(sourceType);
                             }
                         } catch (IllegalArgumentException ignored) {

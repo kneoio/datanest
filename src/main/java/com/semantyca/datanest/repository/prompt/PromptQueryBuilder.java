@@ -29,7 +29,6 @@ public class PromptQueryBuilder {
         return sql.toString();
     }
 
-    /** {@link #buildGetAllQuery} restricted to {@code t.is_master = true}. */
     public String buildGetAllMastersQuery(String tableName, String rlsName, long userId, boolean includeArchived,
                                           PromptFilter filter, int limit, int offset) {
         StringBuilder sql = new StringBuilder()

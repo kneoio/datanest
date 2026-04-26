@@ -8,7 +8,7 @@ import com.semantyca.datanest.dto.agentrest.AgentRespDTO;
 import com.semantyca.datanest.dto.agentrest.MasterPromptTranslateReqDTO;
 import com.semantyca.datanest.dto.agentrest.TranslateReqDTO;
 import com.semantyca.datanest.service.prompt.MasterPromptTranslateAnthropicService;
-import com.semantyca.mixpla.model.Prompt;
+import com.semantyca.mixpla.model.DjPrompt;
 import com.semantyca.mixpla.model.cnst.LlmType;
 import com.semantyca.officeframe.model.cnst.CountryCode;
 import io.smallrye.mutiny.Uni;
@@ -144,7 +144,7 @@ public class TranslateService {
                 .replaceWithVoid();
     }
 
-    private Uni<Prompt> translateAndUpsertPrompt(TranslateReqDTO dto, IUser user) {
+    private Uni<DjPrompt> translateAndUpsertPrompt(TranslateReqDTO dto, IUser user) {
         LanguageTag targetTranslation = LanguageTag.fromTag(dto.getLanguageTag());
         return promptService.getById(dto.getMasterId(), user)
                 .chain(master -> {
@@ -168,7 +168,7 @@ public class TranslateService {
                                                 existing.setPromptType(master.getPromptType());
                                                 return promptService.update(existing.getId(), existing, user);
                                             } else {
-                                                Prompt doc = new Prompt();
+                                                DjPrompt doc = new DjPrompt();
                                                 doc.setPrompt(StringEscapeUtils.unescapeHtml4(translatedContent));
                                                 doc.setLanguageTag(targetTranslation);
                                                 doc.setEnabled(true);
