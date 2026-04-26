@@ -77,7 +77,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
         String sql = queryBuilder.buildGetAllQuery(entityData.getTableName(), entityData.getRlsName(),
                 user, includeArchived, filter, limit, offset);
 
-        if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
+        if (filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
             return client.preparedQuery(sql)
                     .execute(Tuple.of(filter.getSearchTerm()))
                     .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
@@ -102,12 +102,12 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
             sql += " AND t.archived = 0";
         }
 
-        if (filter != null && filter.isActivated()) {
+        if (filter.isActivated()) {
             assert queryBuilder != null;
             sql += queryBuilder.buildFilterConditions(filter);
         }
 
-        if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
+        if (filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
             return client.preparedQuery(sql)
                     .execute(Tuple.of(filter.getSearchTerm()))
                     .onItem().transform(rows -> rows.iterator().next().getInteger(0));
