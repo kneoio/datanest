@@ -414,24 +414,15 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
 
     private SoundFragmentFilter parseFilterDTO(RoutingContext rc) {
         List<SourceType> allowedSources = List.of(SourceType.USER_UPLOAD, SourceType.CONTRIBUTION);
-        List<PlaylistItemType> allowedTypes = List.of(
-                PlaylistItemType.SONG,
-                PlaylistItemType.ADVERTISEMENT,
-                PlaylistItemType.JINGLE,
-                PlaylistItemType.JINGLE_INTRO,
-                PlaylistItemType.JINGLE_OUTRO,
-                PlaylistItemType.BACKGROUND_LOOP
-        );
         String filterParam = rc.request().getParam("filter");
         if (filterParam == null || filterParam.trim().isEmpty()) {
             SoundFragmentFilter dto = new SoundFragmentFilter();
             dto.setSource(allowedSources);
-            dto.setType(allowedTypes);
             return dto;
         }
         SoundFragmentFilter dto = new SoundFragmentFilter();
         dto.setSource(allowedSources);
-        dto.setType(allowedTypes);
+        boolean hasConcreteFilters = false;
         try {
             JsonObject json = new JsonObject(filterParam);
             JsonArray g = json.getJsonArray("genre");
@@ -447,6 +438,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                 }
                 if (!genres.isEmpty()) {
                     dto.setGenre(genres);
+                    hasConcreteFilters = true;
                 }
             }
             JsonArray s = json.getJsonArray("source");
@@ -465,6 +457,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                 }
                 if (!requestedSources.isEmpty()) {
                     dto.setSource(requestedSources);
+                    hasConcreteFilters = true;
                 }
             }
             JsonArray l = json.getJsonArray("labels");
@@ -480,6 +473,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                 }
                 if (!labels.isEmpty()) {
                     dto.setLabels(labels);
+                    hasConcreteFilters = true;
                 }
             }
             JsonArray t = json.getJsonArray("type");
@@ -489,7 +483,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                     if (o instanceof String str) {
                         try {
                             PlaylistItemType playlistItemType = PlaylistItemType.valueOf(str);
-                            if (allowedTypes.contains(playlistItemType) && !requestedTypes.contains(playlistItemType)) {
+                            if (!requestedTypes.contains(playlistItemType)) {
                                 requestedTypes.add(playlistItemType);
                             }
                         } catch (IllegalArgumentException ignored) {
@@ -498,20 +492,25 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                 }
                 if (!requestedTypes.isEmpty()) {
                     dto.setType(requestedTypes);
+                    hasConcreteFilters = true;
                 }
             }
             String searchTerm = json.getString("searchTerm");
             if (searchTerm != null && !searchTerm.trim().isEmpty()) {
                 dto.setSearchTerm(searchTerm.trim());
+                hasConcreteFilters = true;
             }
             Integer author = json.getInteger("author");
             if (author != null && author > 0) {
                 dto.setAuthor(author);
+                hasConcreteFilters = true;
             }
             if (json.containsKey("activated")) {
                 dto.setActivated(json.getBoolean("activated", false));
             } else if (json.containsKey("filterActivated")) {
                 dto.setActivated(json.getBoolean("filterActivated", false));
+            } else if (hasConcreteFilters) {
+                dto.setActivated(true);
             }
         } catch (IllegalArgumentException e) {
             throw e;
