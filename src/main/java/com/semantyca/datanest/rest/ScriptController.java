@@ -435,7 +435,7 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
         getContextUser(rc, false, true)
                 .chain(user -> {
                     if (parentKey == null || parentKey.isEmpty()) {
-                        return service.getAllDTO(Integer.MAX_VALUE, 0, user)
+                        return service.getAllDTO(Integer.MAX_VALUE, 0, user, null)
                                 .map(scripts -> scripts.stream()
                                         .map(this::scriptToTreeNode)
                                         .collect(Collectors.toList()));

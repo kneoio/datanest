@@ -76,10 +76,6 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         this.labelService = labelService;
     }
 
-    public Uni<List<ScriptDTO>> getAllDTO(final int limit, final int offset, final IUser user) {
-        return getAllDTO(limit, offset, user, null);
-    }
-
     public Uni<List<ScriptDTO>> getAllDTO(final int limit, final int offset, final IUser user, final ScriptFilter filter) {
         assert repository != null;
         return repository.getAll(limit, offset, false, user, filter)
@@ -143,12 +139,6 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                     dto.setTags(fullLabels.stream().map(LabelFlatDTO::from).toList());
                     return dto;
                 });
-    }
-
-    public Uni<List<ScriptDTO>> getAllShared(final int limit, final int offset, final IUser user) {
-        ScriptFilter filter = new ScriptFilter();
-        filter.setTimingMode(SceneTimingMode.RELATIVE_TO_STREAM_START);
-        return getAllShared(limit, offset, user, filter);
     }
 
     public Uni<List<ScriptDTO>> getAllShared(final int limit, final int offset, final IUser user, final ScriptFilter filter) {
