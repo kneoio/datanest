@@ -8,19 +8,21 @@ import com.semantyca.core.dto.view.ViewPage;
 import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.util.RuntimeUtil;
-import com.semantyca.datanest.dto.ProfileFlatDTO;
-import com.semantyca.datanest.dto.actions.AiAgentActionsFactory;
-import com.semantyca.datanest.dto.actions.ProfileActionsFactory;
 import com.semantyca.datanest.dto.GenreFlatDTO;
 import com.semantyca.datanest.dto.LabelFlatDTO;
+import com.semantyca.datanest.dto.ProfileFlatDTO;
 import com.semantyca.datanest.dto.ScriptFlatDTO;
+import com.semantyca.datanest.dto.actions.AiAgentActionsFactory;
+import com.semantyca.datanest.dto.actions.ProfileActionsFactory;
 import com.semantyca.datanest.dto.aiagent.AiAgentFlatDTO;
 import com.semantyca.datanest.dto.aiagent.VoiceDTO;
 import com.semantyca.datanest.service.AiAgentService;
 import com.semantyca.datanest.service.ProfileService;
 import com.semantyca.datanest.service.RefService;
 import com.semantyca.datanest.service.ScriptService;
+import com.semantyca.mixpla.model.cnst.SceneTimingMode;
 import com.semantyca.mixpla.model.cnst.TTSEngineType;
+import com.semantyca.mixpla.model.filter.ScriptFilter;
 import com.semantyca.mixpla.model.filter.VoiceFilter;
 import com.semantyca.officeframe.dto.CountryDTO;
 import com.semantyca.officeframe.model.cnst.CountryCode;
@@ -45,12 +47,13 @@ import static com.semantyca.core.util.RuntimeUtil.countMaxPage;
 
 @ApplicationScoped
 public class RefController extends BaseController {
+    private final SuperUser superUser = SuperUser.build();
 
     @Inject
-    RefService service;
+    private RefService service;
 
     @Inject
-    AiAgentService aiAgentService;
+    private AiAgentService aiAgentService;
 
     @Inject
     ProfileService profileService;
@@ -71,10 +74,9 @@ public class RefController extends BaseController {
 
         switch (type) {
             case "agents":
-                SuperUser su = SuperUser.build();
                 Uni.combine().all().unis(
-                                aiAgentService.getAllCount(su),
-                                aiAgentService.getAllFlat(size, (page - 1) * size, su)
+                                aiAgentService.getAllCount(superUser),
+                                aiAgentService.getAllFlat(size, (page - 1) * size, superUser)
                         )
                         .asTuple()
                         .map(tuple -> {
@@ -87,7 +89,7 @@ public class RefController extends BaseController {
                                     size);
                             viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
 
-                            ActionBox actions = AiAgentActionsFactory.getViewActions(su.getActivatedRoles());
+                            ActionBox actions = AiAgentActionsFactory.getViewActions(superUser.getActivatedRoles());
                             viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, actions);
                             return viewPage;
                         })
@@ -101,10 +103,11 @@ public class RefController extends BaseController {
                 break;
 
             case "scripts":
-                SuperUser suScripts = SuperUser.build();
+                ScriptFilter scriptFilter = new ScriptFilter();
+                scriptFilter.setTimingMode(SceneTimingMode.ABSOLUTE_TIME);
                 Uni.combine().all().unis(
-                                scriptService.getAllCount(suScripts, null),
-                                scriptService.getAllFlat(size, (page - 1) * size, suScripts)
+                                scriptService.getAllCount(superUser, scriptFilter),
+                                scriptService.getAllFlat(size, (page - 1) * size, superUser, scriptFilter)
                         )
                         .asTuple()
                         .map(tuple -> {
@@ -129,10 +132,9 @@ public class RefController extends BaseController {
                 break;
 
             case "profiles":
-                SuperUser suProfiles = SuperUser.build();
                 Uni.combine().all().unis(
-                                profileService.getAllCount(suProfiles),
-                                profileService.getAllFlat(size, (page - 1) * size, suProfiles)
+                                profileService.getAllCount(superUser),
+                                profileService.getAllFlat(size, (page - 1) * size, superUser)
                         )
                         .asTuple()
                         .map(tuple -> {
@@ -145,7 +147,7 @@ public class RefController extends BaseController {
                                     size);
                             viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
 
-                            ActionBox actions = ProfileActionsFactory.getViewActions(suProfiles.getActivatedRoles());
+                            ActionBox actions = ProfileActionsFactory.getViewActions(superUser.getActivatedRoles());
                             viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, actions);
                             return viewPage;
                         })
@@ -238,11 +240,11 @@ public class RefController extends BaseController {
                 break;
 
             case "voices":
-                VoiceFilter filter = parseVoiceFilter(rc);
+                VoiceFilter voiceFilter = parseVoiceFilter(rc);
 
                 Uni.combine().all().unis(
-                                filter != null ? service.getFilteredVoicesCount(filter) : service.getAllVoicesCount(TTSEngineType.ELEVENLABS),
-                                filter != null ? service.getFilteredVoices(filter) : service.getAllVoices(TTSEngineType.ELEVENLABS)
+                                voiceFilter != null ? service.getFilteredVoicesCount(voiceFilter) : service.getAllVoicesCount(TTSEngineType.ELEVENLABS),
+                                voiceFilter != null ? service.getFilteredVoices(voiceFilter) : service.getAllVoices(TTSEngineType.ELEVENLABS)
                         )
                         .asTuple()
                         .map(tuple -> {

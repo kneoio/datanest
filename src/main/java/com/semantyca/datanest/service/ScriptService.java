@@ -105,9 +105,9 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         return repository.getAllCount(user, false, filter);
     }
 
-    public Uni<List<ScriptFlatDTO>> getAllFlat(final int limit, final int offset, final IUser user) {
+    public Uni<List<ScriptFlatDTO>> getAllFlat(final int limit, final int offset, final IUser user, ScriptFilter filter) {
         assert repository != null;
-        return repository.getAll(limit, offset, false, user, null)
+        return repository.getAll(limit, offset, false, user, filter)
                 .chain(list -> {
                     if (list.isEmpty()) {
                         return Uni.createFrom().item(List.of());

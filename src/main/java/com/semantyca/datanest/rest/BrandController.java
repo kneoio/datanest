@@ -15,7 +15,6 @@
     import com.semantyca.datanest.dto.radiostation.BrandDTO;
     import com.semantyca.datanest.service.BrandService;
     import com.semantyca.mixpla.model.brand.Brand;
-    import com.semantyca.mixpla.model.cnst.ManagedBy;
     import com.semantyca.mixpla.model.filter.BrandFilter;
     import com.semantyca.officeframe.model.cnst.CountryCode;
     import io.smallrye.mutiny.Uni;
