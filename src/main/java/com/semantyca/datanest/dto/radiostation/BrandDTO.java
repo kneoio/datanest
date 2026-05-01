@@ -70,6 +70,7 @@ public class BrandDTO extends AbstractDTO {
     private List<BrandScriptEntryDTO> scripts;
     private OwnerDTO owner;
     private List<UUID> labels;
+    private List<UUID> genres;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<RlsActionDTO> rlsActions = new ArrayList<>();
 

@@ -28,6 +28,7 @@ target/
 
 application-dev.properties
 application-prod.properties
+live-server-test.properties
 .env
 
 /out/

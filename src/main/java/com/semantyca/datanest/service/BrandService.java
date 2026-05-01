@@ -254,6 +254,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             }
 
             dto.setLabels(doc.getLabels());
+            dto.setGenres(doc.getGenres());
 
             return dto;
         });
@@ -311,6 +312,10 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
         if (dto.getLabels() != null) {
             doc.setLabels(dto.getLabels());
+        }
+
+        if (dto.getGenres() != null) {
+            doc.setGenres(dto.getGenres());
         }
 
         return doc;

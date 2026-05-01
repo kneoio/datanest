@@ -450,33 +450,38 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
     }
 
     public Uni<SoundFragment> createFromBulkUpload(UploadFileDTO uploadFile, UUID brandId, IUser user) {
-        if (uploadFile.getMetadata() == null) {
-            return Uni.createFrom().failure(new IllegalArgumentException("Upload file has no metadata"));
-        }
-        
         if (uploadFile.getFullPath() == null) {
             return Uni.createFrom().failure(new IllegalArgumentException("Upload file has no fullPath"));
         }
 
         AudioMetadataDTO metadata = uploadFile.getMetadata();
-        
+        String fallbackTitleArtist = baseNameWithoutExtension(uploadFile.getName());
+
         SoundFragment fragment = new SoundFragment();
         fragment.setSource(SourceType.USER_UPLOAD);
         fragment.setStatus(1);
         fragment.setType(PlaylistItemType.SONG);
-        fragment.setTitle(metadata.getTitle() != null ? metadata.getTitle() : uploadFile.getName());
-        fragment.setArtist(metadata.getArtist() != null ? metadata.getArtist() : "Unknown Artist");
-        fragment.setAlbum(metadata.getAlbum());
-        fragment.setLength(metadata.getLength());
+        if (metadata != null) {
+            fragment.setTitle(metadata.getTitle() != null ? metadata.getTitle() : uploadFile.getName());
+            fragment.setArtist(metadata.getArtist() != null ? metadata.getArtist() : "Unknown Artist");
+            fragment.setAlbum(metadata.getAlbum());
+            fragment.setLength(metadata.getLength());
+        } else {
+            LOGGER.info("Bulk upload: no audio metadata; using file base name for title and artist: {}", fallbackTitleArtist);
+            fragment.setTitle(fallbackTitleArtist);
+            fragment.setArtist(fallbackTitleArtist);
+            fragment.setAlbum(null);
+            fragment.setLength(null);
+        }
         fragment.setSlugName(WebHelper.generateSlug(fragment.getArtist(), fragment.getTitle()));
-        
+
         FileMetadata fileMetadata = new FileMetadata();
         fileMetadata.setFilePath(Paths.get(uploadFile.getFullPath()));
         fragment.setFileMetadataList(List.of(fileMetadata));
         List<UUID> brandIds = brandId !=null ? List.of(brandId) : List.of();
-        
+
         assert refService != null;
-        String genreIdentifier = metadata.getGenre() != null ? metadata.getGenre() : "other";
+        String genreIdentifier = metadata != null && metadata.getGenre() != null ? metadata.getGenre() : "other";
         return genreService.getByFuzzyIdentifier(genreIdentifier)
                 .chain(genres -> {
                     List<UUID> genreIds = genres.stream().map(DataEntity::getId).collect(Collectors.toList());
@@ -484,6 +489,18 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                     assert repository != null;
                     return repository.insert(fragment, brandIds, Collections.emptyList(), user);
                 });
+    }
+
+    private static String baseNameWithoutExtension(String fileName) {
+        if (fileName == null || fileName.isBlank()) {
+            return "Untitled";
+        }
+        String name = fileName.trim();
+        int dot = name.lastIndexOf('.');
+        if (dot > 0) {
+            return name.substring(0, dot);
+        }
+        return name;
     }
 
     public Uni<Integer> rateSoundFragmentByAction(String brandSlug, UUID soundFragmentId, RatingAction action, String previousAction, IUser user) {
