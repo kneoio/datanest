@@ -85,6 +85,8 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         BodyHandler jsonBodyHandler = BodyHandler.create().setHandleFileUploads(false);
         router.route(HttpMethod.GET, path).handler(this::get);
         router.route(HttpMethod.GET, path + "/available-soundfragments").handler(this::getForBrand);
+        router.route(HttpMethod.GET, path + "/contributed").handler(this::getContributed);
+        router.route(HttpMethod.GET, path + "/pending-review").handler(this::getPendingReview);
         router.route(HttpMethod.GET, path + "/:id").handler(this::getById);
         router.route(HttpMethod.GET, path + "/files/:id/:slug").handler(this::getBySlugName);
         router.route(HttpMethod.POST, path + "/bulk-brand-update").handler(jsonBodyHandler).handler(this::bulkBrandUpdate);
@@ -116,6 +118,39 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                     viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, actions);
                     return viewPage;
                 }))
+                .subscribe().with(
+                        viewPage -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(io.vertx.core.json.Json.encode(viewPage)),
+                        t -> handleFailure(rc, t)
+                );
+    }
+
+    private void getContributed(RoutingContext rc) {
+        respondEmptySoundFragmentViewPage(rc);
+    }
+
+    private void getPendingReview(RoutingContext rc) {
+        respondEmptySoundFragmentViewPage(rc);
+    }
+
+    private void respondEmptySoundFragmentViewPage(RoutingContext rc) {
+        int page = Integer.parseInt(rc.request().getParam("page", "1"));
+        int size = Integer.parseInt(rc.request().getParam("size", "10"));
+
+        getContextUser(rc, false, true)
+                .map(user -> {
+                    ViewPage viewPage = new ViewPage();
+                    View<SoundFragmentDTO> dtoEntries = new View<>(List.of(),
+                            0, page,
+                            RuntimeUtil.countMaxPage(0L, size),
+                            size);
+                    viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
+                    ActionBox actions = SoundFragmentActionsFactory.getViewActions(user.getActivatedRoles());
+                    viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, actions);
+                    return viewPage;
+                })
                 .subscribe().with(
                         viewPage -> rc.response()
                                 .setStatusCode(200)
