@@ -74,7 +74,7 @@ public class SoundFragmentBulkUploadController extends AbstractSecuredController
                                     .end(io.vertx.core.json.Json.encode(dto));
                         },
                         err -> {
-                            LOGGER.error("Bulk upload failed: {}", batchId, err);
+                            LOGGER.error("Bulk upload failed: batchId={}, fileId={}, error={}", batchId, fileId, err.getMessage(), err);
                             if (err instanceof IllegalArgumentException e) {
                                 int status;
                                 if (e.getMessage() != null && e.getMessage().contains("Unsupported")) {

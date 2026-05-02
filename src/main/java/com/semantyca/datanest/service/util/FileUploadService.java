@@ -29,7 +29,6 @@ public class FileUploadService {
     private static final Logger LOGGER = LoggerFactory.getLogger(FileUploadService.class);
     private static final long MAX_FILE_SIZE_BYTES = 200 * 1024 * 1024; //200 mb
     private static final String BULK_FOLDER_NAME = "bulk";
-    private final String uploadDir;
     private final String uploadDirectory;
     private final AudioMetadataService audioMetadataService;
     private final SoundFragmentService soundFragmentService;
@@ -40,7 +39,6 @@ public class FileUploadService {
     @Inject
     public FileUploadService(DatanestConfig config, AudioMetadataService audioMetadataService,
                              SoundFragmentService soundFragmentService) {
-        this.uploadDir = config.getPathUploads() + "/sound-fragments-controller";
         this.uploadDirectory = config.getPathUploads();
         this.audioMetadataService = audioMetadataService;
         this.soundFragmentService = soundFragmentService;
@@ -73,6 +71,11 @@ public class FileUploadService {
 
                         upload.endHandler(v -> {
                             try {
+                                if (!Files.exists(tempInFinalDir)) {
+                                    LOGGER.error("Temp file missing at end handler: uploadId={}, path={}", uploadId, tempInFinalDir);
+                                    emitter.fail(new java.nio.file.NoSuchFileException(tempInFinalDir.toString()));
+                                    return;
+                                }
                                 if (Files.size(tempInFinalDir) > MAX_FILE_SIZE_BYTES) {
                                     Files.deleteIfExists(tempInFinalDir);
                                     emitter.fail(new IllegalArgumentException(String.format("File too large. Maximum size is %d MB",
@@ -106,13 +109,9 @@ public class FileUploadService {
                         });
 
                         upload.exceptionHandler(err -> {
+                            LOGGER.warn("Upload exception handler fired: uploadId={}, error={}", uploadId, err.getMessage());
                             try {
-                                Path userDir = Paths.get(uploadDir, controllerKey, user.getUserName(), entityId != null ? entityId : "temp");
-                                Files.list(userDir)
-                                        .filter(p -> p.getFileName().toString().startsWith(".tmp_" + uploadId + "_"))
-                                        .forEach(p -> {
-                                            try { Files.deleteIfExists(p); } catch (IOException ignored) {}
-                                        });
+                                Files.deleteIfExists(tempInFinalDir);
                             } catch (IOException ignored) {}
                             emitter.fail(err);
                         });
@@ -169,6 +168,15 @@ public class FileUploadService {
 
                         upload.endHandler(v -> {
                             try {
+                                LOGGER.debug("Upload end handler fired: batchId={}, fileId={}, tempFile={}, exists={}",
+                                        batchId, fileId, tempInFinalDir, Files.exists(tempInFinalDir));
+                                if (!Files.exists(tempInFinalDir)) {
+                                    LOGGER.error("Temp file missing at end handler: batchId={}, fileId={}, path={}",
+                                            batchId, fileId, tempInFinalDir);
+                                    emitter.fail(new java.nio.file.NoSuchFileException(tempInFinalDir.toString(),
+                                            null, "Temp file was removed before upload completed (likely cleaned up by a concurrent failed upload)"));
+                                    return;
+                                }
                                 if (Files.size(tempInFinalDir) > MAX_FILE_SIZE_BYTES) {
                                     Files.deleteIfExists(tempInFinalDir);
                                     emitter.fail(new IllegalArgumentException(String.format("File too large. Maximum size is %d MB",
@@ -271,13 +279,10 @@ public class FileUploadService {
                         });
 
                         upload.exceptionHandler(err -> {
+                            LOGGER.warn("Upload exception handler fired: batchId={}, fileId={}, error={}",
+                                    batchId, fileId, err.getMessage());
                             try {
-                                Path userDir = Paths.get(uploadDirectory, controllerKey, user.getUserName(), BULK_FOLDER_NAME);
-                                Files.list(userDir)
-                                        .filter(p -> p.getFileName().toString().startsWith(".tmp_" + batchId + "_"))
-                                        .forEach(p -> {
-                                            try { Files.deleteIfExists(p); } catch (IOException ignored) {}
-                                        });
+                                Files.deleteIfExists(tempInFinalDir);
                             } catch (IOException ignored) {}
                             emitter.fail(err);
                         });
