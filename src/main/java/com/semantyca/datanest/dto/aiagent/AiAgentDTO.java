@@ -18,6 +18,7 @@ public class AiAgentDTO extends AbstractDTO {
     @NotBlank
     private String name;
     private String description;
+    private String manner;
     private List<LanguagePreferenceDTO> preferredLang;
     @NotBlank
     private String llmType;

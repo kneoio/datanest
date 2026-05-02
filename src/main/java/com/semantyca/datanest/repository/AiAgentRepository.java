@@ -118,8 +118,8 @@ public class AiAgentRepository extends AsyncRepository {
         OffsetDateTime nowTime = OffsetDateTime.now();
 
         String sql = "INSERT INTO " + entityData.getTableName() +
-                " (author, reg_date, last_mod_user, last_mod_date, name, description, preferred_lang, llm_type, copilot, tts_setting) " +
-                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id";
+                " (author, reg_date, last_mod_user, last_mod_date, name, description, manner, preferred_lang, llm_type, copilot, tts_setting) " +
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id";
 
         Tuple params = Tuple.tuple()
                 .addLong(user.getId())
@@ -128,6 +128,7 @@ public class AiAgentRepository extends AsyncRepository {
                 .addOffsetDateTime(nowTime)
                 .addString(agent.getName())
                 .addString(agent.getDescription())
+                .addString(agent.getManner())
                 .addJsonArray(toPreferredLangJson(agent.getPreferredLang()))
                 .addString(agent.getLlmType().name())
                 .addUUID(agent.getCopilot())
@@ -165,15 +166,16 @@ public class AiAgentRepository extends AsyncRepository {
                             OffsetDateTime nowTime = OffsetDateTime.now();
 
                             String sql = "UPDATE " + entityData.getTableName() +
-                                    " SET last_mod_user=$1, last_mod_date=$2, name=$3, description=$4, preferred_lang=$5, " +
-                                    "llm_type=$6, copilot=$7, tts_setting=$8 " +
-                                    "WHERE id=$9";
+                                    " SET last_mod_user=$1, last_mod_date=$2, name=$3, description=$4, manner=$5, preferred_lang=$6, " +
+                                    "llm_type=$7, copilot=$8, tts_setting=$9 " +
+                                    "WHERE id=$10";
 
                             Tuple params = Tuple.tuple()
                                     .addLong(user.getId())
                                     .addOffsetDateTime(nowTime)
                                     .addString(agent.getName())
                                     .addString(agent.getDescription())
+                                    .addString(agent.getManner())
                                     .addJsonArray(toPreferredLangJson(agent.getPreferredLang()))
                                     .addString(agent.getLlmType().name())
                                     .addUUID(agent.getCopilot())
@@ -244,6 +246,7 @@ public class AiAgentRepository extends AsyncRepository {
         doc.setArchived(row.getInteger("archived"));
         doc.setName(row.getString("name"));
         doc.setDescription(row.getString("description"));
+        doc.setManner(row.getString("manner"));
         doc.setCopilot(row.getUUID("copilot"));
 
         JsonArray preferredLangJson = row.getJsonArray("preferred_lang");

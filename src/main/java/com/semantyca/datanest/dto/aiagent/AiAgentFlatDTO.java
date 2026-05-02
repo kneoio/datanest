@@ -17,6 +17,7 @@ public class AiAgentFlatDTO {
     @NotBlank
     private String name;
     private String description;
+    private String manner;
     private List<LanguagePreferenceDTO> preferredLang;
     private List<LabelFlatDTO> labels;
 }

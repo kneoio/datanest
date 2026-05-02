@@ -111,11 +111,6 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 });
     }
 
-
-    public Uni<Brand> getBySlugName(String name, IUser user) {
-        return repository.getBySlugName(name, user, false);
-    }
-
     @Override
     public Uni<Integer> delete(String id, IUser user) {
         assert repository != null;

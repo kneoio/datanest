@@ -155,10 +155,6 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                 });
     }
 
-    public Uni<Integer> getAllSharedCount(final IUser user) {
-        return getAllSharedCount(user, null);
-    }
-
     public Uni<Integer> getAllSharedCount(final IUser user, final ScriptFilter filter) {
         assert repository != null;
         return repository.getAllSharedCount(user, filter);

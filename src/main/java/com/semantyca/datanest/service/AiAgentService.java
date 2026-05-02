@@ -102,6 +102,7 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
         dto.setId(doc.getId());
         dto.setName(doc.getName());
         dto.setDescription(doc.getDescription());
+        dto.setManner(doc.getManner());
         if (doc.getPreferredLang() != null && !doc.getPreferredLang().isEmpty()) {
             List<LanguagePreferenceDTO> langPrefDTOs = doc.getPreferredLang().stream()
                     .map(pref -> new LanguagePreferenceDTO(pref.getLanguageTag().tag(), pref.getWeight()))
@@ -144,6 +145,7 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
             dto.setLastModifiedDate(doc.getLastModifiedDate());
             dto.setName(doc.getName());
             dto.setDescription(doc.getDescription());
+            dto.setManner(doc.getManner());
 
             if (doc.getPreferredLang() != null && !doc.getPreferredLang().isEmpty()) {
                 List<LanguagePreferenceDTO> langPrefDTOs = doc.getPreferredLang().stream()
@@ -151,7 +153,7 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
                         .toList();
                 dto.setPreferredLang(langPrefDTOs);
             }
-            
+
             dto.setLlmType(doc.getLlmType().name());
 
             if (doc.getCopilot() != null) dto.setCopilot(doc.getCopilot());
@@ -206,6 +208,7 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
         doc.setId(dto.getId());
         doc.setName(dto.getName());
         doc.setDescription(dto.getDescription());
+        doc.setManner(dto.getManner());
         doc.setCopilot(dto.getCopilot());
         
         if (dto.getLabels() != null && !dto.getLabels().isEmpty()) {
