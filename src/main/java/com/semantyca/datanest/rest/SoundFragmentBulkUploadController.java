@@ -97,6 +97,7 @@ public class SoundFragmentBulkUploadController extends AbstractSecuredController
         String fileId = rc.request().getParam("fileId");
         String fileName = rc.request().getParam("fileName");
         String brandSlug = rc.request().getParam("brandSlug");
+        String entityId = rc.request().getParam("entityId"); // optional; null = bulk, UUID = single-entity
         String chunkIndexStr = rc.request().getParam("chunkIndex");
         String totalChunksStr = rc.request().getParam("totalChunks");
 
@@ -120,7 +121,7 @@ public class SoundFragmentBulkUploadController extends AbstractSecuredController
 
         final int ci = chunkIndex, tc = totalChunks;
         getContextUser(rc, false, true)
-                .chain(user -> fileUploadService.processChunkUpload(rc, batchId, fileId, ci, tc, fileName, brandSlug, "sound-fragments-controller", user))
+                .chain(user -> fileUploadService.processChunkUpload(rc, batchId, fileId, ci, tc, fileName, entityId, brandSlug, "sound-fragments-controller", user))
                 .subscribe().with(
                         dto -> rc.response()
                                 .setStatusCode(200)

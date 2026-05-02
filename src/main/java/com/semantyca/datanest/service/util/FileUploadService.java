@@ -45,12 +45,14 @@ public class FileUploadService {
         final String originalFileName;
         final String safeFileName;
         final String batchId;
+        final String entityId; // null = bulk mode; UUID string = single-entity mode
 
-        ChunkAssemblyState(int totalChunks, String originalFileName, String safeFileName, String batchId) {
+        ChunkAssemblyState(int totalChunks, String originalFileName, String safeFileName, String batchId, String entityId) {
             this.totalChunks = totalChunks;
             this.originalFileName = originalFileName;
             this.safeFileName = safeFileName;
             this.batchId = batchId;
+            this.entityId = entityId;
         }
     }
 
@@ -67,81 +69,6 @@ public class FileUploadService {
             throw new IllegalArgumentException("Unsupported file type. Only audio files are allowed: " +
                     String.join(", ", SUPPORTED_AUDIO_EXTENSIONS));
         }
-    }
-
-    public Uni<UploadFileDTO> processDirectStream(RoutingContext rc, String uploadId, String controllerKey, IUser user) {
-        return processDirectStream(rc, uploadId, controllerKey, "temp", user, true);
-    }
-
-    public Uni<UploadFileDTO> processDirectStream(RoutingContext rc, String uploadId, String controllerKey, String entityId, IUser user, boolean extractMetadata) {
-        return Uni.createFrom().<UploadFileDTO>emitter(emitter -> {
-            try {
-                rc.request().setExpectMultipart(true);
-
-                rc.request().uploadHandler(upload -> {
-                    try {
-                        String originalFileName = upload.filename();
-                        validateUploadMeta(originalFileName, upload.contentType());
-                        String safeFileName = sanitizeAndValidateFilename(originalFileName, user);
-                        Path destination = setupDirectoriesAndPath(controllerKey, entityId, user, safeFileName);
-                        Path tempInFinalDir = destination.getParent().resolve(".tmp_" + uploadId + "_" + safeFileName);
-                        upload.streamToFileSystem(tempInFinalDir.toString());
-
-                        upload.endHandler(v -> {
-                            try {
-                                if (!Files.exists(tempInFinalDir)) {
-                                    LOGGER.error("Temp file missing at end handler: uploadId={}, path={}", uploadId, tempInFinalDir);
-                                    emitter.fail(new java.nio.file.NoSuchFileException(tempInFinalDir.toString()));
-                                    return;
-                                }
-                                if (Files.size(tempInFinalDir) > MAX_FILE_SIZE_BYTES) {
-                                    Files.deleteIfExists(tempInFinalDir);
-                                    emitter.fail(new IllegalArgumentException(String.format("File too large. Maximum size is %d MB",
-                                            MAX_FILE_SIZE_BYTES / 1024 / 1024)));
-                                    return;
-                                }
-                                Files.move(tempInFinalDir, destination, StandardCopyOption.REPLACE_EXISTING);
-                                String fileUrl = generateFileUrl(entityId, safeFileName);
-
-                                AudioMetadataDTO metadata = null;
-                                if (extractMetadata) {
-                                    metadata = extractMetadata(destination, originalFileName, uploadId);
-                                }
-
-                                UploadFileDTO dto = UploadFileDTO.builder()
-                                        .status("finished")
-                                        .percentage(100)
-                                        .batchId(uploadId)
-                                        .name(safeFileName)
-                                        .url(fileUrl)
-                                        .metadata(metadata)
-                                        .build();
-                                emitter.complete(dto);
-                            } catch (Exception e) {
-                                try {
-                                    Files.deleteIfExists(tempInFinalDir);
-                                    Files.deleteIfExists(destination);
-                                } catch (IOException ignored) {}
-                                emitter.fail(e);
-                            }
-                        });
-
-                        upload.exceptionHandler(err -> {
-                            LOGGER.warn("Upload exception handler fired: uploadId={}, error={}", uploadId, err.getMessage());
-                            try {
-                                Files.deleteIfExists(tempInFinalDir);
-                            } catch (IOException ignored) {}
-                            emitter.fail(err);
-                        });
-
-                    } catch (Exception e) {
-                        emitter.fail(e);
-                    }
-                });
-            } catch (Exception e) {
-                emitter.fail(e);
-            }
-        }).emitOn(Infrastructure.getDefaultExecutor());
     }
 
     private Uni<Void> resolveBrandSlugIfNeeded(String batchId, String brandSlug) {
@@ -316,15 +243,15 @@ public class FileUploadService {
     }
 
     public Uni<UploadFileDTO> processChunkUpload(RoutingContext rc, String batchId, String fileId,
-            int chunkIndex, int totalChunks, String originalFileName, String brandSlug,
-            String controllerKey, IUser user) {
+            int chunkIndex, int totalChunks, String originalFileName,
+            String entityId, String brandSlug, String controllerKey, IUser user) {
         validateFileId(fileId);
         return resolveBrandSlugIfNeeded(batchId, brandSlug)
-                .chain(() -> writeChunk(rc, batchId, fileId, chunkIndex, totalChunks, originalFileName, controllerKey, user));
+                .chain(() -> writeChunk(rc, batchId, fileId, chunkIndex, totalChunks, originalFileName, entityId, controllerKey, user));
     }
 
     private Uni<UploadFileDTO> writeChunk(RoutingContext rc, String batchId, String fileId,
-            int chunkIndex, int totalChunks, String originalFileName,
+            int chunkIndex, int totalChunks, String originalFileName, String entityId,
             String controllerKey, IUser user) {
         return Uni.createFrom().<UploadFileDTO>emitter(emitter -> {
             try {
@@ -335,7 +262,7 @@ public class FileUploadService {
                         String safeFileName = sanitizeAndValidateFilename(originalFileName, user);
 
                         ChunkAssemblyState state = chunkStateMap.computeIfAbsent(fileId,
-                                k -> new ChunkAssemblyState(totalChunks, originalFileName, safeFileName, batchId));
+                                k -> new ChunkAssemblyState(totalChunks, originalFileName, safeFileName, batchId, entityId));
 
                         Path chunkFile = buildChunkPath(fileId, chunkIndex, controllerKey, user.getUserName());
                         upload.streamToFileSystem(chunkFile.toString());
@@ -350,25 +277,45 @@ public class FileUploadService {
 
                                 int received = state.receivedCount.incrementAndGet();
                                 int percentage = received * 100 / totalChunks;
-                                ConcurrentHashMap<String, UploadFileDTO> batchMap =
-                                        bulkUploadProgressMap.computeIfAbsent(batchId, k -> new ConcurrentHashMap<>());
-
                                 LOGGER.debug("Chunk {}/{} received: fileId={}", received, totalChunks, fileId);
 
-                                if (received == totalChunks) {
+                                if (received < totalChunks) {
+                                    if (state.entityId == null) {
+                                        bulkUploadProgressMap.computeIfAbsent(batchId, k -> new ConcurrentHashMap<>())
+                                                .put(fileId, UploadFileDTO.builder()
+                                                        .id(fileId).status("uploading").percentage(percentage)
+                                                        .batchId(batchId).name(safeFileName).build());
+                                    }
+                                    emitter.complete(UploadFileDTO.builder()
+                                            .id(fileId).status("uploading").percentage(percentage)
+                                            .batchId(batchId).name(safeFileName).build());
+                                } else if (state.entityId != null) {
+                                    // Single-entity: assemble + extract metadata on worker thread, return full DTO
+                                    Uni.createFrom().<UploadFileDTO>item(() -> {
+                                        try {
+                                            Path destination = assembleChunks(fileId, state, controllerKey, user);
+                                            String fileUrl = generateFileUrl(state.entityId, state.safeFileName);
+                                            AudioMetadataDTO metadata = extractMetadata(destination, state.originalFileName, fileId);
+                                            return UploadFileDTO.builder()
+                                                    .id(fileId).status("finished").percentage(100)
+                                                    .batchId(batchId).name(state.safeFileName).url(fileUrl)
+                                                    .metadata(metadata).build();
+                                        } catch (Exception e) {
+                                            throw new RuntimeException(e);
+                                        }
+                                    }).runSubscriptionOn(Infrastructure.getDefaultExecutor())
+                                    .subscribe().with(emitter::complete, emitter::fail);
+                                } else {
+                                    // Bulk: respond immediately, assemble + create entity in background
                                     String fileUrl = generateFileUrl(BULK_FOLDER_NAME, safeFileName);
+                                    ConcurrentHashMap<String, UploadFileDTO> batchMap =
+                                            bulkUploadProgressMap.computeIfAbsent(batchId, k -> new ConcurrentHashMap<>());
                                     UploadFileDTO processingDto = UploadFileDTO.builder()
                                             .id(fileId).status("processing").percentage(100)
                                             .batchId(batchId).name(safeFileName).url(fileUrl).build();
                                     batchMap.put(fileId, processingDto);
                                     emitter.complete(processingDto);
                                     assembleAndProcess(batchId, fileId, state, controllerKey, user, batchMap);
-                                } else {
-                                    UploadFileDTO chunkDto = UploadFileDTO.builder()
-                                            .id(fileId).status("uploading").percentage(percentage)
-                                            .batchId(batchId).name(safeFileName).build();
-                                    batchMap.put(fileId, chunkDto);
-                                    emitter.complete(chunkDto);
                                 }
                             } catch (Exception e) {
                                 try { Files.deleteIfExists(chunkFile); } catch (IOException ignored) {}
@@ -444,7 +391,8 @@ public class FileUploadService {
     }
 
     private Path assembleChunks(String fileId, ChunkAssemblyState state, String controllerKey, IUser user) throws Exception {
-        Path destination = setupDirectoriesAndPath(controllerKey, BULK_FOLDER_NAME, user, state.safeFileName);
+        String folder = state.entityId != null ? state.entityId : BULK_FOLDER_NAME;
+        Path destination = setupDirectoriesAndPath(controllerKey, folder, user, state.safeFileName);
         Path tempAssembled = destination.getParent().resolve(".tmp_assembled_" + fileId + "_" + state.safeFileName);
         try (OutputStream out = Files.newOutputStream(tempAssembled)) {
             for (int i = 0; i < state.totalChunks; i++) {

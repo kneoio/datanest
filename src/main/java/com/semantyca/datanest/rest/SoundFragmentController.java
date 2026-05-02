@@ -22,7 +22,6 @@ import com.semantyca.datanest.dto.actions.SoundFragmentActionsFactory;
 import com.semantyca.datanest.service.soundfragment.BrandSoundFragmentService;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
 import com.semantyca.datanest.service.util.FileDownloadService;
-import com.semantyca.datanest.service.util.FileUploadService;
 import com.semantyca.datanest.service.util.ValidationResult;
 import com.semantyca.datanest.service.util.ValidationService;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
@@ -55,7 +54,6 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
 
     private SoundFragmentService service;
     private BrandSoundFragmentService brandSoundFragmentService;
-    private FileUploadService fileUploadService;
     private FileDownloadService fileDownloadService;
     private ValidationService validationService;
     private Vertx vertx;
@@ -68,14 +66,12 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
     public SoundFragmentController(UserService userService,
                                    SoundFragmentService service,
                                    BrandSoundFragmentService brandSoundFragmentService,
-                                   FileUploadService fileUploadService,
                                    FileDownloadService fileDownloadService,
                                    ValidationService validationService,
                                    Vertx vertx) {
         super(userService);
         this.service = service;
         this.brandSoundFragmentService = brandSoundFragmentService;
-        this.fileUploadService = fileUploadService;
         this.fileDownloadService = fileDownloadService;
         this.validationService = validationService;
         this.vertx = vertx;
@@ -93,7 +89,6 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         router.route(HttpMethod.POST, path + "/bulk-brand-update").handler(jsonBodyHandler).handler(this::bulkBrandUpdate);
         router.route(HttpMethod.POST, path + "/:id?").handler(jsonBodyHandler).handler(this::upsert);
         router.route(HttpMethod.DELETE, path + "/:id").handler(this::delete);
-        router.route(HttpMethod.POST, path + "/files/:id").handler(this::uploadFile); //!!
         router.route(HttpMethod.GET, path + "/:id/access").handler(this::getDocumentAccess);
         router.route(HttpMethod.PATCH, path + "/:id/rating").handler(jsonBodyHandler).handler(this::rateFragment);
 
@@ -270,37 +265,6 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                 rc.fail(400, new IllegalArgumentException("Invalid JSON payload"));
             }
         }
-    }
-
-    private void uploadFile(RoutingContext rc) {
-        String uploadId = rc.request().getParam("uploadId");
-        String entityId = rc.pathParam("id");
-
-        getContextUser(rc, false, true)
-                .chain(user -> fileUploadService.processDirectStream(rc, uploadId, "sound-fragments-controller", entityId, user, true))
-                .subscribe().with(
-                        dto -> {
-                            LOGGER.infof("Upload done: %s", uploadId);
-                            rc.response()
-                                    .setStatusCode(200)
-                                    .putHeader("Content-Type", "application/json")
-                                    .end(io.vertx.core.json.Json.encode(dto));
-                        },
-                        err -> {
-                            LOGGER.error("Upload failed: {}", uploadId, err);
-                            if (err instanceof IllegalArgumentException e) {
-                                int status;
-                                if (e.getMessage() != null && e.getMessage().contains("Unsupported")) {
-                                    status = 415;
-                                } else {
-                                    status = 400;
-                                }
-                                rc.fail(status, e);
-                            } else {
-                                rc.fail(500, new RuntimeException("Upload failed"));
-                            }
-                        }
-                );
     }
 
     private void delete(RoutingContext rc) {
