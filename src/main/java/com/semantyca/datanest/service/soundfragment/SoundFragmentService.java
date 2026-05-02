@@ -4,6 +4,7 @@ import com.semantyca.core.dto.DocumentAccessDTO;
 import com.semantyca.core.model.DataEntity;
 import com.semantyca.core.model.FileMetadata;
 import com.semantyca.core.model.cnst.LanguageCode;
+import com.semantyca.core.model.cnst.LifecycleStatus;
 import com.semantyca.core.model.cnst.RatingAction;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
@@ -98,6 +99,29 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
     public Uni<Integer> getAllCount(final IUser user, final SoundFragmentFilter filter) {
         assert repository != null;
         return repository.getAllCount(user, false, filter);
+    }
+
+    public Uni<List<SoundFragmentDTO>> getAllDTO(final int limit, final int offset, final IUser user,
+                                                 final SoundFragmentFilter filter, final LifecycleStatus archivedStatus) {
+        assert repository != null;
+        Integer archivedCode = archivedStatus != null ? archivedStatus.getCode() : null;
+        return repository.getAll(limit, offset, false, user, filter, archivedCode)
+                .chain(list -> {
+                    if (list.isEmpty()) {
+                        return Uni.createFrom().item(List.of());
+                    } else {
+                        List<Uni<SoundFragmentDTO>> unis = list.stream()
+                                .map(doc -> mapToDTO(doc, false, null))
+                                .collect(Collectors.toList());
+                        return Uni.join().all(unis).andFailFast();
+                    }
+                });
+    }
+
+    public Uni<Integer> getAllCount(final IUser user, final SoundFragmentFilter filter, final LifecycleStatus archivedStatus) {
+        assert repository != null;
+        Integer archivedCode = archivedStatus != null ? archivedStatus.getCode() : null;
+        return repository.getAllCount(user, false, filter, archivedCode);
     }
 
     public Uni<SoundFragment> getById(UUID uuid, IUser user) {

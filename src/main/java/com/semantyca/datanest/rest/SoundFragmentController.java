@@ -7,6 +7,7 @@ import com.semantyca.core.dto.form.FormPage;
 import com.semantyca.core.dto.view.View;
 import com.semantyca.core.dto.view.ViewPage;
 import com.semantyca.core.model.cnst.LanguageCode;
+import com.semantyca.core.model.cnst.LifecycleStatus;
 import com.semantyca.core.model.cnst.RatingAction;
 import com.semantyca.core.repository.exception.UserNotFoundException;
 import com.semantyca.core.service.UserService;
@@ -85,7 +86,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         BodyHandler jsonBodyHandler = BodyHandler.create().setHandleFileUploads(false);
         router.route(HttpMethod.GET, path).handler(this::get);
         router.route(HttpMethod.GET, path + "/available-soundfragments").handler(this::getForBrand);
-        router.route(HttpMethod.GET, path + "/contributed").handler(this::getContributed);
+        router.route(HttpMethod.GET, path + "/shared").handler(this::getShared);
         router.route(HttpMethod.GET, path + "/pending-review").handler(this::getPendingReview);
         router.route(HttpMethod.GET, path + "/:id").handler(this::getById);
         router.route(HttpMethod.GET, path + "/files/:id/:slug").handler(this::getBySlugName);
@@ -127,12 +128,37 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                 );
     }
 
-    private void getContributed(RoutingContext rc) {
+    private void getShared(RoutingContext rc) {
         respondEmptySoundFragmentViewPage(rc);
     }
 
     private void getPendingReview(RoutingContext rc) {
-        respondEmptySoundFragmentViewPage(rc);
+        int page = Integer.parseInt(rc.request().getParam("page", "1"));
+        int size = Integer.parseInt(rc.request().getParam("size", "10"));
+        SoundFragmentFilter filter = parseFilterDTOForAdmin(rc);
+
+        getContextUser(rc, false, true)
+                .chain(user -> Uni.combine().all().unis(
+                        service.getAllCount(user, filter, LifecycleStatus.NOT_APPROVED),
+                        service.getAllDTO(size, (page - 1) * size, user, filter, LifecycleStatus.NOT_APPROVED)
+                ).asTuple().map(tuple -> {
+                    ViewPage viewPage = new ViewPage();
+                    View<SoundFragmentDTO> dtoEntries = new View<>(tuple.getItem2(),
+                            tuple.getItem1(), page,
+                            RuntimeUtil.countMaxPage(tuple.getItem1(), size),
+                            size);
+                    viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
+                    ActionBox actions = SoundFragmentActionsFactory.getViewActions(user.getActivatedRoles());
+                    viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, actions);
+                    return viewPage;
+                }))
+                .subscribe().with(
+                        viewPage -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(io.vertx.core.json.Json.encode(viewPage)),
+                        t -> handleFailure(rc, t)
+                );
     }
 
     private void respondEmptySoundFragmentViewPage(RoutingContext rc) {

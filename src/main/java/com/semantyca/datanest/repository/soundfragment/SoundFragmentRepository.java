@@ -73,9 +73,15 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
 
     public Uni<List<SoundFragment>> getAll(final int limit, final int offset, final boolean includeArchived,
                                            final IUser user, final SoundFragmentFilter filter) {
+        return getAll(limit, offset, includeArchived, user, filter, null);
+    }
+
+    public Uni<List<SoundFragment>> getAll(final int limit, final int offset, final boolean includeArchived,
+                                           final IUser user, final SoundFragmentFilter filter,
+                                           final Integer exactArchivedCode) {
         assert queryBuilder != null;
         String sql = queryBuilder.buildGetAllQuery(entityData.getTableName(), entityData.getRlsName(),
-                user, includeArchived, filter, limit, offset);
+                user, includeArchived, filter, limit, offset, exactArchivedCode);
 
         if (filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
             return client.preparedQuery(sql)
@@ -95,10 +101,17 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
     }
 
     public Uni<Integer> getAllCount(IUser user, boolean includeArchived, SoundFragmentFilter filter) {
+        return getAllCount(user, includeArchived, filter, null);
+    }
+
+    public Uni<Integer> getAllCount(IUser user, boolean includeArchived, SoundFragmentFilter filter,
+                                    Integer exactArchivedCode) {
         String sql = "SELECT COUNT(*) FROM " + entityData.getTableName() + " t, " + entityData.getRlsName() + " rls " +
                 "WHERE t.id = rls.entity_id AND rls.reader = " + user.getId();
 
-        if (!includeArchived) {
+        if (exactArchivedCode != null) {
+            sql += " AND t.archived = " + exactArchivedCode;
+        } else if (!includeArchived) {
             sql += " AND t.archived = 0";
         }
 

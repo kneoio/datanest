@@ -8,7 +8,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 public class SoundFragmentQueryBuilder {
 
     public String buildGetAllQuery(String tableName, String rlsName, IUser user, boolean includeArchived,
-                                   SoundFragmentFilter filter, int limit, int offset) {
+                                   SoundFragmentFilter filter, int limit, int offset, Integer exactArchivedCode) {
         StringBuilder sql = new StringBuilder()
                 .append("SELECT t.*, rls.*");
 
@@ -20,7 +20,9 @@ public class SoundFragmentQueryBuilder {
                 .append("JOIN ").append(rlsName).append(" rls ON t.id = rls.entity_id ")
                 .append("WHERE rls.reader = ").append(user.getId());
 
-        if (!includeArchived) {
+        if (exactArchivedCode != null) {
+            sql.append(" AND t.archived = ").append(exactArchivedCode);
+        } else if (!includeArchived) {
             sql.append(" AND t.archived = 0");
         }
 
