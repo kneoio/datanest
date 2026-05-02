@@ -46,6 +46,7 @@ public class SoundFragmentBulkUploadController extends AbstractSecuredController
         String path = "/datanest/soundfragments-bulk";
         router.route(HttpMethod.GET, path + "/status/:batchId/stream").handler(this::streamProgress);
         router.route(HttpMethod.POST, path + "/files").handler(this::uploadFile);
+        router.route(HttpMethod.POST, path + "/chunk").handler(this::uploadChunk);
     }
 
     private void uploadFile(RoutingContext rc) {
@@ -90,6 +91,52 @@ public class SoundFragmentBulkUploadController extends AbstractSecuredController
                 );
     }
 
+
+    private void uploadChunk(RoutingContext rc) {
+        String batchId = rc.request().getParam("batchId");
+        String fileId = rc.request().getParam("fileId");
+        String fileName = rc.request().getParam("fileName");
+        String brandSlug = rc.request().getParam("brandSlug");
+        String chunkIndexStr = rc.request().getParam("chunkIndex");
+        String totalChunksStr = rc.request().getParam("totalChunks");
+
+        if (batchId == null || batchId.isBlank()) { rc.fail(400, new IllegalArgumentException("batchId required")); return; }
+        if (fileId == null || fileId.isBlank())   { rc.fail(400, new IllegalArgumentException("fileId required")); return; }
+        if (fileName == null || fileName.isBlank()) { rc.fail(400, new IllegalArgumentException("fileName required")); return; }
+        if (chunkIndexStr == null || totalChunksStr == null) { rc.fail(400, new IllegalArgumentException("chunkIndex and totalChunks required")); return; }
+
+        int chunkIndex, totalChunks;
+        try {
+            chunkIndex = Integer.parseInt(chunkIndexStr);
+            totalChunks = Integer.parseInt(totalChunksStr);
+        } catch (NumberFormatException e) {
+            rc.fail(400, new IllegalArgumentException("chunkIndex and totalChunks must be integers"));
+            return;
+        }
+        if (chunkIndex < 0 || totalChunks < 1 || chunkIndex >= totalChunks) {
+            rc.fail(400, new IllegalArgumentException("Invalid chunk parameters"));
+            return;
+        }
+
+        final int ci = chunkIndex, tc = totalChunks;
+        getContextUser(rc, false, true)
+                .chain(user -> fileUploadService.processChunkUpload(rc, batchId, fileId, ci, tc, fileName, brandSlug, "sound-fragments-controller", user))
+                .subscribe().with(
+                        dto -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(io.vertx.core.json.Json.encode(dto)),
+                        err -> {
+                            LOGGER.error("Chunk upload failed: batchId={}, fileId={}, chunk={}/{}, error={}",
+                                    batchId, fileId, chunkIndex, totalChunks, err.getMessage(), err);
+                            if (err instanceof IllegalArgumentException e) {
+                                rc.fail(400, e);
+                            } else {
+                                rc.fail(500, new RuntimeException("Chunk upload failed"));
+                            }
+                        }
+                );
+    }
 
     private void streamProgress(RoutingContext rc) {
         String batchId = rc.pathParam("batchId");

@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -23,6 +24,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @ApplicationScoped
 public class FileUploadService {
@@ -35,6 +37,22 @@ public class FileUploadService {
     public final ConcurrentHashMap<String, UploadFileDTO> uploadProgressMap = new ConcurrentHashMap<>();
     public final ConcurrentHashMap<String, ConcurrentHashMap<String, UploadFileDTO>> bulkUploadProgressMap = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, UUID> batchBrandIdMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, ChunkAssemblyState> chunkStateMap = new ConcurrentHashMap<>();
+
+    private static final class ChunkAssemblyState {
+        final int totalChunks;
+        final AtomicInteger receivedCount = new AtomicInteger(0);
+        final String originalFileName;
+        final String safeFileName;
+        final String batchId;
+
+        ChunkAssemblyState(int totalChunks, String originalFileName, String safeFileName, String batchId) {
+            this.totalChunks = totalChunks;
+            this.originalFileName = originalFileName;
+            this.safeFileName = safeFileName;
+            this.batchId = batchId;
+        }
+    }
 
     @Inject
     public FileUploadService(DatanestConfig config, AudioMetadataService audioMetadataService,
@@ -295,6 +313,175 @@ public class FileUploadService {
                 emitter.fail(e);
             }
         }).emitOn(Infrastructure.getDefaultExecutor());
+    }
+
+    public Uni<UploadFileDTO> processChunkUpload(RoutingContext rc, String batchId, String fileId,
+            int chunkIndex, int totalChunks, String originalFileName, String brandSlug,
+            String controllerKey, IUser user) {
+        validateFileId(fileId);
+        return resolveBrandSlugIfNeeded(batchId, brandSlug)
+                .chain(() -> writeChunk(rc, batchId, fileId, chunkIndex, totalChunks, originalFileName, controllerKey, user));
+    }
+
+    private Uni<UploadFileDTO> writeChunk(RoutingContext rc, String batchId, String fileId,
+            int chunkIndex, int totalChunks, String originalFileName,
+            String controllerKey, IUser user) {
+        return Uni.createFrom().<UploadFileDTO>emitter(emitter -> {
+            try {
+                rc.request().setExpectMultipart(true);
+                rc.request().uploadHandler(upload -> {
+                    try {
+                        validateUploadMeta(originalFileName, null);
+                        String safeFileName = sanitizeAndValidateFilename(originalFileName, user);
+
+                        ChunkAssemblyState state = chunkStateMap.computeIfAbsent(fileId,
+                                k -> new ChunkAssemblyState(totalChunks, originalFileName, safeFileName, batchId));
+
+                        Path chunkFile = buildChunkPath(fileId, chunkIndex, controllerKey, user.getUserName());
+                        upload.streamToFileSystem(chunkFile.toString());
+
+                        upload.endHandler(v -> {
+                            try {
+                                if (!Files.exists(chunkFile)) {
+                                    LOGGER.error("Chunk file missing: fileId={}, chunk={}/{}", fileId, chunkIndex, totalChunks);
+                                    emitter.fail(new java.nio.file.NoSuchFileException(chunkFile.toString()));
+                                    return;
+                                }
+
+                                int received = state.receivedCount.incrementAndGet();
+                                int percentage = received * 100 / totalChunks;
+                                ConcurrentHashMap<String, UploadFileDTO> batchMap =
+                                        bulkUploadProgressMap.computeIfAbsent(batchId, k -> new ConcurrentHashMap<>());
+
+                                LOGGER.debug("Chunk {}/{} received: fileId={}", received, totalChunks, fileId);
+
+                                if (received == totalChunks) {
+                                    String fileUrl = generateFileUrl(BULK_FOLDER_NAME, safeFileName);
+                                    UploadFileDTO processingDto = UploadFileDTO.builder()
+                                            .id(fileId).status("processing").percentage(100)
+                                            .batchId(batchId).name(safeFileName).url(fileUrl).build();
+                                    batchMap.put(fileId, processingDto);
+                                    emitter.complete(processingDto);
+                                    assembleAndProcess(batchId, fileId, state, controllerKey, user, batchMap);
+                                } else {
+                                    UploadFileDTO chunkDto = UploadFileDTO.builder()
+                                            .id(fileId).status("uploading").percentage(percentage)
+                                            .batchId(batchId).name(safeFileName).build();
+                                    batchMap.put(fileId, chunkDto);
+                                    emitter.complete(chunkDto);
+                                }
+                            } catch (Exception e) {
+                                try { Files.deleteIfExists(chunkFile); } catch (IOException ignored) {}
+                                emitter.fail(e);
+                            }
+                        });
+
+                        upload.exceptionHandler(err -> {
+                            LOGGER.warn("Chunk upload exception: fileId={}, chunk={}/{}, error={}",
+                                    fileId, chunkIndex, totalChunks, err.getMessage());
+                            try { Files.deleteIfExists(chunkFile); } catch (IOException ignored) {}
+                            emitter.fail(err);
+                        });
+
+                    } catch (Exception e) {
+                        emitter.fail(e);
+                    }
+                });
+            } catch (Exception e) {
+                emitter.fail(e);
+            }
+        }).emitOn(Infrastructure.getDefaultExecutor());
+    }
+
+    private void assembleAndProcess(String batchId, String fileId, ChunkAssemblyState state,
+            String controllerKey, IUser user,
+            ConcurrentHashMap<String, UploadFileDTO> batchMap) {
+        Uni.createFrom().<UploadFileDTO>item(() -> {
+            try {
+                Path destination = assembleChunks(fileId, state, controllerKey, user);
+                String fileUrl = generateFileUrl(BULK_FOLDER_NAME, state.safeFileName);
+                AudioMetadataDTO metadata = extractMetadata(destination, state.originalFileName, fileId);
+                UploadFileDTO metadataDto = UploadFileDTO.builder()
+                        .id(fileId).status("metadata_extracted").percentage(100)
+                        .batchId(batchId).name(state.safeFileName).url(fileUrl)
+                        .fullPath(destination.toString()).metadata(metadata).build();
+                batchMap.put(fileId, metadataDto);
+                return metadataDto;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }).runSubscriptionOn(Infrastructure.getDefaultExecutor())
+        .chain(metadataDto -> {
+            String fileUrl = generateFileUrl(BULK_FOLDER_NAME, state.safeFileName);
+            UploadFileDTO creatingDto = UploadFileDTO.builder()
+                    .id(fileId).status("creating_entity").percentage(100)
+                    .batchId(batchId).name(state.safeFileName).url(fileUrl)
+                    .fullPath(metadataDto.getFullPath()).metadata(metadataDto.getMetadata()).build();
+            batchMap.put(fileId, creatingDto);
+            UUID brandId = batchBrandIdMap.get(batchId);
+            return soundFragmentService.createFromBulkUpload(metadataDto, brandId, user)
+                    .map(fragment -> {
+                        UploadFileDTO finalDto = UploadFileDTO.builder()
+                                .id(fileId).status("finished").percentage(100)
+                                .batchId(batchId).name(state.safeFileName).url(fileUrl)
+                                .metadata(metadataDto.getMetadata()).build();
+                        batchMap.put(fileId, finalDto);
+                        return finalDto;
+                    });
+        })
+        .subscribe().with(
+                result -> LOGGER.info("Chunked upload completed: fileId={}", fileId),
+                err -> {
+                    LOGGER.error("Chunked upload failed: fileId={}", fileId, err);
+                    String fileUrl = generateFileUrl(BULK_FOLDER_NAME, state.safeFileName);
+                    batchMap.put(fileId, UploadFileDTO.builder()
+                            .id(fileId).status("error").percentage(100)
+                            .batchId(batchId).name(state.safeFileName).url(fileUrl)
+                            .errorMessage("Assembly failed: " + err.getMessage()).build());
+                    cleanupChunkDir(fileId, controllerKey, user.getUserName());
+                }
+        );
+    }
+
+    private Path assembleChunks(String fileId, ChunkAssemblyState state, String controllerKey, IUser user) throws Exception {
+        Path destination = setupDirectoriesAndPath(controllerKey, BULK_FOLDER_NAME, user, state.safeFileName);
+        Path tempAssembled = destination.getParent().resolve(".tmp_assembled_" + fileId + "_" + state.safeFileName);
+        try (OutputStream out = Files.newOutputStream(tempAssembled)) {
+            for (int i = 0; i < state.totalChunks; i++) {
+                Path chunkFile = buildChunkPath(fileId, i, controllerKey, user.getUserName());
+                Files.copy(chunkFile, out);
+                Files.delete(chunkFile);
+            }
+        }
+        Files.move(tempAssembled, destination, StandardCopyOption.REPLACE_EXISTING);
+        cleanupChunkDir(fileId, controllerKey, user.getUserName());
+        chunkStateMap.remove(fileId);
+        return destination;
+    }
+
+    private Path buildChunkPath(String fileId, int chunkIndex, String controllerKey, String userName) {
+        try {
+            Path dir = Files.createDirectories(
+                    Paths.get(uploadDirectory, controllerKey, userName, BULK_FOLDER_NAME, ".chunks_" + fileId));
+            return dir.resolve("chunk_" + chunkIndex);
+        } catch (IOException e) {
+            throw new java.io.UncheckedIOException(e);
+        }
+    }
+
+    private void cleanupChunkDir(String fileId, String controllerKey, String userName) {
+        Path dir = Paths.get(uploadDirectory, controllerKey, userName, BULK_FOLDER_NAME, ".chunks_" + fileId);
+        if (!Files.exists(dir)) return;
+        try (java.util.stream.Stream<Path> files = Files.list(dir)) {
+            files.forEach(p -> { try { Files.deleteIfExists(p); } catch (IOException ignored) {} });
+        } catch (IOException ignored) {}
+        try { Files.deleteIfExists(dir); } catch (IOException ignored) {}
+    }
+
+    private static void validateFileId(String fileId) {
+        if (fileId == null || !fileId.matches("[a-zA-Z0-9_-]+")) {
+            throw new IllegalArgumentException("Invalid fileId");
+        }
     }
 
     public ConcurrentHashMap<String, UploadFileDTO> getBulkUploadProgress(String batchId) {
