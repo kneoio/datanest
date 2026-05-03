@@ -277,7 +277,6 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                 );
     }
 
-
     private void bulkBrandUpdate(RoutingContext rc) {
         try {
             if (!validateJsonBody(rc)) {
