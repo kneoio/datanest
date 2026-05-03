@@ -91,6 +91,10 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         return repository.findById(id, user, true);
     }
 
+    public Uni<Brand> getBySlugNameForUser(String name, IUser user) {
+        return repository.getBySlugName(name, user, false);
+    }
+
     public Uni<Brand> getBySlugName(String name) {
         return repository.getBySlugName(name)
                 .chain(brand -> {

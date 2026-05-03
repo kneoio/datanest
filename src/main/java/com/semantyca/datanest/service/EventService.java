@@ -4,6 +4,7 @@ import com.semantyca.core.dto.DocumentAccessDTO;
 import com.semantyca.core.dto.scheduler.OnceTriggerDTO;
 import com.semantyca.core.dto.scheduler.PeriodicTriggerDTO;
 import com.semantyca.core.dto.scheduler.ScheduleDTO;
+import com.semantyca.core.dto.scheduler.ScheduleFactory;
 import com.semantyca.core.dto.scheduler.TaskDTO;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.cnst.TriggerType;
@@ -20,6 +21,7 @@ import com.semantyca.datanest.dto.StagePlaylistDTO;
 import com.semantyca.datanest.dto.RlsActionDTO;
 import com.semantyca.datanest.dto.event.EventDTO;
 import com.semantyca.datanest.dto.event.EventEntryDTO;
+import com.semantyca.datanest.external.PerplexityApiClient;
 import com.semantyca.datanest.repository.EventRepository;
 import com.semantyca.mixpla.model.Event;
 import com.semantyca.mixpla.model.PlaylistRequest;
@@ -30,13 +32,18 @@ import com.semantyca.mixpla.model.cnst.EventType;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.cnst.SourceType;
 import com.semantyca.mixpla.model.cnst.WayOfSourcing;
+import com.semantyca.officeframe.model.cnst.CountryCode;
 import io.smallrye.mutiny.Uni;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -46,15 +53,18 @@ public class EventService extends AbstractService<Event, EventDTO> {
     private static final Logger LOGGER = LoggerFactory.getLogger(EventService.class);
     private final EventRepository repository;
     private final BrandService brandService;
+    private final PerplexityApiClient perplexityApiClient;
 
     @Inject
     public EventService(UserService userService,
                         EventRepository repository,
-                        BrandService brandService
+                        BrandService brandService,
+                        PerplexityApiClient perplexityApiClient
     ) {
         super(userService);
         this.repository = repository;
         this.brandService = brandService;
+        this.perplexityApiClient = perplexityApiClient;
     }
 
     public Uni<List<EventEntryDTO>> getAll(final int limit, final int offset, final IUser user) {
@@ -123,6 +133,131 @@ public class EventService extends AbstractService<Event, EventDTO> {
     public Uni<Integer> archive(String id, IUser user) {
         assert repository != null;
         return repository.archive(UUID.fromString(id), user);
+    }
+
+    public Uni<List<EventDTO>> generateCountryEventsFromPerplexity(String brandSlugName, IUser user) {
+        return brandService.getBySlugNameForUser(brandSlugName, user)
+                .onItem().transformToUni(brand -> {
+                    CountryCode country = brand.getCountry();
+                    if (country == null || country == CountryCode.UNKNOWN) {
+                        return Uni.createFrom().failure(
+                                new IllegalArgumentException("Brand has no country assigned"));
+                    }
+                    LanguageCode lang = country.getPreferredLanguage();
+                    if (lang == null || lang == LanguageCode.unknown) {
+                        lang = LanguageCode.en;
+                    }
+                    String query = getQuery(country);
+                    return perplexityApiClient.search(query, List.of(lang), List.of(), true)
+                            .onItem().transformToUni(response -> persistEventsFromPerplexityArticles(response, brand, user));
+                });
+    }
+
+    private static @NonNull String getQuery(CountryCode country) {
+        String countryLabel = country.getCountryName();
+        return "Research major public events, national holidays, elections, sports "
+                + "championships, and cultural happenings in " + countryLabel
+                + " that are relevant for broadcast radio audiences in the recent past and near "
+                + "future. Include approximate dates where known. Populate the response schema: "
+                + "provide an overall title and summary, and list each distinct real-world event as "
+                + "a separate article entry with title, date, source, url when available, and a short "
+                + "content description.";
+    }
+
+    private Uni<List<EventDTO>> persistEventsFromPerplexityArticles(JsonObject response, Brand brand, IUser user) {
+        JsonArray articles = response.getJsonArray("articles");
+        List<Uni<EventDTO>> saves = new ArrayList<>();
+        if (articles != null && !articles.isEmpty()) {
+            int cap = Math.min(articles.size(), 25);
+            for (int i = 0; i < cap; i++) {
+                JsonObject article = articles.getJsonObject(i);
+                if (article == null) {
+                    continue;
+                }
+                EventDTO dto = buildGeneratedEventDto(brand, article, response);
+                if (dto.getDescription() != null && !dto.getDescription().isBlank()) {
+                    saves.add(upsert("new", dto, user));
+                }
+            }
+        }
+        if (saves.isEmpty()) {
+            EventDTO fallback = buildGeneratedEventDto(brand, null, response);
+            if (fallback.getDescription() == null || fallback.getDescription().isBlank()) {
+                return Uni.createFrom().item(List.of());
+            }
+            return upsert("new", fallback, user).map(List::of);
+        }
+        return Uni.join().all(saves).andFailFast();
+    }
+
+    private EventDTO buildGeneratedEventDto(Brand brand, JsonObject article, JsonObject envelope) {
+        EventDTO dto = new EventDTO();
+        dto.setBrandId(brand.getId().toString());
+        dto.setType(EventType.SPECIAL.name());
+        dto.setPriority(EventPriority.MEDIUM.name());
+        ZoneId tz = brand.getTimeZone() != null ? brand.getTimeZone() : ZoneId.of("UTC");
+        dto.setTimeZone(tz.getId());
+
+        String title;
+        String body;
+        if (article != null) {
+            title = article.getString("title");
+            String content = article.getString("content");
+            String date = article.getString("date");
+            String source = article.getString("source");
+            String url = article.getString("url");
+            StringBuilder desc = new StringBuilder();
+            if (title != null && !title.isBlank()) {
+                desc.append(title.trim());
+            }
+            if (date != null && !date.isBlank()) {
+                if (!desc.isEmpty()) {
+                    desc.append("\n\n");
+                }
+                desc.append("Date: ").append(date.trim());
+            }
+            if (content != null && !content.isBlank()) {
+                if (!desc.isEmpty()) {
+                    desc.append("\n\n");
+                }
+                desc.append(content.trim());
+            }
+            if (source != null && !source.isBlank()) {
+                if (!desc.isEmpty()) {
+                    desc.append("\n\n");
+                }
+                desc.append("Source: ").append(source.trim());
+            }
+            if (url != null && !url.isBlank()) {
+                if (!desc.isEmpty()) {
+                    desc.append("\n");
+                }
+                desc.append(url.trim());
+            }
+            body = desc.toString();
+        } else {
+            title = envelope.getString("title");
+            String summary = envelope.getString("summary");
+            StringBuilder desc = new StringBuilder();
+            if (title != null && !title.isBlank()) {
+                desc.append(title.trim());
+            }
+            if (summary != null && !summary.isBlank()) {
+                if (!desc.isEmpty()) {
+                    desc.append("\n\n");
+                }
+                desc.append(summary.trim());
+            }
+            body = desc.toString();
+        }
+        dto.setDescription(body.isBlank() ? null : body);
+
+        StagePlaylistDTO playlistDTO = new StagePlaylistDTO();
+        playlistDTO.setSourcing(WayOfSourcing.RANDOM.toString());
+        dto.setStagePlaylist(playlistDTO);
+        dto.setSchedule(ScheduleFactory.createWorkdaySchedule(60));
+        dto.setActions(List.of());
+        return dto;
     }
 
     @Override

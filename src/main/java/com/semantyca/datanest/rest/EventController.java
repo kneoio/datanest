@@ -19,6 +19,7 @@ import com.semantyca.mixpla.model.cnst.EventPriority;
 import com.semantyca.mixpla.model.cnst.WayOfSourcing;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.tuples.Tuple2;
+import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
@@ -58,6 +59,7 @@ public class EventController extends AbstractSecuredController<Event, EventDTO> 
         router.route(path + "*").handler(this::addHeaders);
         router.get(path).handler(this::get);
         router.get(path + "/brand").handler(this::getForBrand);
+        router.post(path + "/generate-country-events").handler(this::generateCountryEventsFromPerplexity);
 
         router.get(path + "/:id").handler(this::getById);
         router.post(path + "/:id?").handler(this::upsert);
@@ -119,6 +121,23 @@ public class EventController extends AbstractSecuredController<Event, EventDTO> 
                                     .putHeader("Content-Type", "application/json")
                                     .end(io.vertx.core.json.Json.encode(page));
                         },
+                        rc::fail
+                );
+    }
+
+    private void generateCountryEventsFromPerplexity(RoutingContext rc) {
+        String brandSlugName = rc.request().getParam("brand");
+        if (brandSlugName == null || brandSlugName.isBlank()) {
+            rc.fail(400, new IllegalArgumentException("Query parameter 'brand' is required"));
+            return;
+        }
+        getContextUser(rc, false, true)
+                .chain(user -> service.generateCountryEventsFromPerplexity(brandSlugName, user))
+                .subscribe().with(
+                        list -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(Json.encode(list)),
                         rc::fail
                 );
     }
