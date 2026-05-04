@@ -5,8 +5,6 @@ import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.sqlclient.SqlClient;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,7 +13,6 @@ import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class SoundFragmentBrandAssociationHandler {
-    private static final Logger LOGGER = LoggerFactory.getLogger(SoundFragmentBrandAssociationHandler.class);
 
     public Uni<Void> updateBrandAssociations(SqlClient tx, UUID soundFragmentId, List<UUID> representedInBrands, IUser user) {
         if (representedInBrands == null) {
