@@ -55,7 +55,12 @@ public class PerplexityApiClient {
                                             .put("properties", new JsonObject()
                                                     .put("title", new JsonObject().put("type", "string"))
                                                     .put("url", new JsonObject().put("type", "string"))
-                                                    .put("date", new JsonObject().put("type", "string"))
+                                                    .put("date", new JsonObject()
+                                                            .put("type", "string")
+                                                            .put("description",
+                                                                    "Primary calendar day for the event as "
+                                                                            + "ISO 8601 yyyy-MM-dd when known; "
+                                                                            + "otherwise use an empty string."))
                                                     .put("source", new JsonObject().put("type", "string"))
                                                     .put("content", new JsonObject().put("type", "string"))
                                             )

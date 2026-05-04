@@ -24,8 +24,7 @@ import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.sqlclient.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -44,7 +43,7 @@ import static com.semantyca.mixpla.repository.MixplaNameResolver.SOUND_FRAGMENT;
 @ApplicationScoped
 public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(SoundFragmentRepository.class);
+    private static final Logger LOGGER = Logger.getLogger(SoundFragmentRepository.class);
     private static final EntityData entityData = MixplaNameResolver.create().getEntityNames(SOUND_FRAGMENT);
 
     private final IFileStorage fileStorage;
@@ -141,8 +140,8 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
         return fileHandler.getFileBySlugName(id, slugName)
                 .onFailure().recoverWithUni(ex -> {
                     markAsCorrupted(id).subscribe().with(
-                            result -> LOGGER.info("Marked file {} as corrupted", id),
-                            failure -> LOGGER.error("Failed to mark file {} as corrupted", id, failure)
+                            result -> LOGGER.infof("Marked file %s as corrupted", id),
+                            failure -> LOGGER.error("Failed to mark file %s as corrupted", id, failure)
                     );
                     return Uni.createFrom().failure(ex);
                 });
@@ -220,10 +219,10 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                                         meta.getFilePath().toString(),
                                         meta.getMimeType()
                                 )
-                                .onItem().invoke(storedKey -> LOGGER.debug("File stored with key: {} for doc ID: {}", storedKey, insertedDoc.getId()))
+                                .onItem().invoke(storedKey -> LOGGER.debugf("File stored with key: %s for doc ID: %s", storedKey, insertedDoc.getId()))
                                 .onItem().transform(ignored -> insertedDoc)
                                 .onFailure().recoverWithUni(ex -> {
-                                    LOGGER.error("File failed to store for doc ID: {}. DB record was created.", insertedDoc.getId(), ex);
+                                    LOGGER.error("File failed to store for doc ID: %s. DB record was created.", insertedDoc.getId(), ex);
                                     return Uni.createFrom().failure(new RuntimeException("File storage failed after sound fragment creation", ex));
                                 });
                     }
@@ -252,7 +251,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                                         assert fileStorage != null;
                                         return fileStorage.deleteFile(key)
                                                 .onFailure().recoverWithUni(e -> {
-                                                    LOGGER.error("Failed to delete file {} from storage for SoundFragment {}. DB record deletion will proceed.", key, uuid, e);
+                                                    LOGGER.errorf("Failed to delete file %s from storage for SoundFragment %s. DB record deletion will proceed.", key, uuid, e);
                                                     return Uni.createFrom().voidItem();
                                                 });
                                     }
@@ -304,7 +303,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
     public Uni<Integer> delete(UUID uuid, IUser user) {
         return findById(uuid, user.getId(), true, false, false)
                 .onFailure(DocumentHasNotFoundException.class).recoverWithItem(() -> {
-                    LOGGER.warn("SoundFragment {} not found, may already be deleted", uuid);
+                    LOGGER.warnf("SoundFragment %s not found, may already be deleted", uuid);
                     return null;
                 })
                 .onItem().transformToUni(doc -> {
@@ -319,7 +318,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
     public Uni<Integer> hardDelete(UUID uuid) {
         return findById(uuid)
                 .onFailure(DocumentHasNotFoundException.class).recoverWithItem(() -> {
-                    LOGGER.warn("SoundFragment {} not found, may already be hard deleted", uuid);
+                    LOGGER.warnf("SoundFragment %s not found, may already be hard deleted", uuid);
                     return null;
                 })
                 .onItem().transformToUni(doc -> {
@@ -377,10 +376,10 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
     }
 
     public Uni<Void> bulkUpdateACL(UUID entityId, List<RlsActionDTO> actions, IUser user) {
-        LOGGER.info("bulkUpdateACL: entityId={}, userId={}, actionsCount={}", entityId, user.getId(), actions.size());
+        LOGGER.infof("bulkUpdateACL: entityId=%s, userId=%s, actionsCount=%s", entityId, user.getId(), actions.size());
         return rlsRepository.findById(entityData.getRlsName(), user.getId(), entityId)
                 .onItem().transformToUni(permissions -> {
-                    LOGGER.info("bulkUpdateACL: permissions[0]={} for entity={}", permissions[0], entityId);
+                    LOGGER.infof("bulkUpdateACL: permissions[0]=%s for entity=%s", permissions[0], entityId);
                     if (!permissions[0]) {
                         return Uni.createFrom().failure(new DocumentModificationAccessException(
                                 "User does not have edit permission", user.getUserName(), entityId));
@@ -545,12 +544,10 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
         meta.setFileOriginalName(path.getFileName().toString());
         meta.setSlugName(WebHelper.generateSlug(doc.getArtist(), doc.getTitle()));
 
-        LOGGER.debug("Storing file - Key: {}, Path: {}, Artist: {}, Title: {}", doKey, localPath, doc.getArtist(), doc.getTitle());
-
         assert fileStorage != null;
         return fileStorage.uploadFile(doKey, localPath, meta.getMimeType())
-                .onItem().invoke(storedKey -> LOGGER.debug("File stored with key: {} for doc ID: {}", storedKey, id))
-                .onFailure().invoke(ex -> LOGGER.error("Failed to store file with key: {}", doKey, ex))
+                .onItem().invoke(storedKey -> LOGGER.debugf("File stored with key: %s for doc ID: %s", storedKey, id))
+                .onFailure().invoke(ex -> LOGGER.error("Failed to store file with key: %s", doKey, ex))
                 .onItem().ignore().andContinueWithNull();
     }
 

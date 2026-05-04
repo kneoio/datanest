@@ -32,8 +32,7 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.validation.Validator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -44,7 +43,7 @@ import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class SoundFragmentService extends AbstractService<SoundFragment, SoundFragmentDTO> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(SoundFragmentService.class);
+    private static final Logger LOGGER = Logger.getLogger(SoundFragmentService.class);
 
     private final SoundFragmentRepository repository;
     private final BrandService brandService;
@@ -189,7 +188,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 try {
                     safeFileName = FileSecurityUtils.sanitizeFilename(fileName);
                 } catch (SecurityException e) {
-                    LOGGER.error("Security violation: Unsafe filename '{}' from user: {}", fileName, user.getUserName());
+                    LOGGER.errorf("Security violation: Unsafe filename '%s' from user: %s", fileName, user.getUserName());
                     return Uni.createFrom().failure(new IllegalArgumentException("Invalid filename: " + fileName));
                 }
 
@@ -201,7 +200,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                     try {
                         UUID.fromString(id);
                     } catch (IllegalArgumentException e) {
-                        LOGGER.error("Security violation: Invalid entity ID '{}' from user: {}", id, user.getUserName());
+                        LOGGER.errorf("Security violation: Invalid entity ID '%s' from user: %s", id, user.getUserName());
                         return Uni.createFrom().failure(new IllegalArgumentException("Invalid entity ID"));
                     }
                 }
@@ -211,13 +210,13 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 try {
                     secureFilePath = FileSecurityUtils.secureResolve(baseDir, safeFileName);
                 } catch (SecurityException e) {
-                    LOGGER.error("Security violation: Path traversal attempt by user {} with filename {}",
+                    LOGGER.errorf("Security violation: Path traversal attempt by user %s with filename %s",
                             user.getUserName(), fileName);
                     return Uni.createFrom().failure(new SecurityException("Invalid file path"));
                 }
 
                 if (!Files.exists(secureFilePath)) {
-                    LOGGER.error("File not found at expected secure path: {} for user: {}", secureFilePath, user.getUserName());
+                    LOGGER.errorf("File not found at expected secure path: %s for user: %s", secureFilePath, user.getUserName());
                     return Uni.createFrom().failure(new IllegalArgumentException("Something happen wrong with the uploaded file"));
                    // continue;
                 }
@@ -237,7 +236,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                     .chain(doc -> moveFilesForNewEntity(doc, fileMetadataList, user))
                     .chain(doc -> mapToDTO(doc, true, null))
                     .onFailure().invoke(failure -> {
-                        LOGGER.warn("Entity creation failed, cleaning up temp files for user: {}", user.getUserName());
+                        LOGGER.warnf("Entity creation failed, cleaning up temp files for user: %s", user.getUserName());
                         localFileCleanupService.cleanupTempFilesForUser(user.getUserName())
                                 .subscribe().with(
                                         ignored -> LOGGER.debug("Temp files cleaned up after failure"),
@@ -248,7 +247,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
             return repository.update(UUID.fromString(id), entity, dto.getRepresentedInBrands(), dto.getRlsActions(), user)
                     .chain(doc -> mapToDTO(doc, true, null))
                     .onFailure().invoke(failure -> {
-                        LOGGER.warn("Entity update failed, cleaning up files for user: {}, entity: {}",
+                        LOGGER.warnf("Entity update failed, cleaning up files for user: %s, entity: %s",
                                 user.getUserName(), id);
                         localFileCleanupService.cleanupEntityFiles(user.getUserName(), id)
                                 .subscribe().with(
@@ -282,24 +281,24 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
 
                     if (!FileSecurityUtils.isPathWithinBase(tempDir, tempFile) ||
                             !FileSecurityUtils.isPathWithinBase(entityDir, entityFile)) {
-                        LOGGER.error("Security violation: Invalid file paths during move operation for user: {}", user.getUserName());
+                        LOGGER.errorf("Security violation: Invalid file paths during move operation for user: %s", user.getUserName());
                         return Uni.createFrom().failure(new SecurityException("Invalid file paths"));
                     }
 
                     if (Files.exists(tempFile)) {
                         Files.move(tempFile, entityFile, StandardCopyOption.REPLACE_EXISTING);
                         meta.setFilePath(entityFile);
-                        LOGGER.debug("Securely moved file from {} to {} for user: {}", tempFile, entityFile, user.getUserName());
+                        LOGGER.debugf("Securely moved file from %s to %s for user: %s", tempFile, entityFile, user.getUserName());
                     }
                 }
             }
 
             return Uni.createFrom().item(doc);
         } catch (SecurityException e) {
-            LOGGER.error("Security violation during file move for entity: {}, user: {}", doc.getId(), user.getUserName(), e);
+            LOGGER.errorf("Security violation during file move for entity: %s, user: %s", doc.getId(), user.getUserName(), e);
             return Uni.createFrom().failure(e);
         } catch (Exception e) {
-            LOGGER.error("Failed to move files for entity: {}, user: {}", doc.getId(), user.getUserName(), e);
+            LOGGER.errorf("Failed to move files for entity: %s, user: %s", doc.getId(), user.getUserName(), e);
             return Uni.createFrom().failure(e);
         }
     }
@@ -326,7 +325,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                                 return repository.update(documentId, fragment, updatedBrandIds, Collections.emptyList(), user);
                                             })
                                             .onFailure().recoverWithItem(throwable -> {
-                                                LOGGER.error("Failed to update document {}: {}", documentId, throwable.getMessage());
+                                                LOGGER.errorf("Failed to update document %s: %s", documentId, throwable.getMessage());
                                                 return null;
                                             })
                             )
@@ -468,7 +467,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         return brandService.getBySlugName(brandSlug)
                 .map(station -> station != null ? station.getId() : null)
                 .onFailure().recoverWithItem(err -> {
-                    LOGGER.warn("Failed to resolve brandSlug: {}", brandSlug, err);
+                    LOGGER.warn("Failed to resolve brandSlug: %s", brandSlug, err);
                     return null;
                 });
     }
@@ -491,7 +490,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
             fragment.setAlbum(metadata.getAlbum());
             fragment.setLength(metadata.getLength());
         } else {
-            LOGGER.info("Bulk upload: no audio metadata; using file base name for title and artist: {}", fallbackTitleArtist);
+            LOGGER.infof("Bulk upload: no audio metadata; using file base name for title and artist: %s", fallbackTitleArtist);
             fragment.setTitle(fallbackTitleArtist);
             fragment.setArtist(fallbackTitleArtist);
             fragment.setAlbum(null);
