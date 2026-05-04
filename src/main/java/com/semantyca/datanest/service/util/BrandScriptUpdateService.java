@@ -18,7 +18,7 @@ public class BrandScriptUpdateService {
     PgPool client;
 
     public Uni<Void> addScriptToBrand(UUID brandId, UUID scriptId, int rank, boolean active) {
-        String sql = "INSERT INTO kneobroadcaster__brand_scripts " +
+        String sql = "INSERT INTO mixpla__brand_scripts " +
                 "(brand_id, script_id, rank, active) " +
                 "VALUES ($1, $2, $3, $4) " +
                 "ON CONFLICT (brand_id, script_id) " +
@@ -36,7 +36,7 @@ public class BrandScriptUpdateService {
     }
 
     public Uni<Void> removeScriptFromBrand(UUID brandId, UUID scriptId) {
-        String sql = "DELETE FROM kneobroadcaster__brand_scripts " +
+        String sql = "DELETE FROM mixpla__brand_scripts " +
                 "WHERE brand_id = $1 AND script_id = $2";
 
         return client.preparedQuery(sql)
@@ -51,7 +51,7 @@ public class BrandScriptUpdateService {
     }
 
     public Uni<Void> updateScriptRank(UUID brandId, UUID scriptId, int rank) {
-        String sql = "UPDATE kneobroadcaster__brand_scripts " +
+        String sql = "UPDATE mixpla__brand_scripts " +
                 "SET rank = $3 " +
                 "WHERE brand_id = $1 AND script_id = $2";
 
@@ -67,7 +67,7 @@ public class BrandScriptUpdateService {
     }
 
     public Uni<Void> toggleScriptActive(UUID brandId, UUID scriptId, boolean active) {
-        String sql = "UPDATE kneobroadcaster__brand_scripts " +
+        String sql = "UPDATE mixpla__brand_scripts " +
                 "SET active = $3 " +
                 "WHERE brand_id = $1 AND script_id = $2";
 

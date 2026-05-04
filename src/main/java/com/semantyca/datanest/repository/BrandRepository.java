@@ -397,7 +397,7 @@ public class BrandRepository extends AsyncRepository {
     }
 
     private Uni<List<UUID>> loadLabels(UUID brandId) {
-        String sql = "SELECT label_id FROM kneobroadcaster__brand_labels WHERE brand_id = $1";
+        String sql = "SELECT label_id FROM mixpla__brand_labels WHERE brand_id = $1";
         return client.preparedQuery(sql)
                 .execute(Tuple.of(brandId))
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
@@ -407,13 +407,13 @@ public class BrandRepository extends AsyncRepository {
 
     private Uni<Void> upsertLabels(io.vertx.mutiny.sqlclient.SqlClient tx, UUID brandId, List<UUID> labels) {
         if (labels == null || labels.isEmpty()) {
-            return tx.preparedQuery("DELETE FROM kneobroadcaster__brand_labels WHERE brand_id = $1")
+            return tx.preparedQuery("DELETE FROM mixpla__brand_labels WHERE brand_id = $1")
                     .execute(Tuple.of(brandId))
                     .replaceWithVoid();
         }
 
-        String deleteSql = "DELETE FROM kneobroadcaster__brand_labels WHERE brand_id = $1";
-        String insertSql = "INSERT INTO kneobroadcaster__brand_labels (brand_id, label_id) VALUES ($1, $2) ON CONFLICT DO NOTHING";
+        String deleteSql = "DELETE FROM mixpla__brand_labels WHERE brand_id = $1";
+        String insertSql = "INSERT INTO mixpla__brand_labels (brand_id, label_id) VALUES ($1, $2) ON CONFLICT DO NOTHING";
 
         return tx.preparedQuery(deleteSql)
                 .execute(Tuple.of(brandId))
@@ -456,19 +456,19 @@ public class BrandRepository extends AsyncRepository {
                     return client.withTransaction(tx -> {
                         String removeSfRlsSql = String.format(
                                 "DELETE FROM %s WHERE reader = $1 AND entity_id IN " +
-                                "(SELECT sound_fragment_id FROM kneobroadcaster__brand_sound_fragments WHERE brand_id = $2)",
+                                "(SELECT sound_fragment_id FROM mixpla__brand_sound_fragments WHERE brand_id = $2)",
                                 soundFragmentEntityData.getRlsName());
 
                         String removeListenerRlsSql = String.format(
                                 "DELETE FROM %s WHERE reader = $1 AND entity_id IN " +
-                                "(SELECT listener_id FROM kneobroadcaster__listener_brands WHERE brand_id = $2)",
+                                "(SELECT listener_id FROM mixpla__listener_brands WHERE brand_id = $2)",
                                 listenerEntityData.getRlsName());
 
                         String removeSfAssocSql =
-                                "DELETE FROM kneobroadcaster__brand_sound_fragments WHERE brand_id = $1";
+                                "DELETE FROM mixpla__brand_sound_fragments WHERE brand_id = $1";
 
                         String removeListenerAssocSql =
-                                "DELETE FROM kneobroadcaster__listener_brands WHERE brand_id = $1";
+                                "DELETE FROM mixpla__listener_brands WHERE brand_id = $1";
 
                         String removeBrandRlsSql = String.format(
                                 "DELETE FROM %s WHERE reader = $1 AND entity_id = $2",
@@ -551,7 +551,7 @@ public class BrandRepository extends AsyncRepository {
     }
 
     public Uni<List<BrandScriptEntry>> getScriptEntriesForBrand(UUID brandId) {
-        String sql = "SELECT script_id, user_variables FROM kneobroadcaster__brand_scripts WHERE brand_id = $1 ORDER BY rank";
+        String sql = "SELECT script_id, user_variables FROM mixpla__brand_scripts WHERE brand_id = $1 ORDER BY rank";
         return client.preparedQuery(sql)
                 .execute(Tuple.of(brandId))
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
@@ -568,8 +568,8 @@ public class BrandRepository extends AsyncRepository {
     }
 
     private Uni<UUID> updateBrandScripts(io.vertx.mutiny.sqlclient.SqlClient tx, UUID brandId, List<BrandScriptEntry> scripts) {
-        String deleteSql = "DELETE FROM kneobroadcaster__brand_scripts WHERE brand_id = $1";
-        String insertSql = "INSERT INTO kneobroadcaster__brand_scripts (brand_id, script_id, user_variables, rank) VALUES ($1, $2, $3, $4)";
+        String deleteSql = "DELETE FROM mixpla__brand_scripts WHERE brand_id = $1";
+        String insertSql = "INSERT INTO mixpla__brand_scripts (brand_id, script_id, user_variables, rank) VALUES ($1, $2, $3, $4)";
 
         return tx.preparedQuery(deleteSql)
                 .execute(Tuple.of(brandId))
@@ -609,7 +609,7 @@ public class BrandRepository extends AsyncRepository {
         }
 
         if (filter.getLabels() != null && !filter.getLabels().isEmpty()) {
-            conditions.append(" AND EXISTS (SELECT 1 FROM kneobroadcaster__brand_labels bl WHERE bl.brand_id = t.id AND bl.label_id IN (");
+            conditions.append(" AND EXISTS (SELECT 1 FROM mixpla__brand_labels bl WHERE bl.brand_id = t.id AND bl.label_id IN (");
             for (int i = 0; i < filter.getLabels().size(); i++) {
                 if (i > 0) {
                     conditions.append(", ");

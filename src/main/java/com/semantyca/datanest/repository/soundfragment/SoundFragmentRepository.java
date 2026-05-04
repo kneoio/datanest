@@ -266,10 +266,10 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
 
     private Uni<Integer> deleteDatabaseRecords(UUID uuid) {
         return client.withTransaction(tx -> {
-            String getContributionIdsSql = "SELECT id FROM kneobroadcaster__contributions WHERE sound_fragment_id = $1";
-            String deleteAgreementsSql = "DELETE FROM kneobroadcaster__upload_agreements WHERE contribution_id = ANY($1)";
-            String deleteContributionsSql = "DELETE FROM kneobroadcaster__contributions WHERE sound_fragment_id = $1";
-            String deleteGenresSql = "DELETE FROM kneobroadcaster__sound_fragment_genres WHERE sound_fragment_id = $1";
+            String getContributionIdsSql = "SELECT id FROM mixpla__contributions WHERE sound_fragment_id = $1";
+            String deleteAgreementsSql = "DELETE FROM mixpla__upload_agreements WHERE contribution_id = ANY($1)";
+            String deleteContributionsSql = "DELETE FROM mixpla__contributions WHERE sound_fragment_id = $1";
+            String deleteGenresSql = "DELETE FROM mixpla__sound_fragment_genres WHERE sound_fragment_id = $1";
             String deleteRlsSql = String.format("DELETE FROM %s WHERE entity_id = $1", entityData.getRlsName());
             String deleteFilesSql = "DELETE FROM _files WHERE parent_id = $1";
             String deleteDocSql = String.format("DELETE FROM %s WHERE id = $1", entityData.getTableName());
@@ -397,7 +397,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
             return Uni.createFrom().voidItem();
         }
 
-        String insertSql = "INSERT INTO kneobroadcaster__sound_fragment_genres (sound_fragment_id, genre_id) VALUES ($1, $2)";
+        String insertSql = "INSERT INTO mixpla__sound_fragment_genres (sound_fragment_id, genre_id) VALUES ($1, $2)";
         List<Tuple> params = genreIds.stream()
                 .map(id -> Tuple.of(soundFragmentId, id))
                 .collect(Collectors.toList());
@@ -408,7 +408,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
     }
 
     private Uni<Void> updateGenreAssociations(SqlClient tx, UUID soundFragmentId, List<UUID> genreIds) {
-        String deleteSql = "DELETE FROM kneobroadcaster__sound_fragment_genres WHERE sound_fragment_id = $1";
+        String deleteSql = "DELETE FROM mixpla__sound_fragment_genres WHERE sound_fragment_id = $1";
         return tx.preparedQuery(deleteSql)
                 .execute(Tuple.of(soundFragmentId))
                 .onItem().transformToUni(ignored -> insertGenreAssociations(tx, soundFragmentId, genreIds));
@@ -440,13 +440,13 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
 
     private Uni<Void> upsertLabels(SqlClient tx, UUID fragmentId, List<UUID> labels) {
         if (labels == null || labels.isEmpty()) {
-            return tx.preparedQuery("DELETE FROM kneobroadcaster__sound_fragment_labels WHERE id = $1")
+            return tx.preparedQuery("DELETE FROM mixpla__sound_fragment_labels WHERE id = $1")
                     .execute(Tuple.of(fragmentId))
                     .replaceWithVoid();
         }
 
-        String deleteSql = "DELETE FROM kneobroadcaster__sound_fragment_labels WHERE id = $1";
-        String insertSql = "INSERT INTO kneobroadcaster__sound_fragment_labels (id, label_id) VALUES ($1, $2) ON CONFLICT DO NOTHING";
+        String deleteSql = "DELETE FROM mixpla__sound_fragment_labels WHERE id = $1";
+        String insertSql = "INSERT INTO mixpla__sound_fragment_labels (id, label_id) VALUES ($1, $2) ON CONFLICT DO NOTHING";
 
         return tx.preparedQuery(deleteSql)
                 .execute(Tuple.of(fragmentId))
@@ -466,7 +466,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
 
     public Uni<List<UUID>> getBrandsForSoundFragment(UUID soundFragmentId, IUser user) {
         String sql = "SELECT bsf.brand_id " +
-                "FROM kneobroadcaster__brand_sound_fragments bsf " +
+                "FROM mixpla__brand_sound_fragments bsf " +
                 "JOIN " + entityData.getRlsName() + " rls ON bsf.sound_fragment_id = rls.entity_id " +
                 "WHERE bsf.sound_fragment_id = $1 AND rls.reader = $2";
 

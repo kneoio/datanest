@@ -43,7 +43,7 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
         }
         
         sql += " FROM " + entityData.getTableName() + " t " +
-                "JOIN kneobroadcaster__brand_sound_fragments bsf ON t.id = bsf.sound_fragment_id " +
+                "JOIN mixpla__brand_sound_fragments bsf ON t.id = bsf.sound_fragment_id " +
                 "JOIN " + entityData.getRlsName() + " rls ON t.id = rls.entity_id " +
                 "WHERE bsf.brand_id = $1 AND rls.reader = $2 AND t.archived = 0";
 
@@ -76,7 +76,7 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
     public Uni<Integer> findForBrandCount(UUID brandId, IUser user, SoundFragmentFilter filter) {
         String sql = "SELECT COUNT(*) " +
                 "FROM " + entityData.getTableName() + " t " +
-                "JOIN kneobroadcaster__brand_sound_fragments bsf ON t.id = bsf.sound_fragment_id " +
+                "JOIN mixpla__brand_sound_fragments bsf ON t.id = bsf.sound_fragment_id " +
                 "JOIN " + entityData.getRlsName() + " rls ON t.id = rls.entity_id " +
                 "WHERE bsf.brand_id = $1 AND rls.reader = $2 AND t.archived = 0";
 
@@ -100,7 +100,7 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
     public Uni<List<SoundFragment>> getBrandSongs(UUID brandId, PlaylistItemType fragmentType, final int limit, final int offset) {
         String sql = "SELECT t.* " +
                 "FROM " + entityData.getTableName() + " t " +
-                "JOIN kneobroadcaster__brand_sound_fragments bsf ON t.id = bsf.sound_fragment_id " +
+                "JOIN mixpla__brand_sound_fragments bsf ON t.id = bsf.sound_fragment_id " +
                 "WHERE bsf.brand_id = $1 AND t.archived = 0 AND t.type = $2 " +
                 "ORDER BY bsf.played_by_brand_count";
 
@@ -147,7 +147,7 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
 
     private Uni<List<LabelDTO>> loadLabels(UUID soundFragmentId) {
         String sql = "SELECT l.id, l.identifier, l.color, l.font_color FROM __labels l " +
-                "JOIN kneobroadcaster__sound_fragment_labels sfl ON l.id = sfl.label_id " +
+                "JOIN mixpla__sound_fragment_labels sfl ON l.id = sfl.label_id " +
                 "WHERE sfl.id = $1 ORDER BY l.identifier";
         return client.preparedQuery(sql)
                 .execute(Tuple.of(soundFragmentId))
@@ -165,7 +165,7 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
 
     private Uni<List<GenreDTO>> loadGenres(UUID soundFragmentId) {
         String sql = "SELECT g.id, g.identifier, g.color, g.font_color, g.rank FROM __genres g " +
-                "JOIN kneobroadcaster__sound_fragment_genres sfg ON g.id = sfg.genre_id " +
+                "JOIN mixpla__sound_fragment_genres sfg ON g.id = sfg.genre_id " +
                 "WHERE sfg.sound_fragment_id = $1 ORDER BY g.identifier";
         return client.preparedQuery(sql)
                 .execute(Tuple.of(soundFragmentId))
@@ -191,7 +191,7 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
                         ));
                     }
 
-                    String selectSql = "SELECT rated_by_brand_count, last_rated_at FROM kneobroadcaster__brand_sound_fragments " +
+                    String selectSql = "SELECT rated_by_brand_count, last_rated_at FROM mixpla__brand_sound_fragments " +
                             "WHERE brand_id = $1 AND sound_fragment_id = $2";
 
                     return client.preparedQuery(selectSql)
@@ -230,7 +230,7 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
                                     newRating = 200;
                                 }
 
-                                String updateSql = "UPDATE kneobroadcaster__brand_sound_fragments " +
+                                String updateSql = "UPDATE mixpla__brand_sound_fragments " +
                                         "SET rated_by_brand_count = $1, last_rated_at = NOW() " +
                                         "WHERE brand_id = $2 AND sound_fragment_id = $3";
 

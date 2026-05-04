@@ -34,8 +34,8 @@ public class ContributionRepository extends AsyncRepository {
                                                       String agreementVersion,
                                                       String termsText,
                                                       Long userId) {
-        String insertContributionSql = "INSERT INTO kneobroadcaster__contributions (author, last_mod_user, contributorEmail, sound_fragment_id, attached_message, shareable) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id";
-        String insertAgreementSql = "INSERT INTO kneobroadcaster__upload_agreements (author, last_mod_user, contribution_id, email, country, ip_address, user_agent, agreement_version, terms_text) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)";
+        String insertContributionSql = "INSERT INTO mixpla__contributions (author, last_mod_user, contributorEmail, sound_fragment_id, attached_message, shareable) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id";
+        String insertAgreementSql = "INSERT INTO mixpla__upload_agreements (author, last_mod_user, contribution_id, email, country, ip_address, user_agent, agreement_version, terms_text) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)";
 
         return client.withTransaction((SqlConnection tx) ->
                 tx.preparedQuery(insertContributionSql)

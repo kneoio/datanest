@@ -125,8 +125,8 @@ public class ListenersRepository extends AsyncRepository {
     public Uni<List<BrandListener>> findForBrand(String slugName, final int limit, final int offset, IUser user, boolean includeArchived, ListenerFilter filter) {
         String sql = "SELECT l.*, lb.brand_id, lb.rank " +
                 "FROM " + entityData.getTableName() + " l " +
-                "JOIN kneobroadcaster__listener_brands lb ON l.id = lb.listener_id " +
-                "JOIN kneobroadcaster__brands b ON b.id = lb.brand_id " +
+                "JOIN mixpla__listener_brands lb ON l.id = lb.listener_id " +
+                "JOIN mixpla__brands b ON b.id = lb.brand_id " +
                 "JOIN " + entityData.getRlsName() + " rls ON l.id = rls.entity_id " +
                 "WHERE b.slug_name = $1 AND rls.reader = $2";
 
@@ -171,8 +171,8 @@ public class ListenersRepository extends AsyncRepository {
     public Uni<Integer> findForBrandCount(String slugName, IUser user, boolean includeArchived, ListenerFilter filter) {
         String sql = "SELECT COUNT(l.id) " +
                 "FROM " + entityData.getTableName() + " l " +
-                "JOIN kneobroadcaster__listener_brands lb ON l.id = lb.listener_id " +
-                "JOIN kneobroadcaster__brands b ON b.id = lb.brand_id " +
+                "JOIN mixpla__listener_brands lb ON l.id = lb.listener_id " +
+                "JOIN mixpla__brands b ON b.id = lb.brand_id " +
                 "JOIN " + entityData.getRlsName() + " rls ON l.id = rls.entity_id " +
                 "WHERE b.slug_name = $1 AND rls.reader = $2";
 
@@ -191,7 +191,7 @@ public class ListenersRepository extends AsyncRepository {
 
     public Uni<List<UUID>> getBrandsForListener(UUID listenerId) {
         String sql = "SELECT lb.brand_id " +
-                "FROM kneobroadcaster__listener_brands lb " +
+                "FROM mixpla__listener_brands lb " +
                 "WHERE lb.listener_id = $1";
 
         return client.preparedQuery(sql)
@@ -246,7 +246,7 @@ public class ListenersRepository extends AsyncRepository {
             return Uni.createFrom().voidItem();
         }
 
-        String insertBrandsSql = "INSERT INTO kneobroadcaster__listener_brands (listener_id, brand_id, reg_date, rank) VALUES ($1, $2, $3, $4)";
+        String insertBrandsSql = "INSERT INTO mixpla__listener_brands (listener_id, brand_id, reg_date, rank) VALUES ($1, $2, $3, $4)";
         List<Tuple> insertParams = representedInBrands.stream()
                 .map(brandId -> Tuple.of(listenerId, brandId, nowTime, 99))
                 .collect(Collectors.toList());
@@ -314,8 +314,8 @@ public class ListenersRepository extends AsyncRepository {
             return Uni.createFrom().voidItem();
         }
 
-        String deleteSql = "DELETE FROM kneobroadcaster__listener_brands WHERE listener_id = $1";
-        String insertSql = "INSERT INTO kneobroadcaster__listener_brands (listener_id, brand_id, reg_date, rank) VALUES ($1, $2, $3, $4)";
+        String deleteSql = "DELETE FROM mixpla__listener_brands WHERE listener_id = $1";
+        String insertSql = "INSERT INTO mixpla__listener_brands (listener_id, brand_id, reg_date, rank) VALUES ($1, $2, $3, $4)";
 
         return tx.preparedQuery(deleteSql)
                 .execute(Tuple.of(listenerId))
@@ -349,7 +349,7 @@ public class ListenersRepository extends AsyncRepository {
 
     public Uni<Void> addBrandToListener(UUID listenerId, UUID brandId) {
         LocalDateTime nowTime = ZonedDateTime.now(ZoneOffset.UTC).toLocalDateTime();
-        String sql = "INSERT INTO kneobroadcaster__listener_brands (listener_id, brand_id, reg_date, rank) " +
+        String sql = "INSERT INTO mixpla__listener_brands (listener_id, brand_id, reg_date, rank) " +
                      "VALUES ($1, $2, $3, $4) " +
                      "ON CONFLICT (listener_id, brand_id) DO NOTHING";
         
@@ -372,7 +372,7 @@ public class ListenersRepository extends AsyncRepository {
 
                     return client.withTransaction(tx -> {
                         String deleteRlsSql = String.format("DELETE FROM %s WHERE entity_id = $1", entityData.getRlsName());
-                        String deleteRelatedSql = "DELETE FROM kneobroadcaster__listener_brands WHERE listener_id = $1";
+                        String deleteRelatedSql = "DELETE FROM mixpla__listener_brands WHERE listener_id = $1";
                         String deleteEntitySql = String.format("DELETE FROM %s WHERE id = $1", entityData.getTableName());
 
                         return tx.preparedQuery(deleteRlsSql).execute(Tuple.of(id))
@@ -539,13 +539,13 @@ public class ListenersRepository extends AsyncRepository {
 
     private Uni<Void> upsertLabels(SqlClient client, UUID listenerId, List<UUID> labels) {
         if (labels == null || labels.isEmpty()) {
-            return client.preparedQuery("DELETE FROM kneobroadcaster__listener_labels WHERE listener_id = $1")
+            return client.preparedQuery("DELETE FROM mixpla__listener_labels WHERE listener_id = $1")
                     .execute(Tuple.of(listenerId))
                     .replaceWithVoid();
         }
 
-        String deleteSql = "DELETE FROM kneobroadcaster__listener_labels WHERE listener_id = $1";
-        String insertSql = "INSERT INTO kneobroadcaster__listener_labels (listener_id, label_id) VALUES ($1, $2) ON CONFLICT DO NOTHING";
+        String deleteSql = "DELETE FROM mixpla__listener_labels WHERE listener_id = $1";
+        String insertSql = "INSERT INTO mixpla__listener_labels (listener_id, label_id) VALUES ($1, $2) ON CONFLICT DO NOTHING";
 
         return client.preparedQuery(deleteSql)
                 .execute(Tuple.of(listenerId))
@@ -559,7 +559,7 @@ public class ListenersRepository extends AsyncRepository {
     }
 
     private Uni<List<UUID>> loadLabels(UUID listenerId) {
-        String sql = "SELECT label_id FROM kneobroadcaster__listener_labels WHERE listener_id = $1";
+        String sql = "SELECT label_id FROM mixpla__listener_labels WHERE listener_id = $1";
         return client.preparedQuery(sql)
                 .execute(Tuple.of(listenerId))
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))

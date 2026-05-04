@@ -296,13 +296,13 @@ public class AiAgentRepository extends AsyncRepository {
 
     private Uni<Void> upsertLabels(SqlClient client, UUID aiAgentId, List<UUID> labels) {
         if (labels == null || labels.isEmpty()) {
-            return client.preparedQuery("DELETE FROM kneobroadcaster__ai_agent_labels WHERE ai_agent_id = $1")
+            return client.preparedQuery("DELETE FROM mixpla__ai_agent_labels WHERE ai_agent_id = $1")
                     .execute(Tuple.of(aiAgentId))
                     .replaceWithVoid();
         }
 
-        String deleteSql = "DELETE FROM kneobroadcaster__ai_agent_labels WHERE ai_agent_id = $1";
-        String insertSql = "INSERT INTO kneobroadcaster__ai_agent_labels (ai_agent_id, label_id) VALUES ($1, $2) ON CONFLICT DO NOTHING";
+        String deleteSql = "DELETE FROM mixpla__ai_agent_labels WHERE ai_agent_id = $1";
+        String insertSql = "INSERT INTO mixpla__ai_agent_labels (ai_agent_id, label_id) VALUES ($1, $2) ON CONFLICT DO NOTHING";
 
         return client.preparedQuery(deleteSql)
                 .execute(Tuple.of(aiAgentId))
@@ -316,7 +316,7 @@ public class AiAgentRepository extends AsyncRepository {
     }
 
     private Uni<List<UUID>> loadLabels(UUID aiAgentId) {
-        String sql = "SELECT label_id FROM kneobroadcaster__ai_agent_labels WHERE ai_agent_id = $1";
+        String sql = "SELECT label_id FROM mixpla__ai_agent_labels WHERE ai_agent_id = $1";
         return client.preparedQuery(sql)
                 .execute(Tuple.of(aiAgentId))
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
