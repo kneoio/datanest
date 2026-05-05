@@ -315,21 +315,6 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                 });
     }
 
-    public Uni<Integer> hardDelete(UUID uuid) {
-        return findById(uuid)
-                .onFailure(DocumentHasNotFoundException.class).recoverWithItem(() -> {
-                    LOGGER.warnf("SoundFragment %s not found, may already be hard deleted", uuid);
-                    return null;
-                })
-                .onItem().transformToUni(doc -> {
-                    if (doc == null) {
-                        return Uni.createFrom().item(0);
-                    }
-                    return deleteStorageFiles(uuid)
-                            .onItem().transformToUni(v -> deleteDatabaseRecords(uuid));
-                });
-    }
-
     private Uni<SoundFragment> executeInsertTransaction(SoundFragment doc, IUser user, LocalDateTime regDate,
                                                         Uni<Void> fileUploadCompletionUni, List<UUID> representedInBrands,
                                                         List<RlsActionDTO> rlsActions) {

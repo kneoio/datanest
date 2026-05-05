@@ -14,7 +14,6 @@ import com.semantyca.core.util.FileSecurityUtils;
 import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.AudioMetadataDTO;
-import com.semantyca.datanest.dto.BrandSoundFragmentDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
 import com.semantyca.datanest.dto.UploadFileDTO;
 import com.semantyca.datanest.repository.soundfragment.SoundFragmentRepository;
@@ -25,7 +24,6 @@ import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.cnst.SourceType;
 import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
-import com.semantyca.mixpla.model.soundfragment.BrandSoundFragment;
 import com.semantyca.mixpla.model.soundfragment.SoundFragment;
 import com.semantyca.officeframe.service.GenreService;
 import io.smallrye.mutiny.Uni;
@@ -418,34 +416,9 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         return repository.delete(UUID.fromString(id), user);
     }
 
-    public Uni<Integer> delete(UUID id) {
-        assert repository != null;
-        return repository.delete(id, SuperUser.build());
-    }
-
-    public Uni<Integer> hardDelete(UUID id) {
-        assert repository != null;
-        return repository.hardDelete(id);
-    }
-
     public Uni<Integer> archive(String id, IUser user) {
         assert repository != null;
         return repository.archive(UUID.fromString(id), user);
-    }
-
-    private Uni<BrandSoundFragmentDTO> mapToBrandSoundFragmentDTO(BrandSoundFragment doc) {
-        return mapToDTO(doc.getSoundFragment(), false, null)
-                .onItem().transform(soundFragmentDTO -> {
-                    BrandSoundFragmentDTO dto = new BrandSoundFragmentDTO();
-                    dto.setId(doc.getId());
-                    dto.setSoundFragmentDTO(soundFragmentDTO);
-                    dto.setPlayedByBrandCount(doc.getPlayedByBrandCount());
-                    dto.setRatedByBrandCount(doc.getRatedByBrandCount());
-                    dto.setLastTimePlayedByBrand(doc.getPlayedTime());
-                    dto.setDefaultBrandId(doc.getDefaultBrandId());
-                    dto.setRepresentedInBrands(doc.getRepresentedInBrands());
-                    return dto;
-                });
     }
 
     public Uni<List<DocumentAccessDTO>> getDocumentAccess(UUID documentId, IUser user) {

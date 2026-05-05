@@ -17,8 +17,6 @@ import com.semantyca.mixpla.model.filter.DraftFilter;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.UUID;
@@ -26,7 +24,6 @@ import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class DraftService extends AbstractService<Draft, DraftDTO> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(DraftService.class);
 
     private final DraftRepository repository;
     private final ScriptRepository scriptRepository;
