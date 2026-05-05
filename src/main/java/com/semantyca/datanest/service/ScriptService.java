@@ -529,7 +529,6 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                         ScriptExportDTO.PromptDraftDTO draftDTO = new ScriptExportDTO.PromptDraftDTO();
                         draftDTO.setId(draft.getId());
                         draftDTO.setContent(draft.getContent());
-                        draftDTO.setLanguageTag(draft.getLanguageTag() != null ? draft.getLanguageTag().tag() : null);
                         dto.setDraft(draftDTO);
                     }
                 }
@@ -890,8 +889,6 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         clonedDraftDTO.setTitle(originalDraft.getTitle());
         clonedDraftDTO.setContent(originalDraft.getContent());
         clonedDraftDTO.setEnabled(originalDraft.isEnabled());
-        clonedDraftDTO.setLocked(originalDraft.isLocked());
-        clonedDraftDTO.setMasterId(originalDraft.getMasterId());
         clonedDraftDTO.setVersion(originalDraft.getVersion());
 
         return draftService.upsert(null, clonedDraftDTO, user, LanguageCode.en)

@@ -2,7 +2,6 @@ package com.semantyca.datanest.service;
 
 import com.semantyca.core.model.ScriptVariable;
 import com.semantyca.core.model.cnst.LanguageCode;
-import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
@@ -149,8 +148,6 @@ public class DraftService extends AbstractService<Draft, DraftDTO> {
             dto.setDescription(doc.getDescription());
             dto.setArchived(doc.getArchived());
             dto.setEnabled(doc.isEnabled());
-            dto.setLocked(doc.isLocked());
-            dto.setMasterId(doc.getMasterId());
             dto.setVersion(doc.getVersion());
             return dto;
         });
@@ -161,11 +158,8 @@ public class DraftService extends AbstractService<Draft, DraftDTO> {
         doc.setTitle(dto.getTitle());
         doc.setContent(dto.getContent());
         doc.setDescription(dto.getDescription());
-        doc.setLanguageTag(LanguageTag.EN_US);
         doc.setArchived(dto.getArchived());
         doc.setEnabled(dto.isEnabled());
-        doc.setLocked(dto.isLocked());
-        doc.setMasterId(dto.getMasterId());
         doc.setVersion(dto.getVersion());
         return doc;
     }

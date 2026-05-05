@@ -1,8 +1,6 @@
 package com.semantyca.datanest.repository.draft;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.semantyca.core.model.cnst.LanguageCode;
-import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.repository.AsyncRepository;
 import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
@@ -12,7 +10,6 @@ import com.semantyca.mixpla.model.filter.DraftFilter;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
-import io.vertx.mutiny.pgclient.PgPool;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
@@ -40,18 +37,6 @@ public class DraftRepository extends AsyncRepository {
     public DraftRepository(Pool client, ObjectMapper mapper, DraftQueryBuilder queryBuilder) {
         super(client, mapper, null);
         this.queryBuilder = queryBuilder;
-    }
-
-    public Uni<Draft> findByMasterAndLanguage(UUID masterId, LanguageTag languageTag, boolean includeArchived) {
-        String sql = "SELECT * FROM " + entityData.getTableName() + " WHERE master_id = $1 AND language_code = $2";
-        if (!includeArchived) {
-            sql += " AND archived = 0 ";
-        }
-
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(masterId, languageTag.name()))
-                .onItem().transform(RowSet::iterator)
-                .onItem().transform(iterator -> iterator.hasNext() ? from(iterator.next()) : null);
     }
 
     public Uni<List<Draft>> getAll(int limit, int offset, boolean includeArchived, final IUser user, final DraftFilter filter) {
@@ -110,8 +95,8 @@ public class DraftRepository extends AsyncRepository {
         return Uni.createFrom().deferred(() -> {
             try {
                 String sql = "INSERT INTO " + entityData.getTableName() +
-                        " (author, reg_date, last_mod_user, last_mod_date, title, content, description, language_tag, enabled, is_master, locked, master_id, version) " +
-                        "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id";
+                        " (author, reg_date, last_mod_user, last_mod_date, title, content, description, enabled, version) " +
+                        "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id";
 
                 OffsetDateTime now = OffsetDateTime.now();
 
@@ -123,10 +108,7 @@ public class DraftRepository extends AsyncRepository {
                         .addString(draft.getTitle())
                         .addString(draft.getContent())
                         .addString(draft.getDescription())
-                        .addString(draft.getLanguageTag().tag())
                         .addBoolean(draft.isEnabled())
-                        .addBoolean(draft.isLocked())
-                        .addUUID(draft.getMasterId())
                         .addDouble(draft.getVersion());
 
                 return client.preparedQuery(sql)
@@ -143,8 +125,8 @@ public class DraftRepository extends AsyncRepository {
         return Uni.createFrom().deferred(() -> {
             try {
                 String sql = "UPDATE " + entityData.getTableName() +
-                        " SET title = $1, content = $2, description = $3, language_tag = $4, enabled = $5, is_master = $6, locked = $7, master_id = $8, " +
-                        "version = $9, last_mod_user = $10, last_mod_date = $11 WHERE id = $12";
+                        " SET title = $1, content = $2, description = $3, enabled = $4, " +
+                        "version = $5, last_mod_user = $6, last_mod_date = $7 WHERE id = $8";
 
                 OffsetDateTime now = OffsetDateTime.now();
 
@@ -152,10 +134,7 @@ public class DraftRepository extends AsyncRepository {
                         .addString(draft.getTitle())
                         .addString(draft.getContent())
                         .addString(draft.getDescription())
-                        .addString(draft.getLanguageTag().tag())
                         .addBoolean(draft.isEnabled())
-                        .addBoolean(draft.isLocked())
-                        .addUUID(draft.getMasterId())
                         .addDouble(draft.getVersion())
                         .addLong(user.getId())
                         .addOffsetDateTime(now)
@@ -184,18 +163,6 @@ public class DraftRepository extends AsyncRepository {
                 .onItem().transform(RowSet::rowCount);
     }
 
-    public Uni<Draft> findByTitleAndLanguage(String title, LanguageCode languageCode, boolean includeArchived, IUser user) {
-        String sql = "SELECT * FROM " + entityData.getTableName() + " WHERE title = $1 AND language_code = $2";
-        if (!includeArchived) {
-            sql += " AND archived = 0 ";
-        }
-
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(title, languageCode.name()))
-                .onItem().transform(RowSet::iterator)
-                .onItem().transform(iterator -> iterator.hasNext() ? from(iterator.next()) : null);
-    }
-
     private Draft from(Row row) {
         Draft doc = new Draft();
         setDefaultFields(doc, row);
@@ -205,16 +172,6 @@ public class DraftRepository extends AsyncRepository {
         doc.setDescription(row.getString("description"));
         doc.setArchived(row.getInteger("archived"));
         doc.setEnabled(row.getBoolean("enabled"));
-        doc.setLocked(row.getBoolean("locked"));
-        UUID masterId = row.getUUID("master_id");
-        if (masterId != null) {
-            doc.setMasterId(masterId);
-        }
-
-        String languageCodeStr = row.getString("language_tag");
-        if (languageCodeStr != null) {
-            doc.setLanguageTag(LanguageTag.fromTag(languageCodeStr));
-        }
 
         doc.setVersion(row.getDouble("version"));
 

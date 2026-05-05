@@ -121,16 +121,6 @@ public class DraftController extends AbstractSecuredController<Draft, DraftDTO> 
                 any = true;
             }
             
-            if (json.containsKey("master")) {
-                dto.setMaster(json.getBoolean("master"));
-                any = true;
-            }
-            
-            if (json.containsKey("locked")) {
-                dto.setLocked(json.getBoolean("locked"));
-                any = true;
-            }
-            
             if (json.containsKey("activated")) {
                 dto.setActivated(json.getBoolean("activated"));
                 any = true;

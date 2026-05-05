@@ -5,8 +5,6 @@ import com.semantyca.core.dto.AbstractDTO;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.UUID;
-
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @Setter
 @Getter
@@ -16,7 +14,5 @@ public class DraftDTO extends AbstractDTO {
     private String description;
     private Integer archived;
     private boolean enabled;
-    private boolean locked;
-    private UUID masterId;
     private double version;
 }

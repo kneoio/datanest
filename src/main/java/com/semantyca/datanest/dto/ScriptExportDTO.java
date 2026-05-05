@@ -57,7 +57,6 @@ public class ScriptExportDTO {
     public static class PromptDraftDTO {
         private UUID id;
         private String content;
-        private String languageTag;
     }
 }
 
