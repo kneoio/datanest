@@ -418,6 +418,16 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                 });
     }
 
+    public Uni<Integer> revokeMyAccess(UUID entityId, IUser user) {
+        String sql = String.format(
+                "DELETE FROM %s WHERE reader = $1 AND entity_id = $2",
+                entityData.getRlsName()
+        );
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(user.getId(), entityId))
+                .onItem().transform(rows -> rows.rowCount());
+    }
+
     private Uni<Void> applyRlsActions(SqlClient tx, UUID entityId, List<RlsActionDTO> actions) {
         return RlsActionUtil.applyRlsActions(tx, entityData.getRlsName(), entityId, actions);
     }

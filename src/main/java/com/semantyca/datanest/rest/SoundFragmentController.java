@@ -90,6 +90,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         router.route(HttpMethod.POST, path + "/bulk-brand-update").handler(jsonBodyHandler).handler(this::bulkBrandUpdate);
         router.route(HttpMethod.POST, path + "/:id?").handler(jsonBodyHandler).handler(this::upsert);
         router.route(HttpMethod.DELETE, path + "/:id").handler(this::delete);
+        router.route(HttpMethod.DELETE, path + "/:id/access").handler(this::revokeMyAccess);
         router.route(HttpMethod.GET, path + "/:id/access").handler(this::getDocumentAccess);
         router.route(HttpMethod.PATCH, path + "/:id/rating").handler(jsonBodyHandler).handler(this::rateFragment);
 
@@ -439,6 +440,21 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                         },
                         t -> handleFailure(rc, t)
                 );
+    }
+
+    private void revokeMyAccess(RoutingContext rc) {
+        String id = rc.pathParam("id");
+        try {
+            UUID documentId = UUID.fromString(id);
+            getContextUser(rc, false, true)
+                    .chain(user -> service.revokeMyAccess(documentId, user))
+                    .subscribe().with(
+                            count -> rc.response().setStatusCode(count > 0 ? 204 : 404).end(),
+                            t -> handleFailure(rc, t)
+                    );
+        } catch (IllegalArgumentException e) {
+            rc.fail(400, new IllegalArgumentException("Invalid document ID format"));
+        }
     }
 
     private void getDocumentAccess(RoutingContext rc) {

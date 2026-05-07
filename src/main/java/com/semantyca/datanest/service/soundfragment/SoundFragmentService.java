@@ -442,6 +442,11 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         return repository.archive(UUID.fromString(id), user);
     }
 
+    public Uni<Integer> revokeMyAccess(UUID id, IUser user) {
+        assert repository != null;
+        return repository.revokeMyAccess(id, user);
+    }
+
     public Uni<List<DocumentAccessDTO>> getDocumentAccess(UUID documentId, IUser user) {
         assert repository != null;
         return repository.getDocumentAccessInfo(documentId, user)
