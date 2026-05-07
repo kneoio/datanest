@@ -425,7 +425,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
         );
         return client.preparedQuery(sql)
                 .execute(Tuple.of(user.getId(), entityId))
-                .onItem().transform(rows -> rows.rowCount());
+                .onItem().transform(SqlResult::rowCount);
     }
 
     private Uni<Void> applyRlsActions(SqlClient tx, UUID entityId, List<RlsActionDTO> actions) {
