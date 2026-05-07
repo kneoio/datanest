@@ -99,6 +99,29 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                 .collect().asList();
     }
 
+    public Uni<List<SoundFragment>> getAllWithoutBrandAssociation(final int limit, final int offset,
+                                                                  final IUser user, final SoundFragmentFilter filter) {
+        assert queryBuilder != null;
+        String sql = queryBuilder.buildGetAllWithoutBrandAssociationQuery(entityData.getTableName(), entityData.getRlsName(),
+                user, filter, limit, offset);
+
+        if (filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
+            return client.preparedQuery(sql)
+                    .execute(Tuple.of(filter.getSearchTerm()))
+                    .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                    .onItem().transformToUni(row -> from(row, false, false, false))
+                    .concatenate()
+                    .collect().asList();
+        }
+
+        return client.query(sql)
+                .execute()
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transformToUni(row -> from(row, false, false, false))
+                .concatenate()
+                .collect().asList();
+    }
+
     public Uni<Integer> getAllCount(IUser user, boolean includeArchived, SoundFragmentFilter filter) {
         return getAllCount(user, includeArchived, filter, null);
     }
@@ -113,6 +136,28 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
         } else if (!includeArchived) {
             sql += " AND t.archived = 0";
         }
+
+        if (filter.isActivated()) {
+            assert queryBuilder != null;
+            sql += queryBuilder.buildFilterConditions(filter);
+        }
+
+        if (filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
+            return client.preparedQuery(sql)
+                    .execute(Tuple.of(filter.getSearchTerm()))
+                    .onItem().transform(rows -> rows.iterator().next().getInteger(0));
+        }
+
+        return client.query(sql)
+                .execute()
+                .onItem().transform(rows -> rows.iterator().next().getInteger(0));
+    }
+
+    public Uni<Integer> getAllCountWithoutBrandAssociation(IUser user, SoundFragmentFilter filter) {
+        String sql = "SELECT COUNT(*) FROM " + entityData.getTableName() + " t, " + entityData.getRlsName() + " rls " +
+                "WHERE t.id = rls.entity_id AND rls.reader = " + user.getId() +
+                " AND t.archived = 0" +
+                " AND NOT EXISTS (SELECT 1 FROM mixpla__brand_sound_fragments bsf WHERE bsf.sound_fragment_id = t.id)";
 
         if (filter.isActivated()) {
             assert queryBuilder != null;

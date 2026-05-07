@@ -43,6 +43,38 @@ public class SoundFragmentQueryBuilder {
         return sql.toString();
     }
 
+    public String buildGetAllWithoutBrandAssociationQuery(String tableName, String rlsName, IUser user,
+                                                          SoundFragmentFilter filter, int limit, int offset) {
+        StringBuilder sql = new StringBuilder()
+                .append("SELECT t.*, rls.*");
+
+        if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
+            sql.append(", similarity(t.search_name, $1) AS sim");
+        }
+
+        sql.append(" FROM ").append(tableName).append(" t ")
+                .append("JOIN ").append(rlsName).append(" rls ON t.id = rls.entity_id ")
+                .append("WHERE rls.reader = ").append(user.getId())
+                .append(" AND t.archived = 0")
+                .append(" AND NOT EXISTS (SELECT 1 FROM mixpla__brand_sound_fragments bsf WHERE bsf.sound_fragment_id = t.id)");
+
+        if (filter != null && filter.isActivated()) {
+            sql.append(buildFilterConditions(filter));
+        }
+
+        if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
+            sql.append(" ORDER BY sim DESC");
+        } else {
+            sql.append(" ORDER BY t.last_mod_date DESC");
+        }
+
+        if (limit > 0) {
+            sql.append(String.format(" LIMIT %s OFFSET %s", limit, offset));
+        }
+
+        return sql.toString();
+    }
+
     String buildFilterConditions(SoundFragmentFilter filter) {
         StringBuilder conditions = new StringBuilder();
 

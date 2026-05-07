@@ -98,6 +98,27 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         return repository.getAllCount(user, false, filter);
     }
 
+    public Uni<List<SoundFragmentDTO>> getAllDTOWithoutBrandAssociation(final int limit, final int offset,
+                                                                        final IUser user, final SoundFragmentFilter filter) {
+        assert repository != null;
+        return repository.getAllWithoutBrandAssociation(limit, offset, user, filter)
+                .chain(list -> {
+                    if (list.isEmpty()) {
+                        return Uni.createFrom().item(List.of());
+                    } else {
+                        List<Uni<SoundFragmentDTO>> unis = list.stream()
+                                .map(doc -> mapToDTO(doc, false, null))
+                                .collect(Collectors.toList());
+                        return Uni.join().all(unis).andFailFast();
+                    }
+                });
+    }
+
+    public Uni<Integer> getAllCountWithoutBrandAssociation(final IUser user, final SoundFragmentFilter filter) {
+        assert repository != null;
+        return repository.getAllCountWithoutBrandAssociation(user, filter);
+    }
+
     public Uni<List<SoundFragmentDTO>> getAllDTO(final int limit, final int offset, final IUser user,
                                                  final SoundFragmentFilter filter, final LifecycleStatus archivedStatus) {
         assert repository != null;
