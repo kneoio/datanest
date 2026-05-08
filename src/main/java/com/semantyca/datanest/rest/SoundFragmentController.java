@@ -6,15 +6,14 @@ import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.form.FormPage;
 import com.semantyca.core.dto.view.View;
 import com.semantyca.core.dto.view.ViewPage;
+import com.semantyca.core.model.cnst.ArchivedStatus;
 import com.semantyca.core.model.cnst.LanguageCode;
-import com.semantyca.core.model.cnst.LifecycleStatus;
 import com.semantyca.core.model.cnst.RatingAction;
 import com.semantyca.core.repository.exception.UserNotFoundException;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.FileSecurityUtils;
 import com.semantyca.core.util.ProblemDetailsUtil;
 import com.semantyca.core.util.RuntimeUtil;
-import com.semantyca.datanest.util.InputStreamReadStream;
 import com.semantyca.datanest.dto.BrandSoundFragmentFlatDTO;
 import com.semantyca.datanest.dto.BulkBrandUpdateDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
@@ -24,6 +23,7 @@ import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
 import com.semantyca.datanest.service.util.FileDownloadService;
 import com.semantyca.datanest.service.util.ValidationResult;
 import com.semantyca.datanest.service.util.ValidationService;
+import com.semantyca.datanest.util.InputStreamReadStream;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.cnst.SourceType;
 import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
@@ -84,7 +84,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         router.route(HttpMethod.GET, path + "/available-soundfragments").handler(this::getForBrand);
         router.route(HttpMethod.GET, path + "/shared").handler(this::getShared);
         router.route(HttpMethod.GET, path + "/pending-review").handler(this::getPendingReview);
-        router.route(HttpMethod.GET, path + "/unassigned-brands").handler(this::getUnassignedBrands);
+        router.route(HttpMethod.GET, path + "/unassigned-brands").handler(this::getUnassignedBrands); //archived in regular user context
         router.route(HttpMethod.GET, path + "/:id").handler(this::getById);
         router.route(HttpMethod.GET, path + "/files/:id/:slug").handler(this::getBySlugName);
         router.route(HttpMethod.POST, path + "/bulk-brand-update").handler(jsonBodyHandler).handler(this::bulkBrandUpdate);
@@ -132,12 +132,12 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
     private void getPendingReview(RoutingContext rc) {
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
-        SoundFragmentFilter filter = parseFilterDTOForAdmin(rc);
+        SoundFragmentFilter filter = parseFilterDTOForContribution(rc);
 
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
-                        service.getAllCount(user, filter, LifecycleStatus.NOT_APPROVED),
-                        service.getAllDTO(size, (page - 1) * size, user, filter, LifecycleStatus.NOT_APPROVED)
+                        service.getAllCount(user, filter, ArchivedStatus.HIDDEN),
+                        service.getAllDTO(size, (page - 1) * size, user, filter, ArchivedStatus.HIDDEN)
                 ).asTuple().map(tuple -> {
                     ViewPage viewPage = new ViewPage();
                     View<SoundFragmentDTO> dtoEntries = new View<>(tuple.getItem2(),
@@ -480,6 +480,11 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         } catch (IllegalArgumentException e) {
             rc.fail(400, new IllegalArgumentException("Invalid document ID format"));
         }
+    }
+
+
+    private SoundFragmentFilter parseFilterDTOForContribution(RoutingContext rc) {
+        return parseFilterDTO(rc,  List.of(SourceType.CONTRIBUTION));
     }
 
     private SoundFragmentFilter parseFilterDTOForAdmin(RoutingContext rc) {

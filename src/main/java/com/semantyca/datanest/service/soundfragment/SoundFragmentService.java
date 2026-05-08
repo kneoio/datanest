@@ -3,6 +3,7 @@ package com.semantyca.datanest.service.soundfragment;
 import com.semantyca.core.dto.DocumentAccessDTO;
 import com.semantyca.core.model.DataEntity;
 import com.semantyca.core.model.FileMetadata;
+import com.semantyca.core.model.cnst.ArchivedStatus;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.cnst.LifecycleStatus;
 import com.semantyca.core.model.cnst.RatingAction;
@@ -120,7 +121,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
     }
 
     public Uni<List<SoundFragmentDTO>> getAllDTO(final int limit, final int offset, final IUser user,
-                                                 final SoundFragmentFilter filter, final LifecycleStatus archivedStatus) {
+                                                 final SoundFragmentFilter filter, final ArchivedStatus archivedStatus) {
         assert repository != null;
         Integer archivedCode = archivedStatus != null ? archivedStatus.getCode() : null;
         return repository.getAll(limit, offset, false, user, filter, archivedCode)
@@ -136,7 +137,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 });
     }
 
-    public Uni<Integer> getAllCount(final IUser user, final SoundFragmentFilter filter, final LifecycleStatus archivedStatus) {
+    public Uni<Integer> getAllCount(final IUser user, final SoundFragmentFilter filter, final ArchivedStatus archivedStatus) {
         assert repository != null;
         Integer archivedCode = archivedStatus != null ? archivedStatus.getCode() : null;
         return repository.getAllCount(user, false, filter, archivedCode);
