@@ -48,6 +48,9 @@ public class SoundFragmentDTO extends AbstractDTO {
     private List<UploadFileDTO> uploadedFiles;
     private List<UUID> representedInBrands;
     private LocalDateTime expiresAt;
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    private List<SharedSoundFragmentDTO> sharedSoundFragments;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<RlsActionDTO> rlsActions = new ArrayList<>();
 

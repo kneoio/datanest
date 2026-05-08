@@ -38,6 +38,9 @@ public class DatanestApplication {
     SoundFragmentController soundFragmentController;
 
     @Inject
+    SharedSoundFragmentController sharedSoundFragmentController;
+
+    @Inject
     SoundFragmentBulkUploadController soundFragmentBulkUploadController;
     
     @Inject
@@ -62,6 +65,7 @@ public class DatanestApplication {
         sceneController.setupRoutes(router);
         scriptController.setupRoutes(router);
         soundFragmentController.setupRoutes(router);
+        sharedSoundFragmentController.setupRoutes(router);
         soundFragmentBulkUploadController.setupRoutes(router);
         refController.setupRoutes(router);
         aiAgentController.setupRoutes(router);

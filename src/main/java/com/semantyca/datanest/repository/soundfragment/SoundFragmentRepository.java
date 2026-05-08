@@ -517,6 +517,48 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                 .collect().asList();
     }
 
+    public Uni<Void> requireEditPermission(UUID soundFragmentId, IUser user) {
+        return rlsRepository.findById(entityData.getRlsName(), user.getId(), soundFragmentId)
+                .onItem().transformToUni(permissions -> {
+                    if (!permissions[0]) {
+                        return Uni.createFrom().failure(new DocumentModificationAccessException(
+                                "User does not have edit permission", user.getUserName(), soundFragmentId));
+                    }
+                    return Uni.createFrom().voidItem();
+                });
+    }
+
+    /**
+     * Fragments authored by the user that have at least one row in {@code mixpla__shared_sound_fragments}.
+     */
+    public Uni<List<SoundFragment>> getMySharedContributions(int limit, int offset, IUser user) {
+        String sql = String.format(
+                "SELECT theTable.*, rls.* FROM %s theTable "
+                        + "JOIN %s rls ON theTable.id = rls.entity_id "
+                        + "WHERE rls.reader = $1 AND theTable.author = $2 AND theTable.archived = 0 "
+                        + "AND EXISTS (SELECT 1 FROM mixpla__shared_sound_fragments ssf WHERE ssf.sound_fragment_id = theTable.id) "
+                        + "ORDER BY theTable.reg_date DESC LIMIT $3 OFFSET $4",
+                entityData.getTableName(), entityData.getRlsName());
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(user.getId(), user.getId(), limit, offset))
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transformToUni(row -> from(row, false, false, false))
+                .concatenate()
+                .collect().asList();
+    }
+
+    public Uni<Integer> getMySharedContributionsCount(IUser user) {
+        String sql = String.format(
+                "SELECT COUNT(*) FROM %s theTable "
+                        + "JOIN %s rls ON theTable.id = rls.entity_id "
+                        + "WHERE rls.reader = $1 AND theTable.author = $2 AND theTable.archived = 0 "
+                        + "AND EXISTS (SELECT 1 FROM mixpla__shared_sound_fragments ssf WHERE ssf.sound_fragment_id = theTable.id)",
+                entityData.getTableName(), entityData.getRlsName());
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(user.getId(), user.getId()))
+                .onItem().transform(rows -> rows.iterator().next().getInteger(0));
+    }
+
     public Uni<SoundFragment> update(UUID id, SoundFragment doc, List<UUID> representedInBrands, List<RlsActionDTO> rlsActions, IUser user) {
         return rlsRepository.findById(entityData.getRlsName(), user.getId(), id)
                 .onItem().transformToUni(permissions -> {

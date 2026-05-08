@@ -15,6 +15,8 @@ import com.semantyca.core.util.FileSecurityUtils;
 import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.AudioMetadataDTO;
+import com.semantyca.datanest.dto.SharedSoundFragmentDTO;
+import com.semantyca.datanest.dto.SharedSoundFragmentPatchDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
 import com.semantyca.datanest.dto.UploadFileDTO;
 import com.semantyca.datanest.repository.soundfragment.SoundFragmentRepository;
@@ -49,6 +51,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
     private final GenreService genreService;
     private final LocalFileCleanupService localFileCleanupService;
     private final RefService refService;
+    private final SharedSoundFragmentService sharedSoundFragmentService;
     private String uploadDir;
     Validator validator;
 
@@ -59,6 +62,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         this.repository = null;
         this.brandService = null;
         this.refService = null;
+        this.sharedSoundFragmentService = null;
     }
 
     @Inject
@@ -68,7 +72,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                 Validator validator,
                                 SoundFragmentRepository repository,
                                 DatanestConfig config,
-                                RefService refService) {
+                                RefService refService,
+                                SharedSoundFragmentService sharedSoundFragmentService) {
         super(userService);
         this.genreService = genreService;
         this.localFileCleanupService = localFileCleanupService;
@@ -76,6 +81,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         this.repository = repository;
         this.brandService = brandService;
         this.refService = refService;
+        this.sharedSoundFragmentService = sharedSoundFragmentService;
         uploadDir = config.getPathUploads() + "/sound-fragments-controller";
     }
 
@@ -87,7 +93,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                         return Uni.createFrom().item(List.of());
                     } else {
                         List<Uni<SoundFragmentDTO>> unis = list.stream()
-                                .map(doc -> mapToDTO(doc, false, null))
+                                .map(doc -> mapToDTO(doc, false, null, null))
                                 .collect(Collectors.toList());
                         return Uni.join().all(unis).andFailFast();
                     }
@@ -108,7 +114,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                         return Uni.createFrom().item(List.of());
                     } else {
                         List<Uni<SoundFragmentDTO>> unis = list.stream()
-                                .map(doc -> mapToDTO(doc, false, null))
+                                .map(doc -> mapToDTO(doc, false, null, null))
                                 .collect(Collectors.toList());
                         return Uni.join().all(unis).andFailFast();
                     }
@@ -130,7 +136,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                         return Uni.createFrom().item(List.of());
                     } else {
                         List<Uni<SoundFragmentDTO>> unis = list.stream()
-                                .map(doc -> mapToDTO(doc, false, null))
+                                .map(doc -> mapToDTO(doc, false, null, null))
                                 .collect(Collectors.toList());
                         return Uni.join().all(unis).andFailFast();
                     }
@@ -170,8 +176,70 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 .chain(tuple -> {
                     SoundFragment doc = tuple.getItem1();
                     List<UUID> representedInBrands = tuple.getItem2();
-                    return mapToDTO(doc, true, representedInBrands);
+                    assert sharedSoundFragmentService != null;
+                    return sharedSoundFragmentService.listDTOsBySoundFragmentId(doc.getId())
+                            .chain(shared -> mapToDTO(doc, true, representedInBrands, shared));
                 });
+    }
+
+    public Uni<List<SoundFragmentDTO>> getMySharedContributionDTOs(int limit, int offset, IUser user) {
+        assert repository != null;
+        return repository.getMySharedContributions(limit, offset, user)
+                .chain(list -> {
+                    if (list.isEmpty()) {
+                        return Uni.createFrom().item(List.of());
+                    }
+                    List<Uni<SoundFragmentDTO>> unis = list.stream()
+                            .map(doc -> mapToDTOWithShares(doc, false, user))
+                            .collect(Collectors.toList());
+                    return Uni.join().all(unis).andFailFast();
+                });
+    }
+
+    public Uni<Integer> getMySharedContributionsCount(IUser user) {
+        assert repository != null;
+        return repository.getMySharedContributionsCount(user);
+    }
+
+    public Uni<SoundFragmentDTO> patchSharedContributionTargets(UUID fragmentId, SharedSoundFragmentPatchDTO patch,
+                                                                 IUser user, LanguageCode code) {
+        assert repository != null;
+        List<UUID> remove = patch.getRemoveBrandIds() != null ? patch.getRemoveBrandIds() : List.of();
+        List<UUID> add = patch.getAddBrandIds() != null ? patch.getAddBrandIds() : List.of();
+        return repository.requireEditPermission(fragmentId, user)
+                .chain(() -> chainRemoveShares(fragmentId, remove))
+                .chain(() -> chainAddShares(fragmentId, add, user))
+                .chain(() -> getDTO(fragmentId, user, code));
+    }
+
+    private Uni<Void> chainRemoveShares(UUID fragmentId, List<UUID> brandIds) {
+        if (brandIds.isEmpty()) {
+            return Uni.createFrom().voidItem();
+        }
+        Uni<Void> chain = Uni.createFrom().voidItem();
+        for (UUID brandId : brandIds) {
+            UUID id = brandId;
+            chain = chain.chain(() -> sharedSoundFragmentService.removeShare(fragmentId, id));
+        }
+        return chain;
+    }
+
+    private Uni<Void> chainAddShares(UUID fragmentId, List<UUID> brandIds, IUser user) {
+        if (brandIds.isEmpty()) {
+            return Uni.createFrom().voidItem();
+        }
+        Uni<Void> chain = Uni.createFrom().voidItem();
+        for (UUID brandId : brandIds) {
+            UUID id = brandId;
+            chain = chain.chain(() -> sharedSoundFragmentService.addShareForOpenContributionBrand(fragmentId, id, user));
+        }
+        return chain;
+    }
+
+    private Uni<SoundFragmentDTO> mapToDTOWithShares(SoundFragment doc, boolean exposeFileUrl, IUser user) {
+        return repository.getBrandsForSoundFragment(doc.getId(), user)
+                .chain(brands -> sharedSoundFragmentService.listDTOsBySoundFragmentId(doc.getId())
+                        .chain(shared -> mapToDTO(doc, exposeFileUrl, brands, shared)));
     }
 
     public Uni<SoundFragmentDTO> getDTOTemplate(IUser user, LanguageCode code) {
@@ -254,7 +322,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
             entity.setSource(SourceType.USER_UPLOAD);
             return repository.insert(entity, dto.getRepresentedInBrands(), dto.getRlsActions(), user)
                     .chain(doc -> moveFilesForNewEntity(doc, fileMetadataList, user))
-                    .chain(doc -> mapToDTO(doc, true, null))
+                    .chain(doc -> mapToDTO(doc, true, null, null))
                     .onFailure().invoke(failure -> {
                         LOGGER.warnf("Entity creation failed, cleaning up temp files for user: %s", user.getUserName());
                         localFileCleanupService.cleanupTempFilesForUser(user.getUserName())
@@ -265,7 +333,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                     });
         } else {
             return repository.update(UUID.fromString(id), entity, dto.getRepresentedInBrands(), dto.getRlsActions(), user)
-                    .chain(doc -> mapToDTO(doc, true, null))
+                    .chain(doc -> mapToDTO(doc, true, null, null))
                     .onFailure().invoke(failure -> {
                         LOGGER.warnf("Entity update failed, cleaning up files for user: %s, entity: %s",
                                 user.getUserName(), id);
@@ -372,7 +440,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                         .collect(Collectors.toList()));
     }
 
-    private Uni<SoundFragmentDTO> mapToDTO(SoundFragment doc, boolean exposeFileUrl, List<UUID> representedInBrands) {
+    private Uni<SoundFragmentDTO> mapToDTO(SoundFragment doc, boolean exposeFileUrl, List<UUID> representedInBrands,
+                                           List<SharedSoundFragmentDTO> sharedSoundFragments) {
         return Uni.combine().all().unis(
                 userService.getUserName(doc.getAuthor()),
                 userService.getUserName(doc.getLastModifier())
@@ -413,6 +482,9 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
             dto.setExpiresAt(doc.getExpiresAt());
             dto.setUploadedFiles(files);
             dto.setRepresentedInBrands(representedInBrands);
+            if (sharedSoundFragments != null) {
+                dto.setSharedSoundFragments(sharedSoundFragments);
+            }
             return dto;
         });
     }
