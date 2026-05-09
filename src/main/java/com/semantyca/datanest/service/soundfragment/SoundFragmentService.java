@@ -296,18 +296,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
 
                 Path secureFilePath;
                 try {
-                    // Primary path for updates is /<user>/<entityId>/file.
-                    Path primaryBaseDir = Paths.get(uploadDir, user.getUserName(), tempFolderName);
-                    secureFilePath = FileSecurityUtils.secureResolve(primaryBaseDir, safeFileName);
-
-                    // Backward compatibility: some clients may still upload into /temp.
-                    if (!Files.exists(secureFilePath) && id != null && !"new".equalsIgnoreCase(id)) {
-                        Path legacyTempDir = Paths.get(uploadDir, user.getUserName(), "temp");
-                        Path legacyFilePath = FileSecurityUtils.secureResolve(legacyTempDir, safeFileName);
-                        if (Files.exists(legacyFilePath)) {
-                            secureFilePath = legacyFilePath;
-                        }
-                    }
+                    Path baseDir = Paths.get(uploadDir, user.getUserName(), tempFolderName);
+                    secureFilePath = FileSecurityUtils.secureResolve(baseDir, safeFileName);
                 } catch (SecurityException e) {
                     LOGGER.errorf("Security violation: Path traversal attempt by user %s with filename %s",
                             user.getUserName(), fileName);
