@@ -287,16 +287,27 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 } else {
                     try {
                         UUID.fromString(id);
+                        tempFolderName = id;
                     } catch (IllegalArgumentException e) {
                         LOGGER.errorf("Security violation: Invalid entity ID '%s' from user: %s", id, user.getUserName());
                         return Uni.createFrom().failure(new IllegalArgumentException("Invalid entity ID"));
                     }
                 }
 
-                Path baseDir = Paths.get(uploadDir, user.getUserName(), tempFolderName);
                 Path secureFilePath;
                 try {
-                    secureFilePath = FileSecurityUtils.secureResolve(baseDir, safeFileName);
+                    // Primary path for updates is /<user>/<entityId>/file.
+                    Path primaryBaseDir = Paths.get(uploadDir, user.getUserName(), tempFolderName);
+                    secureFilePath = FileSecurityUtils.secureResolve(primaryBaseDir, safeFileName);
+
+                    // Backward compatibility: some clients may still upload into /temp.
+                    if (!Files.exists(secureFilePath) && id != null && !"new".equalsIgnoreCase(id)) {
+                        Path legacyTempDir = Paths.get(uploadDir, user.getUserName(), "temp");
+                        Path legacyFilePath = FileSecurityUtils.secureResolve(legacyTempDir, safeFileName);
+                        if (Files.exists(legacyFilePath)) {
+                            secureFilePath = legacyFilePath;
+                        }
+                    }
                 } catch (SecurityException e) {
                     LOGGER.errorf("Security violation: Path traversal attempt by user %s with filename %s",
                             user.getUserName(), fileName);
@@ -304,9 +315,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 }
 
                 if (!Files.exists(secureFilePath)) {
-                    LOGGER.errorf("File not found at expected secure path: %s for user: %s", secureFilePath, user.getUserName());
+                    LOGGER.errorf("File not found for upload. expectedPath=%s user=%s", secureFilePath, user.getUserName());
                     return Uni.createFrom().failure(new IllegalArgumentException("Something happen wrong with the uploaded file"));
-                   // continue;
                 }
 
                 fileMetadata.setFilePath(secureFilePath);
