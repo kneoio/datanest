@@ -47,6 +47,10 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
                 "JOIN " + entityData.getRlsName() + " rls ON t.id = rls.entity_id " +
                 "WHERE bsf.brand_id = $1 AND rls.reader = $2 AND t.archived = 0";
 
+        if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
+            sql += " AND (t.search_name ILIKE '%' || $3 || '%' OR similarity(t.search_name, $3) > 0.05)";
+        }
+
         if (filter != null && filter.isActivated()) {
             sql += buildFilterConditions(filter);
         }
