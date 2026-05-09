@@ -316,7 +316,7 @@ public class BrandRepository extends AsyncRepository {
         if (bitRateJson != null && !bitRateJson.isEmpty()) {
             doc.setBitRate(Long.parseLong(bitRateJson.getString(0)));
         } else {
-            doc.setBitRate(128000);
+            doc.setBitRate(64000);
         }
 
         JsonArray genresJson = row.getJsonArray("genres");
@@ -606,6 +606,22 @@ public class BrandRepository extends AsyncRepository {
 
         if (filter.isPublicBrand()) {
             conditions.append(" AND t.public = 1");
+        }
+
+        if (filter.getOneTimeStreamPolicy() != null) {
+            conditions.append(" AND t.one_time_stream_policy = '")
+                    .append(filter.getOneTimeStreamPolicy().name())
+                    .append("'");
+        }
+        if (filter.getSubmissionPolicy() != null) {
+            conditions.append(" AND t.submission_policy = '")
+                    .append(filter.getSubmissionPolicy().name())
+                    .append("'");
+        }
+        if (filter.getMessagingPolicy() != null) {
+            conditions.append(" AND t.messaging_policy = '")
+                    .append(filter.getMessagingPolicy().name())
+                    .append("'");
         }
 
         return conditions.toString();

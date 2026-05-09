@@ -15,6 +15,7 @@
     import com.semantyca.datanest.dto.radiostation.BrandDTO;
     import com.semantyca.datanest.service.BrandService;
     import com.semantyca.mixpla.model.brand.Brand;
+    import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
     import com.semantyca.mixpla.model.filter.BrandFilter;
     import com.semantyca.officeframe.model.cnst.CountryCode;
     import io.smallrye.mutiny.Uni;
@@ -273,6 +274,31 @@
                 if (json.containsKey("publicBrand")) {
                     dto.setPublicBrand(json.getBoolean("publicBrand", false));
                     any = true;
+                }
+
+                String oneTimeStreamPolicyStr = json.getString("oneTimeStreamPolicy");
+                if (oneTimeStreamPolicyStr != null && !oneTimeStreamPolicyStr.isEmpty()) {
+                    try {
+                        dto.setOneTimeStreamPolicy(SubmissionPolicy.valueOf(oneTimeStreamPolicyStr));
+                        any = true;
+                    } catch (IllegalArgumentException ignored) {
+                    }
+                }
+                String submissionPolicyStr = json.getString("submissionPolicy");
+                if (submissionPolicyStr != null && !submissionPolicyStr.isEmpty()) {
+                    try {
+                        dto.setSubmissionPolicy(SubmissionPolicy.valueOf(submissionPolicyStr));
+                        any = true;
+                    } catch (IllegalArgumentException ignored) {
+                    }
+                }
+                String messagingPolicyStr = json.getString("messagingPolicy");
+                if (messagingPolicyStr != null && !messagingPolicyStr.isEmpty()) {
+                    try {
+                        dto.setMessagingPolicy(SubmissionPolicy.valueOf(messagingPolicyStr));
+                        any = true;
+                    } catch (IllegalArgumentException ignored) {
+                    }
                 }
 
                 if (json.containsKey("activated")) {
