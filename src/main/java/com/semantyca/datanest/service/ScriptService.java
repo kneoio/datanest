@@ -9,18 +9,7 @@ import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.WebHelper;
-import com.semantyca.datanest.dto.BrandScriptDTO;
-import com.semantyca.datanest.dto.DraftDTO;
-import com.semantyca.datanest.dto.PromptDTO;
-import com.semantyca.datanest.dto.SceneDTO;
-import com.semantyca.datanest.dto.ScenePromptDTO;
-import com.semantyca.datanest.dto.LabelFlatDTO;
-import com.semantyca.datanest.dto.RlsActionDTO;
-import com.semantyca.datanest.dto.ScriptDTO;
-import com.semantyca.datanest.dto.ScriptFlatDTO;
-import com.semantyca.datanest.dto.ScriptExportDTO;
-import com.semantyca.datanest.dto.StagePlaylistDTO;
-
+import com.semantyca.datanest.dto.*;
 import com.semantyca.datanest.repository.ScriptRepository;
 import com.semantyca.datanest.util.ScriptVariableExtractor;
 import com.semantyca.mixpla.model.*;
@@ -32,14 +21,7 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.TreeSet;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
@@ -402,7 +384,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                     List<Uni<SceneDTO>> upsertUnis = sceneDTOs.stream()
                             .map(sceneDTO -> {
                                 String sceneId = sceneDTO.getId() != null ? sceneDTO.getId().toString() : null;
-                                return scriptSceneService.upsert(sceneId, scriptId, sceneDTO, user);
+                                return scriptSceneService.upsert(sceneId, sceneDTO, user);
                             })
                             .collect(Collectors.toList());
 
@@ -663,7 +645,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         }
 
         assert scriptSceneService != null;
-        return scriptSceneService.upsert(null, scriptId, dto, user)
+        return scriptSceneService.upsert(null, dto, user)
                 .map(savedDTO -> {
                     Scene scene = new Scene();
                     scene.setId(savedDTO.getId());
@@ -773,7 +755,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
 
         if (originalScene.getIntroPrompts() == null || originalScene.getIntroPrompts().isEmpty()) {
             SceneDTO sceneDTO = buildSceneDTOFromScene(originalScene, newScriptId, null);
-            return scriptSceneService.upsert(null, newScriptId, sceneDTO, user)
+            return scriptSceneService.upsert(null,  sceneDTO, user)
                     .map(savedDTO -> {
                         Scene scene = new Scene();
                         scene.setId(savedDTO.getId());
@@ -789,7 +771,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
 
         if (promptIds.isEmpty()) {
             SceneDTO sceneDTO = buildSceneDTOFromScene(originalScene, newScriptId, null);
-            return scriptSceneService.upsert(null, newScriptId, sceneDTO, user)
+            return scriptSceneService.upsert(null,  sceneDTO, user)
                     .map(savedDTO -> {
                         Scene scene = new Scene();
                         scene.setId(savedDTO.getId());
@@ -811,7 +793,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                                 }
 
                                 SceneDTO sceneDTO = buildSceneDTOFromScene(originalScene, newScriptId, oldToNewPromptIds);
-                                return scriptSceneService.upsert(null, newScriptId, sceneDTO, user)
+                                return scriptSceneService.upsert(null, sceneDTO, user)
                                         .map(savedDTO -> {
                                             Scene scene = new Scene();
                                             scene.setId(savedDTO.getId());
