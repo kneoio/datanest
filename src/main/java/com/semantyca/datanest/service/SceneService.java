@@ -135,6 +135,7 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
                     dto.setRank(sp.getRank());
                     dto.setWeight(sp.getWeight());
                     dto.setActive(sp.isActive());
+                    dto.setMandatory(sp.isMandatory());
                     return dto;
                 })
                 .collect(Collectors.toList());
@@ -171,6 +172,7 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
                     sp.setRank(dto.getRank());
                     sp.setWeight(dto.getWeight());
                     sp.setActive(dto.isActive());
+                    sp.setMandatory(dto.isMandatory());
                     return sp;
                 })
                 .collect(Collectors.toList());

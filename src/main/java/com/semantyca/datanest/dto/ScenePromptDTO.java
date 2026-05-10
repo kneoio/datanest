@@ -17,6 +17,7 @@ import java.util.UUID;
 public class ScenePromptDTO {
     private UUID promptId;
     private boolean active = true;
+    private boolean mandatory = false;
     private int rank = 0;
     private BigDecimal weight = BigDecimal.valueOf(0.5);
 }

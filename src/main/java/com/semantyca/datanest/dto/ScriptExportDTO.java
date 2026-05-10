@@ -17,6 +17,7 @@ import java.util.UUID;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ScriptExportDTO {
     private String name;
+    private boolean custom;
     private String description;
     private List<UUID> labels;
     private List<SceneExportDTO> scenes;
@@ -44,6 +45,7 @@ public class ScriptExportDTO {
         private UUID id;
         private String title;
         private boolean active;
+        private boolean mandatory;
         private BigDecimal weight;
         private String prompt;
         private String languageTag;

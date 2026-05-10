@@ -413,7 +413,7 @@ public class PromptRepository extends AsyncRepository {
     }
 
     public Uni<List<ScenePrompt>> getPromptsForScene(UUID sceneId) {
-        String sql = "SELECT prompt_id, rank, weight, active FROM mixpla__script_scene_actions WHERE script_scene_id = $1 AND prompt_id IS NOT NULL ORDER BY rank ASC";
+        String sql = "SELECT prompt_id, rank, weight, active, mandatory FROM mixpla__script_scene_actions WHERE script_scene_id = $1 AND prompt_id IS NOT NULL ORDER BY rank ASC";
         return client.preparedQuery(sql)
                 .execute(Tuple.of(sceneId))
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
@@ -423,6 +423,7 @@ public class PromptRepository extends AsyncRepository {
                     scenePrompt.setRank(row.getInteger("rank"));
                     scenePrompt.setWeight(row.getBigDecimal("weight"));
                     scenePrompt.setActive(row.getBoolean("active"));
+                    scenePrompt.setMandatory(row.getBoolean("mandatory"));
                     return scenePrompt;
                 })
                 .collect().asList();
@@ -447,7 +448,7 @@ public class PromptRepository extends AsyncRepository {
                     .replaceWithVoid();
         }
 
-        String insertSql = "INSERT INTO mixpla__script_scene_actions (script_scene_id, prompt_id, rank, weight, active) VALUES ($1, $2, $3, $4, $5)";
+        String insertSql = "INSERT INTO mixpla__script_scene_actions (script_scene_id, prompt_id, rank, weight, active, mandatory) VALUES ($1, $2, $3, $4, $5, $6)";
         return tx.preparedQuery(deleteSql)
                 .execute(Tuple.of(sceneId))
                 .chain(() -> {
@@ -459,7 +460,8 @@ public class PromptRepository extends AsyncRepository {
                                 prompt.getPromptId(),
                                 prompt.getRank() != 0 ? prompt.getRank() : i,
                                 prompt.getWeight(),
-                                prompt.isActive()
+                                prompt.isActive(),
+                                prompt.isMandatory()
                         ));
                     }
                     return tx.preparedQuery(insertSql).executeBatch(batches);

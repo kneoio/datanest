@@ -566,6 +566,7 @@ public class EventService extends AbstractService<Event, EventDTO> {
                     dto.setRank(action.getRank());
                     dto.setWeight(action.getWeight());
                     dto.setActive(action.isActive());
+                    dto.setMandatory(action.isMandatory());
                     return dto;
                 })
                 .collect(Collectors.toList());
@@ -582,6 +583,7 @@ public class EventService extends AbstractService<Event, EventDTO> {
                     scenePrompt.setRank(dto.getRank());
                     scenePrompt.setWeight(dto.getWeight());
                     scenePrompt.setActive(dto.isActive());
+                    scenePrompt.setMandatory(dto.isMandatory());
                     return scenePrompt;
                 })
                 .collect(Collectors.toList());

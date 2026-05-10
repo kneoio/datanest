@@ -21,13 +21,14 @@ public class ScriptDTO extends AbstractDTO {
     private UUID defaultProfileId;
     @NotBlank
     private String description;
+    private boolean custom;
     private Integer accessLevel = 0;
     @NotBlank
     private String languageTag;
     @NotNull
     private String timingMode;
     private List<UUID> labels;
-    private List<UUID> brands;
+    //private List<UUID> brands;
     private List<SceneDTO> scenes;
     private List<ScriptVariable> requiredVariables;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)

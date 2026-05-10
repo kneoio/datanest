@@ -109,7 +109,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         if (script.getTimingMode() != null) {
             dto.setTimingMode(script.getTimingMode().name());
         }
-        dto.setAccessLevel(script.getAccessLevel());
+        dto.setCustom(script.isCustom());
         if (script.getLabels() == null || script.getLabels().isEmpty()) {
             return Uni.createFrom().item(dto);
         }
@@ -204,10 +204,9 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
             dto.setSlugName(script.getSlugName());
             dto.setDefaultProfileId(script.getDefaultProfileId());
             dto.setDescription(script.getDescription());
-            dto.setAccessLevel(script.getAccessLevel());
+            dto.setCustom(script.isCustom());
             dto.setLanguageTag(script.getLanguageTag().tag());
             dto.setLabels(script.getLabels());
-            dto.setBrands(script.getBrands());
             dto.setTimingMode(script.getTimingMode().name());
             dto.setRequiredVariables(script.getRequiredVariables());
             return dto;
@@ -220,10 +219,10 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         entity.setSlugName(WebHelper.generateSlug(dto.getName()));
         entity.setDefaultProfileId(dto.getDefaultProfileId());
         entity.setDescription(dto.getDescription());
+        entity.setCustom(dto.isCustom());
         entity.setLanguageTag(LanguageTag.fromTag(dto.getLanguageTag()));
         entity.setTimingMode(SceneTimingMode.valueOf(dto.getTimingMode()));
         entity.setLabels(dto.getLabels());
-        entity.setBrands(dto.getBrands());
         return entity;
     }
 
@@ -318,14 +317,6 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         assert scriptSceneService != null;
         return scriptSceneService.getAllWithPromptIds(brandScript.getScript().getId(), 100, 0, user)
                 .map(list -> {
-                    brandScript.getScript().setScenes(
-                            new TreeSet<>(
-                                    Comparator.comparingInt(Scene::getSeqNum)
-                                            .thenComparing(Scene::getId)
-                            ) {{
-                                addAll(list);
-                            }}
-                    );
                     return brandScript;
                 });
     }
@@ -463,6 +454,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
     private ScriptExportDTO mapToExportDTO(Script script, List<Scene> scenes, Map<UUID, DjPrompt> promptMap, Map<UUID, Draft> draftMap, boolean extended) {
         ScriptExportDTO dto = new ScriptExportDTO();
         dto.setName(script.getName());
+        dto.setCustom(script.isCustom());
         dto.setDescription(script.getDescription());
         dto.setLabels(script.getLabels());
         dto.setExtended(extended);
@@ -518,6 +510,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         }
         
         dto.setActive(scenePrompt.isActive());
+        dto.setMandatory(scenePrompt.isMandatory());
         dto.setWeight(scenePrompt.getWeight());
         return dto;
     }
@@ -531,7 +524,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         script.setName(importDTO.getName());
         script.setSlugName(WebHelper.generateSlug(importDTO.getName()));
         script.setDescription(importDTO.getDescription());
-        script.setAccessLevel(0);
+        script.setCustom(importDTO.isCustom());
         script.setLabels(importDTO.getLabels());
         
         return repository.insert(script, user)
@@ -658,6 +651,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         UUID promptId = actionToPromptId != null ? actionToPromptId.get(promptDTO) : null;
         dto.setPromptId(promptId);
         dto.setActive(promptDTO.isActive());
+        dto.setMandatory(promptDTO.isMandatory());
         dto.setRank(0);
         dto.setWeight(promptDTO.getWeight() != null ? promptDTO.getWeight() : java.math.BigDecimal.valueOf(0.5));
         return dto;
@@ -724,12 +718,11 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                     clonedScript.setName(newTitle);
                     clonedScript.setSlugName(WebHelper.generateSlug(newTitle));
                     clonedScript.setDescription(originalScript.getDescription());
+                    clonedScript.setCustom(originalScript.isCustom());
                     clonedScript.setDefaultProfileId(originalScript.getDefaultProfileId());
                     clonedScript.setLanguageTag(originalScript.getLanguageTag());
                     clonedScript.setTimingMode(originalScript.getTimingMode());
                     clonedScript.setLabels(originalScript.getLabels());
-                    clonedScript.setBrands(originalScript.getBrands());
-                    clonedScript.setAccessLevel(originalScript.getAccessLevel());
 
                     return repository.insert(clonedScript, user)
                             .chain(savedScript -> scriptSceneService.getAllWithPromptIds(scriptId, 1000, 0, user)
@@ -900,6 +893,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                         dto.setRank(action.getRank());
                         dto.setWeight(action.getWeight());
                         dto.setActive(action.isActive());
+                        dto.setMandatory(action.isMandatory());
                         return dto;
                     })
                     .collect(Collectors.toList());
