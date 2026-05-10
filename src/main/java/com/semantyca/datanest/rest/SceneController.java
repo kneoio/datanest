@@ -48,8 +48,8 @@ public class SceneController extends AbstractSecuredController<Scene, SceneDTO> 
     public void setupRoutes(Router router) {
         String scenesByScriptPath = "/datanest/scripts/:scriptId/scenes";
         router.route(scenesByScriptPath + "*").handler(BodyHandler.create());
-        router.get(scenesByScriptPath).handler(this::getByScript);
-        router.post(scenesByScriptPath).handler(this::upsertSceneForScript);
+        //router.get(scenesByScriptPath).handler(this::getByScript);
+        //router.post(scenesByScriptPath).handler(this::upsertSceneForScript);
 
         String scenePath = "/datanest/scenes";
         router.route(scenePath + "*").handler(BodyHandler.create());
@@ -130,38 +130,6 @@ public class SceneController extends AbstractSecuredController<Scene, SceneDTO> 
         return any ? dto : null;
     }
 
-    private void getByScript(RoutingContext rc) {
-        String scriptId = rc.pathParam("scriptId");
-        int page = Integer.parseInt(rc.request().getParam("page", "1"));
-        int size = Integer.parseInt(rc.request().getParam("size", "10"));
-        try {
-            UUID uuid = UUID.fromString(scriptId);
-            getContextUser(rc, false, true)
-                    .chain(user -> Uni.combine().all().unis(
-                            sceneService.getByScriptCount(uuid, user),
-                            sceneService.getAllByScript(uuid, size, (page - 1) * size, user)
-                    ).asTuple().map(tuple -> {
-                        ViewPage viewPage = new ViewPage();
-                        View<SceneDTO> dtoEntries = new View<>(tuple.getItem2(),
-                                tuple.getItem1(), page,
-                                RuntimeUtil.countMaxPage(tuple.getItem1(), size),
-                                size);
-                        viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-                        viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());
-                        return viewPage;
-                    }))
-                    .subscribe().with(
-                            viewPage -> rc.response()
-                                    .setStatusCode(200)
-                                    .putHeader("Content-Type", "application/json")
-                                    .end(io.vertx.core.json.Json.encode(viewPage)),
-                            rc::fail
-                    );
-        } catch (IllegalArgumentException e) {
-            rc.fail(400, new IllegalArgumentException("Invalid script ID format"));
-        }
-    }
-
     private void getById(RoutingContext rc) {
         String id = rc.pathParam("id");
         LanguageCode languageCode = LanguageCode.valueOf(rc.request().getParam("lang", LanguageCode.en.name()));
@@ -190,28 +158,6 @@ public class SceneController extends AbstractSecuredController<Scene, SceneDTO> 
                 );
     }
 
-    private void upsertSceneForScript(RoutingContext rc) {
-        try {
-            if (!validateJsonBody(rc)) return;
-            String scriptId = rc.pathParam("scriptId");
-            SceneDTO dto = rc.body().asJsonObject().mapTo(SceneDTO.class);
-            if (!validateDTO(rc, dto, validator)) return;
-            UUID uuid = UUID.fromString(scriptId);
-            getContextUser(rc, false, true)
-                    .chain(user -> sceneService.upsert(null, uuid, dto, user))
-                    .subscribe().with(
-                            doc -> sendUpsertResponse(rc, doc, null),
-                            throwable -> handleUpsertFailure(rc, throwable)
-                    );
-        } catch (Exception e) {
-            if (e instanceof IllegalArgumentException) {
-                rc.fail(400, e);
-            } else {
-                rc.fail(400, new IllegalArgumentException("Invalid JSON payload"));
-            }
-        }
-    }
-
     private void upsert(RoutingContext rc) {
         try {
             if (!validateJsonBody(rc)) return;
@@ -219,7 +165,7 @@ public class SceneController extends AbstractSecuredController<Scene, SceneDTO> 
             SceneDTO dto = rc.body().asJsonObject().mapTo(SceneDTO.class);
             if (!validateDTO(rc, dto, validator)) return;
             getContextUser(rc, false, true)
-                    .chain(user -> sceneService.upsert(id, null, dto, user))
+                    .chain(user -> sceneService.upsert(id, dto, user))
                     .subscribe().with(
                             doc -> sendUpsertResponse(rc, doc, id),
                             throwable -> handleUpsertFailure(rc, throwable)

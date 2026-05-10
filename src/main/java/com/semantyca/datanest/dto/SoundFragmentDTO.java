@@ -42,6 +42,7 @@ public class SoundFragmentDTO extends AbstractDTO {
     @JsonSerialize(using = DurationSerializer.class)
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private Duration length;
+    private int boost;
     private String description;
     private List<String> brands;  //?
     private List<String> newlyUploaded;

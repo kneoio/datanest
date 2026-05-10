@@ -79,11 +79,10 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
         return repository.findById(sceneId, user, false);
     }
 
-    public Uni<SceneDTO> upsert(String id, UUID scriptId, SceneDTO dto, IUser user) {
+    public Uni<SceneDTO> upsert(String id, SceneDTO dto, IUser user) {
         Scene entity = buildEntity(dto);
         List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
         if ("new".equalsIgnoreCase(id) || id == null || id.isBlank()) {
-            entity.setScriptId(scriptId);
             return repository.insert(entity, rlsActions, user).chain(this::mapToDTO);
         } else {
             return repository.update(UUID.fromString(id), entity, rlsActions, user).chain(this::mapToDTO);
@@ -152,7 +151,8 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
         entity.setOneTimeRun(dto.isOneTimeRun());
         entity.setIntroPrompts(dto.getPrompts() != null ? mapScenePromptDTOsToEntities(dto.getPrompts()) : List.of());
         entity.setPlaylistRequest(mapDTOToStagePlaylist(dto.getStagePlaylist()));
-        
+        entity.setScriptId(dto.getScriptId());
+
         if (entity.getPlaylistRequest() != null && entity.getPlaylistRequest().getSourcing() == WayOfSourcing.GENERATED) {
             entity.setOneTimeRun(true);
         }

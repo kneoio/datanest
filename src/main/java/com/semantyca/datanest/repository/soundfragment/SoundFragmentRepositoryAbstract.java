@@ -56,6 +56,8 @@ public abstract class SoundFragmentRepositoryAbstract extends AsyncRepository {
             Long lengthMillis = row.getLong("length");
             doc.setLength(Duration.ofMillis(lengthMillis));
         }
+        Integer boostVal = row.getInteger("boost");
+        doc.setBoost(boostVal != null ? boostVal : 0);
         doc.setArchived(row.getInteger("archived"));
         doc.setSlugName(row.getString("slug_name"));
         doc.setDescription(row.getString("description"));
