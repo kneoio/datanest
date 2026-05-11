@@ -64,8 +64,8 @@ public class DatanestApplication {
         promptController.setupRoutes(router);
         sceneController.setupRoutes(router);
         scriptController.setupRoutes(router);
-        soundFragmentController.setupRoutes(router);
         sharedSoundFragmentController.setupRoutes(router);
+        soundFragmentController.setupRoutes(router);
         soundFragmentBulkUploadController.setupRoutes(router);
         refController.setupRoutes(router);
         aiAgentController.setupRoutes(router);

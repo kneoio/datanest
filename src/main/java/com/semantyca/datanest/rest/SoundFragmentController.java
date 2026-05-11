@@ -6,7 +6,6 @@ import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.form.FormPage;
 import com.semantyca.core.dto.view.View;
 import com.semantyca.core.dto.view.ViewPage;
-import com.semantyca.core.model.cnst.ArchivedStatus;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.cnst.RatingAction;
 import com.semantyca.core.repository.exception.UserNotFoundException;
@@ -82,7 +81,6 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         BodyHandler jsonBodyHandler = BodyHandler.create().setHandleFileUploads(false);
         router.route(HttpMethod.GET, path).handler(this::get);
         router.route(HttpMethod.GET, path + "/available-soundfragments").handler(this::getForBrand);
-        router.route(HttpMethod.GET, path + "/pending-review").handler(this::getPendingReview);
         router.route(HttpMethod.GET, path + "/unassigned-brands").handler(this::getUnassignedBrands); //archived in regular user context
         router.route(HttpMethod.GET, path + "/:id").handler(this::getById);
         router.route(HttpMethod.GET, path + "/files/:id/:slug").handler(this::getBySlugName);
@@ -104,35 +102,6 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                 .chain(user -> Uni.combine().all().unis(
                         service.getAllCount(user, filter),
                         service.getAllDTO(size, (page - 1) * size, user, filter)
-                ).asTuple().map(tuple -> {
-                    ViewPage viewPage = new ViewPage();
-                    View<SoundFragmentDTO> dtoEntries = new View<>(tuple.getItem2(),
-                            tuple.getItem1(), page,
-                            RuntimeUtil.countMaxPage(tuple.getItem1(), size),
-                            size);
-                    viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-                    ActionBox actions = SoundFragmentActionsFactory.getViewActions(user.getActivatedRoles());
-                    viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, actions);
-                    return viewPage;
-                }))
-                .subscribe().with(
-                        viewPage -> rc.response()
-                                .setStatusCode(200)
-                                .putHeader("Content-Type", "application/json")
-                                .end(io.vertx.core.json.Json.encode(viewPage)),
-                        t -> handleFailure(rc, t)
-                );
-    }
-
-    private void getPendingReview(RoutingContext rc) {
-        int page = Integer.parseInt(rc.request().getParam("page", "1"));
-        int size = Integer.parseInt(rc.request().getParam("size", "10"));
-        SoundFragmentFilter filter = parseFilterDTOForContribution(rc);
-
-        getContextUser(rc, false, true)
-                .chain(user -> Uni.combine().all().unis(
-                        service.getAllCount(user, filter, ArchivedStatus.HIDDEN),
-                        service.getAllDTO(size, (page - 1) * size, user, filter, ArchivedStatus.HIDDEN)
                 ).asTuple().map(tuple -> {
                     ViewPage viewPage = new ViewPage();
                     View<SoundFragmentDTO> dtoEntries = new View<>(tuple.getItem2(),
@@ -453,10 +422,6 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
     }
 
 
-    private SoundFragmentFilter parseFilterDTOForContribution(RoutingContext rc) {
-        return parseFilterDTO(rc,  List.of(SourceType.CONTRIBUTION));
-    }
-
     private SoundFragmentFilter parseFilterDTOForAdmin(RoutingContext rc) {
         return parseFilterDTO(rc, null);
     }
@@ -465,7 +430,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         return parseFilterDTO(rc, List.of(SourceType.USER_UPLOAD, SourceType.CONTRIBUTION));
     }
 
-    private SoundFragmentFilter parseFilterDTO(RoutingContext rc, List<SourceType> allowedSources) {
+    SoundFragmentFilter parseFilterDTO(RoutingContext rc, List<SourceType> allowedSources) {
         String filterParam = rc.request().getParam("filter");
         if (filterParam == null || filterParam.trim().isEmpty()) {
             SoundFragmentFilter dto = new SoundFragmentFilter();
