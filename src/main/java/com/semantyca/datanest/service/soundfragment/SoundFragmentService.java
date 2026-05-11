@@ -204,8 +204,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
     public Uni<SoundFragmentDTO> patchSharedContributionTargets(UUID fragmentId, SharedSoundFragmentPatchDTO patch,
                                                                  IUser user, LanguageCode code) {
         assert repository != null;
-        List<UUID> remove = patch.getRemoveBrandIds() != null ? patch.getRemoveBrandIds() : List.of();
-        List<UUID> add = patch.getAddBrandIds() != null ? patch.getAddBrandIds() : List.of();
+        List<UUID> remove = patch.getRemoveTargetBrandIds() != null ? patch.getRemoveTargetBrandIds() : List.of();
+        List<UUID> add = patch.getAddTargetBrandIds() != null ? patch.getAddTargetBrandIds() : List.of();
         return repository.requireEditPermission(fragmentId, user)
                 .chain(() -> chainRemoveShares(fragmentId, remove))
                 .chain(() -> chainAddShares(fragmentId, add, user))

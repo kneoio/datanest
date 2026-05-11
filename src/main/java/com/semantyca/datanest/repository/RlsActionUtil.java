@@ -56,4 +56,45 @@ public final class RlsActionUtil {
         }
         return Uni.combine().all().unis(unis).discardItems();
     }
+
+    /**
+     * Grants access to a single user with OR-merge semantics on conflict:
+     * existing permissions are never downgraded, only upgraded.
+     */
+    public static Uni<Void> grantMerge(SqlClient tx, String rlsTable, UUID entityId,
+                                        long userId, boolean canEdit, boolean canDelete) {
+        String sql = String.format(
+                "INSERT INTO %s (reader, entity_id, can_edit, can_delete) VALUES ($1, $2, $3, $4) " +
+                "ON CONFLICT (reader, entity_id) DO UPDATE SET " +
+                "can_edit = %s.can_edit OR EXCLUDED.can_edit, " +
+                "can_delete = %s.can_delete OR EXCLUDED.can_delete, " +
+                "reading_time = now()",
+                rlsTable, rlsTable, rlsTable
+        );
+        return tx.preparedQuery(sql)
+                .execute(Tuple.of(userId, entityId, canEdit, canDelete))
+                .replaceWithVoid();
+    }
+
+    /**
+     * Grants access to whoever is stored in {@code authorColumn} of {@code sourceTable} for row {@code sourceId},
+     * using OR-merge semantics so existing higher permissions are preserved.
+     * Runs as a single INSERT … SELECT, no extra round-trip needed.
+     */
+    public static Uni<Void> grantFromAuthorColumn(SqlClient tx, String rlsTable, UUID entityId,
+                                                   String sourceTable, UUID sourceId,
+                                                   boolean canEdit, boolean canDelete) {
+        String sql = String.format(
+                "INSERT INTO %s (reader, entity_id, can_edit, can_delete) " +
+                "SELECT author, $1, $2, $3 FROM %s WHERE id = $4 " +
+                "ON CONFLICT (reader, entity_id) DO UPDATE SET " +
+                "can_edit = %s.can_edit OR EXCLUDED.can_edit, " +
+                "can_delete = %s.can_delete OR EXCLUDED.can_delete, " +
+                "reading_time = now()",
+                rlsTable, sourceTable, rlsTable, rlsTable
+        );
+        return tx.preparedQuery(sql)
+                .execute(Tuple.of(entityId, canEdit, canDelete, sourceId))
+                .replaceWithVoid();
+    }
 }

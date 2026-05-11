@@ -10,11 +10,12 @@ import java.util.UUID;
 @Setter
 public class SharedSoundFragment {
     private UUID id;
-    private UUID sourceBrandId;
+    private Long sourceUserId;
+    private UUID targetBrandId;
     private UUID soundFragmentId;
     private LocalDateTime expiresAt;
-    private Integer totalPlayedCount;
-    private Integer totalRatedCount;
+    private Integer playedCount;
+    private Integer ratedCount;
     private Integer status;
     private Integer archived;
 }

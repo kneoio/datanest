@@ -26,22 +26,20 @@ public class SharedSoundFragmentService {
         this.brandService = brandService;
     }
 
-    public Uni<Void> removeShare(UUID soundFragmentId, UUID destinationBrandId) {
-        return repository.deleteBySoundFragmentAndBrand(soundFragmentId, destinationBrandId).replaceWithVoid();
+    public Uni<Void> removeShare(UUID soundFragmentId, UUID targetBrandId) {
+        return repository.deleteBySoundFragmentAndBrand(soundFragmentId, targetBrandId).replaceWithVoid();
     }
 
-    /**
-     * Shares a fragment with a brand only if that brand uses {@link SubmissionPolicy#NO_RESTRICTIONS} for submissions.
-     */
-    public Uni<Void> addShareForOpenContributionBrand(UUID soundFragmentId, UUID destinationBrandId, IUser user) {
-        return brandService.getById(destinationBrandId, user)
+    public Uni<Void> addShareForOpenContributionBrand(UUID soundFragmentId, UUID targetBrandId, IUser user) {
+        return brandService.getById(targetBrandId, user)
                 .onItem().transformToUni(brand -> {
                     if (brand.getSubmissionPolicy() != SubmissionPolicy.NO_RESTRICTIONS) {
                         return Uni.createFrom().failure(new IllegalArgumentException(
-                                "Brand does not accept contributions without restrictions: " + destinationBrandId));
+                                "Brand does not accept contributions without restrictions: " + targetBrandId));
                     }
                     SharedSoundFragment entity = new SharedSoundFragment();
-                    entity.setSourceBrandId(destinationBrandId);
+                    entity.setSourceUserId(user.getId());
+                    entity.setTargetBrandId(targetBrandId);
                     entity.setSoundFragmentId(soundFragmentId);
                     return repository.insertIfNotExists(entity);
                 });
@@ -52,8 +50,8 @@ public class SharedSoundFragmentService {
                 .map(list -> list.stream().map(this::toDTO).collect(Collectors.toList()));
     }
 
-    public Uni<List<SharedSoundFragmentDTO>> listDTOsBySourceBrandId(UUID sourceBrandId) {
-        return repository.listBySourceBrandId(sourceBrandId)
+    public Uni<List<SharedSoundFragmentDTO>> listDTOsByTargetBrandId(UUID targetBrandId) {
+        return repository.listByTargetBrandId(targetBrandId)
                 .map(list -> list.stream().map(this::toDTO).collect(Collectors.toList()));
     }
 
@@ -66,8 +64,7 @@ public class SharedSoundFragmentService {
     }
 
     public Uni<SharedSoundFragmentDTO> update(UUID id, SharedSoundFragmentDTO dto) {
-        SharedSoundFragment entity = fromDTO(dto);
-        return repository.update(id, entity).map(this::toDTO);
+        return repository.update(id, fromDTO(dto)).map(this::toDTO);
     }
 
     public Uni<Integer> delete(UUID id) {
@@ -77,11 +74,12 @@ public class SharedSoundFragmentService {
     private SharedSoundFragmentDTO toDTO(SharedSoundFragment e) {
         SharedSoundFragmentDTO dto = new SharedSoundFragmentDTO();
         dto.setId(e.getId());
-        dto.setSourceBrandId(e.getSourceBrandId());
+        dto.setSourceUserId(e.getSourceUserId());
+        dto.setTargetBrandId(e.getTargetBrandId());
         dto.setSoundFragmentId(e.getSoundFragmentId());
         dto.setExpiresAt(e.getExpiresAt());
-        dto.setTotalPlayedCount(e.getTotalPlayedCount());
-        dto.setTotalRatedCount(e.getTotalRatedCount());
+        dto.setPlayedCount(e.getPlayedCount());
+        dto.setRatedCount(e.getRatedCount());
         dto.setStatus(e.getStatus());
         dto.setArchived(e.getArchived());
         return dto;
@@ -90,11 +88,12 @@ public class SharedSoundFragmentService {
     private SharedSoundFragment fromDTO(SharedSoundFragmentDTO dto) {
         SharedSoundFragment e = new SharedSoundFragment();
         e.setId(dto.getId());
-        e.setSourceBrandId(dto.getSourceBrandId());
+        e.setSourceUserId(dto.getSourceUserId());
+        e.setTargetBrandId(dto.getTargetBrandId());
         e.setSoundFragmentId(dto.getSoundFragmentId());
         e.setExpiresAt(dto.getExpiresAt());
-        e.setTotalPlayedCount(dto.getTotalPlayedCount());
-        e.setTotalRatedCount(dto.getTotalRatedCount());
+        e.setPlayedCount(dto.getPlayedCount());
+        e.setRatedCount(dto.getRatedCount());
         e.setStatus(dto.getStatus());
         e.setArchived(dto.getArchived());
         return e;
