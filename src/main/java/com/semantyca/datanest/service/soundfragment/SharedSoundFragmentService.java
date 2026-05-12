@@ -2,6 +2,7 @@ package com.semantyca.datanest.service.soundfragment;
 
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.datanest.dto.SharedSoundFragmentDTO;
+import com.semantyca.datanest.dto.SharedSoundFragmentPreviewDTO;
 import com.semantyca.datanest.model.soundfragment.SharedSoundFragment;
 import com.semantyca.datanest.repository.soundfragment.SharedSoundFragmentRepository;
 import com.semantyca.datanest.service.BrandService;
@@ -32,6 +33,18 @@ public class SharedSoundFragmentService {
 
     public Uni<Integer> rejectShare(UUID soundFragmentId, IUser user) {
         return repository.deleteByFragmentIdAndReader(soundFragmentId, user.getId());
+    }
+
+    public Uni<List<SharedSoundFragmentPreviewDTO>> getPreviewList(int limit, int offset, IUser user) {
+        return repository.getPreviewList(limit, offset, user.getId());
+    }
+
+    public Uni<Integer> getPreviewCount(IUser user) {
+        return repository.getPreviewCount(user.getId());
+    }
+
+    public Uni<SharedSoundFragmentPreviewDTO> getPreviewById(UUID soundFragmentId, IUser user) {
+        return repository.getPreviewById(soundFragmentId, user.getId());
     }
 
     public Uni<Void> addShareForOpenContributionBrand(UUID soundFragmentId, UUID targetBrandId, IUser user,

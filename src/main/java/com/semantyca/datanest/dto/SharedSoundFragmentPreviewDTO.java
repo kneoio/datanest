@@ -25,4 +25,6 @@ public class SharedSoundFragmentPreviewDTO {
     private List<UUID> genres;
     private List<UUID> labels;
     private String album;
+    private String sourceUserName;
+    private String sourceUserEmail;
 }

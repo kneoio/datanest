@@ -100,10 +100,10 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Obj
 
         getContextUser(rc, false, true)
                 .chain(user -> {
-                    assert soundFragmentService != null;
+                    assert sharedSoundFragmentService != null;
                     return Uni.combine().all().unis(
-                            soundFragmentService.getSharedWithMyBrandsCount(user),
-                            soundFragmentService.getSharedWithMyBrandsDTOs(size, (page - 1) * size, user)
+                            sharedSoundFragmentService.getPreviewCount(user),
+                            sharedSoundFragmentService.getPreviewList(size, (page - 1) * size, user)
                     ).asTuple().map(tuple -> {
                         ViewPage viewPage = new ViewPage();
                         View<SharedSoundFragmentPreviewDTO> dtoEntries = new View<>(tuple.getItem2(),
@@ -127,8 +127,8 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Obj
         UUID id = UUID.fromString(rc.pathParam("id"));
         getContextUser(rc, false, true)
                 .chain(user -> {
-                    assert soundFragmentService != null;
-                    return soundFragmentService.getSharedWithMyBrandsDTO(id, user);
+                    assert sharedSoundFragmentService != null;
+                    return sharedSoundFragmentService.getPreviewById(id, user);
                 })
                 .subscribe().with(
                         dto -> rc.response()

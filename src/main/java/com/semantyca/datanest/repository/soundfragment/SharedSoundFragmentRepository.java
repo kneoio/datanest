@@ -4,8 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.semantyca.core.repository.AsyncRepository;
 import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.rls.RLSRepository;
+import com.semantyca.datanest.dto.SharedSoundFragmentPreviewDTO;
 import com.semantyca.datanest.model.soundfragment.SharedSoundFragment;
 import com.semantyca.datanest.repository.RlsActionUtil;
+import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.sqlclient.Pool;
@@ -26,6 +28,9 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     private static final String TABLE = "mixpla__shared_sound_fragments";
     private static final String RLS_TABLE = "mixpla__shared_sound_fragment_readers";
     private static final String BRANDS_TABLE = "mixpla__brands";
+    private static final String SF_TABLE = "mixpla__sound_fragments";
+    private static final String SF_GENRES_TABLE = "mixpla__sound_fragment_genres";
+    private static final String SF_LABELS_TABLE = "mixpla__sound_fragment_labels";
 
     @Inject
     public SharedSoundFragmentRepository(Pool client, ObjectMapper mapper, RLSRepository rlsRepository) {
@@ -134,6 +139,88 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .addInteger(0)
                 .addValue(entity.getSourceUserName())
                 .addValue(entity.getSourceUserEmail());
+    }
+
+    public Uni<List<SharedSoundFragmentPreviewDTO>> getPreviewList(int limit, int offset, long userId) {
+        String sql = "SELECT sf.id, sf.title, sf.artist, sf.type, sf.album, " +
+                "ssf.source_user_name, ssf.source_user_email " +
+                "FROM " + SF_TABLE + " sf " +
+                "JOIN " + TABLE + " ssf ON ssf.sound_fragment_id = sf.id " +
+                "JOIN " + RLS_TABLE + " rls ON rls.entity_id = ssf.id " +
+                "WHERE rls.reader = $1 AND sf.archived = 0 " +
+                "ORDER BY sf.reg_date DESC LIMIT $2 OFFSET $3";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(userId, limit, offset))
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transformToUni(this::fromPreviewRow)
+                .concatenate()
+                .collect().asList();
+    }
+
+    public Uni<Integer> getPreviewCount(long userId) {
+        String sql = "SELECT COUNT(DISTINCT sf.id) FROM " + SF_TABLE + " sf " +
+                "JOIN " + TABLE + " ssf ON ssf.sound_fragment_id = sf.id " +
+                "JOIN " + RLS_TABLE + " rls ON rls.entity_id = ssf.id " +
+                "WHERE rls.reader = $1 AND sf.archived = 0";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(userId))
+                .onItem().transform(rows -> rows.iterator().next().getInteger(0));
+    }
+
+    public Uni<SharedSoundFragmentPreviewDTO> getPreviewById(UUID soundFragmentId, long userId) {
+        String sql = "SELECT sf.id, sf.title, sf.artist, sf.type, sf.album, " +
+                "ssf.source_user_name, ssf.source_user_email " +
+                "FROM " + SF_TABLE + " sf " +
+                "JOIN " + TABLE + " ssf ON ssf.sound_fragment_id = sf.id " +
+                "JOIN " + RLS_TABLE + " rls ON rls.entity_id = ssf.id " +
+                "WHERE sf.id = $1 AND rls.reader = $2 AND sf.archived = 0 LIMIT 1";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(soundFragmentId, userId))
+                .onItem().transformToUni(rows -> {
+                    if (!rows.iterator().hasNext()) {
+                        throw new DocumentHasNotFoundException(soundFragmentId);
+                    }
+                    return fromPreviewRow(rows.iterator().next());
+                });
+    }
+
+    private Uni<SharedSoundFragmentPreviewDTO> fromPreviewRow(Row row) {
+        SharedSoundFragmentPreviewDTO dto = new SharedSoundFragmentPreviewDTO();
+        dto.setId(row.getUUID("id"));
+        dto.setTitle(row.getString("title"));
+        dto.setArtist(row.getString("artist"));
+        dto.setType(PlaylistItemType.valueOf(row.getString("type")));
+        dto.setAlbum(row.getString("album"));
+        dto.setSourceUserName(row.getString("source_user_name"));
+        dto.setSourceUserEmail(row.getString("source_user_email"));
+        UUID sfId = dto.getId();
+        return loadGenres(sfId).chain(genres -> {
+            dto.setGenres(genres);
+            return loadLabels(sfId);
+        }).map(labels -> {
+            dto.setLabels(labels);
+            return dto;
+        });
+    }
+
+    private Uni<List<UUID>> loadGenres(UUID soundFragmentId) {
+        String sql = "SELECT g.id FROM __genres g " +
+                "JOIN " + SF_GENRES_TABLE + " sfg ON g.id = sfg.genre_id " +
+                "WHERE sfg.sound_fragment_id = $1 ORDER BY g.identifier";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(soundFragmentId))
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transform(r -> r.getUUID("id"))
+                .collect().asList();
+    }
+
+    private Uni<List<UUID>> loadLabels(UUID soundFragmentId) {
+        String sql = "SELECT label_id FROM " + SF_LABELS_TABLE + " WHERE id = $1";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(soundFragmentId))
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transform(r -> r.getUUID("label_id"))
+                .collect().asList();
     }
 
     private SharedSoundFragment from(Row row) {
