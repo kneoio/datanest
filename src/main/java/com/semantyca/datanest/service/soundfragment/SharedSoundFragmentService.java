@@ -57,10 +57,6 @@ public class SharedSoundFragmentService {
         return repository.getPreviewById(soundFragmentId, user.getId());
     }
 
-    public Uni<Void> addShareForOpenContributionBrand(UUID soundFragmentId, UUID targetBrandId, IUser user) {
-        return addShareForOpenContributionBrand(soundFragmentId, targetBrandId, user, false);
-    }
-
     public Uni<Void> addShareForOpenContributionBrand(UUID soundFragmentId, UUID targetBrandId, IUser user,
                                                        boolean stayIncognito) {
         return brandService.getById(targetBrandId, user)

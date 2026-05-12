@@ -16,7 +16,6 @@ import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.SqlClient;
-import io.vertx.mutiny.sqlclient.SqlResult;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -255,8 +254,8 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         dto.setArtist(row.getString("artist"));
         dto.setType(PlaylistItemType.valueOf(row.getString("type")));
         dto.setAlbum(row.getString("album"));
-        dto.setSourceUserName(row.getString("source_user_name"));
-        dto.setSourceUserEmail(row.getString("source_user_email"));
+        dto.setSharerUserName(row.getString("source_user_name"));
+        dto.setSharerUserEmail(row.getString("source_user_email"));
         UUID sfId = dto.getId();
         return loadGenres(sfId).chain(genres -> {
             dto.setGenres(genres);
