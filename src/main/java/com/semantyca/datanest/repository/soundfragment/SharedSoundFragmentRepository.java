@@ -55,10 +55,23 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     }
 
     public Uni<Integer> deleteBySoundFragmentAndBrand(UUID soundFragmentId, UUID targetBrandId) {
-        String sql = "DELETE FROM " + TABLE + " WHERE sound_fragment_id = $1 AND target_brand_id = $2";
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(soundFragmentId, targetBrandId))
-                .onItem().transform(SqlResult::rowCount);
+        String deleteSql = "DELETE FROM " + TABLE + " WHERE sound_fragment_id = $1 AND target_brand_id = $2 RETURNING id, source_user_id";
+        return client.withTransaction(tx ->
+                tx.preparedQuery(deleteSql)
+                        .execute(Tuple.of(soundFragmentId, targetBrandId))
+                        .onItem().transformToUni(rows -> {
+                            if (!rows.iterator().hasNext()) {
+                                return Uni.createFrom().item(0);
+                            }
+                            Row row = rows.iterator().next();
+                            UUID entityId = row.getUUID("id");
+                            long sourceUserId = row.getLong("source_user_id");
+                            return Uni.combine().all().unis(
+                                    RlsActionUtil.revoke(tx, RLS_TABLE, entityId, sourceUserId),
+                                    RlsActionUtil.revokeFromJsonField(tx, RLS_TABLE, entityId, BRANDS_TABLE, targetBrandId, "owner", "userId")
+                            ).discardItems().replaceWith(1);
+                        })
+        );
     }
 
     public Uni<Void> insertIfNotExists(SharedSoundFragment entity) {
@@ -80,7 +93,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     }
 
     private Uni<Void> insertRlsForShare(SqlClient tx, UUID entityId, long sourceUserId, UUID targetBrandId) {
-        Uni<Void> brandOwnerRls = RlsActionUtil.grantFromAuthorColumn(tx, RLS_TABLE, entityId, BRANDS_TABLE, targetBrandId, false, false);
+        Uni<Void> brandOwnerRls = RlsActionUtil.grantFromJsonField(tx, RLS_TABLE, entityId, BRANDS_TABLE, targetBrandId, "owner", "userId", false, false);
         Uni<Void> sourceUserRls = RlsActionUtil.grantMerge(tx, RLS_TABLE, entityId, sourceUserId, true, true);
         return Uni.combine().all().unis(sourceUserRls, brandOwnerRls).discardItems();
     }

@@ -16,6 +16,7 @@ import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.AudioMetadataDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPatchDTO;
+import com.semantyca.datanest.dto.SharedSoundFragmentPreviewDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
 import com.semantyca.datanest.dto.UploadFileDTO;
 import com.semantyca.datanest.repository.soundfragment.SoundFragmentRepository;
@@ -198,6 +199,35 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
     public Uni<Integer> getMySharedContributionsCount(IUser user) {
         assert repository != null;
         return repository.getMySharedContributionsCount(user);
+    }
+
+    public Uni<List<SharedSoundFragmentPreviewDTO>> getSharedWithMyBrandsDTOs(int limit, int offset, IUser user) {
+        assert repository != null;
+        return repository.getSharedWithMyBrands(limit, offset, user)
+                .map(list -> list.stream().map(this::mapToPreviewDTO).collect(Collectors.toList()));
+    }
+
+    public Uni<Integer> getSharedWithMyBrandsCount(IUser user) {
+        assert repository != null;
+        return repository.getSharedWithMyBrandsCount(user);
+    }
+
+    public Uni<SharedSoundFragmentPreviewDTO> getSharedWithMyBrandsDTO(UUID id, IUser user) {
+        assert repository != null;
+        return repository.getSharedWithMyBrandsById(id, user).map(this::mapToPreviewDTO);
+    }
+
+    private SharedSoundFragmentPreviewDTO mapToPreviewDTO(SoundFragment doc) {
+        SharedSoundFragmentPreviewDTO dto = new SharedSoundFragmentPreviewDTO();
+        dto.setId(doc.getId());
+        dto.setTitle(doc.getTitle());
+        dto.setArtist(doc.getArtist());
+        dto.setType(doc.getType());
+        dto.setGenres(doc.getGenres());
+        dto.setLabels(doc.getLabels());
+        dto.setAlbum(doc.getAlbum());
+        dto.setLength(doc.getLength());
+        return dto;
     }
 
     public Uni<SoundFragmentDTO> patchSharedContributionTargets(UUID fragmentId, SharedSoundFragmentPatchDTO patch,

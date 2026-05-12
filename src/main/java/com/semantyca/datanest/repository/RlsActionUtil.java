@@ -97,4 +97,45 @@ public final class RlsActionUtil {
                 .execute(Tuple.of(entityId, canEdit, canDelete, sourceId))
                 .replaceWithVoid();
     }
+
+    /**
+     * Grants access to the user stored as a JSON field inside {@code jsonColumn} of {@code sourceTable},
+     * e.g. {@code (owner->>'userId')::bigint}. Uses OR-merge semantics.
+     */
+    public static Uni<Void> grantFromJsonField(SqlClient tx, String rlsTable, UUID entityId,
+                                                String sourceTable, UUID sourceId,
+                                                String jsonColumn, String jsonKey,
+                                                boolean canEdit, boolean canDelete) {
+        String sql = String.format(
+                "INSERT INTO %s (reader, entity_id, can_edit, can_delete) " +
+                "SELECT (%s->>'%s')::bigint, $1, $2, $3 FROM %s WHERE id = $4 " +
+                "ON CONFLICT (reader, entity_id) DO UPDATE SET " +
+                "can_edit = %s.can_edit OR EXCLUDED.can_edit, " +
+                "can_delete = %s.can_delete OR EXCLUDED.can_delete, " +
+                "reading_time = now()",
+                rlsTable, jsonColumn, jsonKey, sourceTable, rlsTable, rlsTable
+        );
+        return tx.preparedQuery(sql)
+                .execute(Tuple.of(entityId, canEdit, canDelete, sourceId))
+                .replaceWithVoid();
+    }
+
+    public static Uni<Void> revoke(SqlClient tx, String rlsTable, UUID entityId, long userId) {
+        String sql = String.format("DELETE FROM %s WHERE entity_id = $1 AND reader = $2", rlsTable);
+        return tx.preparedQuery(sql)
+                .execute(Tuple.of(entityId, userId))
+                .replaceWithVoid();
+    }
+
+    public static Uni<Void> revokeFromJsonField(SqlClient tx, String rlsTable, UUID entityId,
+                                                 String sourceTable, UUID sourceId,
+                                                 String jsonColumn, String jsonKey) {
+        String sql = String.format(
+                "DELETE FROM %s WHERE entity_id = $1 AND reader = (SELECT (%s->>'%s')::bigint FROM %s WHERE id = $2)",
+                rlsTable, jsonColumn, jsonKey, sourceTable
+        );
+        return tx.preparedQuery(sql)
+                .execute(Tuple.of(entityId, sourceId))
+                .replaceWithVoid();
+    }
 }

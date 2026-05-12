@@ -5,17 +5,15 @@ import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.view.View;
 import com.semantyca.core.dto.view.ViewPage;
-import com.semantyca.core.model.cnst.ArchivedStatus;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.repository.exception.UserNotFoundException;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.datanest.dto.SharedSoundFragmentPatchDTO;
+import com.semantyca.datanest.dto.SharedSoundFragmentPreviewDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
 import com.semantyca.datanest.dto.actions.SoundFragmentActionsFactory;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
-import com.semantyca.mixpla.model.cnst.SourceType;
-import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
@@ -33,24 +31,20 @@ import java.util.UUID;
 public class SharedSoundFragmentController extends AbstractSecuredController<Object, Object> {
 
     private final SoundFragmentService soundFragmentService;
-    private final SoundFragmentController soundFragmentController;
     private final Validator validator;
 
     public SharedSoundFragmentController() {
         super(null);
         this.soundFragmentService = null;
-        this.soundFragmentController = null;
         this.validator = null;
     }
 
     @Inject
     public SharedSoundFragmentController(UserService userService,
                                          SoundFragmentService soundFragmentService,
-                                         SoundFragmentController soundFragmentController,
                                          Validator validator) {
         super(userService);
         this.soundFragmentService = soundFragmentService;
-        this.soundFragmentController = soundFragmentController;
         this.validator = validator;
     }
 
@@ -60,6 +54,7 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Obj
         router.route(HttpMethod.GET, path).handler(this::getMySharedFragments);
         router.route(HttpMethod.PATCH, path + "/:fragmentId").handler(jsonBodyHandler).handler(this::patchShares);
         router.route(HttpMethod.GET, "/datanest/soundfragments/pending-review").handler(this::getPendingReview);
+        router.route(HttpMethod.GET, "/datanest/soundfragments/pending-review/:id").handler(this::getPendingReviewItem);
     }
 
     private void getMySharedFragments(RoutingContext rc) {
@@ -96,24 +91,20 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Obj
     private void getPendingReview(RoutingContext rc) {
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
-        assert soundFragmentController != null;
-        SoundFragmentFilter filter = soundFragmentController.parseFilterDTO(rc, List.of(SourceType.CONTRIBUTION));
 
         getContextUser(rc, false, true)
                 .chain(user -> {
                     assert soundFragmentService != null;
                     return Uni.combine().all().unis(
-                            soundFragmentService.getAllCount(user, filter, ArchivedStatus.HIDDEN),
-                            soundFragmentService.getAllDTO(size, (page - 1) * size, user, filter, ArchivedStatus.HIDDEN)
+                            soundFragmentService.getSharedWithMyBrandsCount(user),
+                            soundFragmentService.getSharedWithMyBrandsDTOs(size, (page - 1) * size, user)
                     ).asTuple().map(tuple -> {
                         ViewPage viewPage = new ViewPage();
-                        View<SoundFragmentDTO> dtoEntries = new View<>(tuple.getItem2(),
+                        View<SharedSoundFragmentPreviewDTO> dtoEntries = new View<>(tuple.getItem2(),
                                 tuple.getItem1(), page,
                                 RuntimeUtil.countMaxPage(tuple.getItem1(), size),
                                 size);
                         viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-                        ActionBox actions = SoundFragmentActionsFactory.getViewActions(user.getActivatedRoles());
-                        viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, actions);
                         return viewPage;
                     });
                 })
@@ -122,6 +113,22 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Obj
                                 .setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")
                                 .end(io.vertx.core.json.Json.encode(viewPage)),
+                        t -> handleFailure(rc, t)
+                );
+    }
+
+    private void getPendingReviewItem(RoutingContext rc) {
+        UUID id = UUID.fromString(rc.pathParam("id"));
+        getContextUser(rc, false, true)
+                .chain(user -> {
+                    assert soundFragmentService != null;
+                    return soundFragmentService.getSharedWithMyBrandsDTO(id, user);
+                })
+                .subscribe().with(
+                        dto -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(JsonObject.mapFrom(dto).encode()),
                         t -> handleFailure(rc, t)
                 );
     }
