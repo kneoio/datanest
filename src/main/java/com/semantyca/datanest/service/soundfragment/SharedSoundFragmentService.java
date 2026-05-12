@@ -48,6 +48,7 @@ public class SharedSoundFragmentService {
                     entity.setSourceUserEmail(sourceUserEmail);
                     entity.setTargetBrandId(targetBrandId);
                     entity.setSoundFragmentId(soundFragmentId);
+                    entity.setStatus(500);
                     return repository.insertIfNotExists(entity);
                 });
     }

@@ -560,15 +560,12 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                 .onItem().transform(rows -> rows.iterator().next().getInteger(0));
     }
 
-    /**
-     * Songs shared TO the current user's brand(s), identified via mixpla__shared_sound_fragment_readers.
-     * Excludes songs the user authored themselves (those are covered by getMySharedContributions).
-     */
     public Uni<List<SoundFragment>> getSharedWithMyBrands(int limit, int offset, IUser user) {
         String sql = "SELECT sf.* FROM " + entityData.getTableName() + " sf " +
                 "JOIN mixpla__shared_sound_fragments ssf ON ssf.sound_fragment_id = sf.id " +
                 "JOIN mixpla__shared_sound_fragment_readers rls ON rls.entity_id = ssf.id " +
-                "WHERE rls.reader = $1 AND sf.author != $2 AND sf.archived = 0 " +
+                //"WHERE rls.reader = $1 AND sf.author != $2 AND sf.archived = 0 " +
+                "WHERE rls.reader = $1 AND sf.archived = 0 " +
                 "ORDER BY sf.reg_date DESC LIMIT $3 OFFSET $4";
         return client.preparedQuery(sql)
                 .execute(Tuple.of(user.getId(), user.getId(), limit, offset))

@@ -33,6 +33,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
@@ -172,7 +173,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                             rc.response()
                                     .setStatusCode(200)
                                     .putHeader("Content-Type", "application/json")
-                                    .end(io.vertx.core.json.Json.encode(page));
+                                    .end(Json.encode(page));
                         },
                         t -> handleFailure(rc, t)
                 );

@@ -226,7 +226,6 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         dto.setGenres(doc.getGenres());
         dto.setLabels(doc.getLabels());
         dto.setAlbum(doc.getAlbum());
-        dto.setLength(doc.getLength());
         return dto;
     }
 

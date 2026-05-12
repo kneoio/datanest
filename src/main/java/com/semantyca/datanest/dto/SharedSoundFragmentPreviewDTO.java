@@ -25,7 +25,4 @@ public class SharedSoundFragmentPreviewDTO {
     private List<UUID> genres;
     private List<UUID> labels;
     private String album;
-    @JsonSerialize(using = DurationSerializer.class)
-    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    private Duration length;
 }

@@ -122,14 +122,28 @@
     "name": "Akee",
     "gender": "male",
     "language": "ru-RU",
-    "labels": "premium, en"
+    "labels": "premium, ru, kz"
   },
   {
     "id": "BKE59urYIY1Qetpp45Yw",
     "name": "Dimu",
     "gender": "male",
+    "language": "ka-GE",
+    "labels": "premium, ka"
+  },
+  {
+    "id": "g1jpii0iyvtRs8fqXsd1",
+    "name": "Helmut",
+    "gender": "male",
     "language": "de-DE",
-    "labels": "premium, en"
+    "labels": "premium, de"
+  },
+  {
+    "id": "WeAAwKYcS06VmXw086yZ",
+    "name": "Victoria",
+    "gender": "female",
+    "language": "fr-FR",
+    "labels": "premium, fr"
   },
   {
     "id": "0BcDz9UPwL3MpsnTeUlO",
