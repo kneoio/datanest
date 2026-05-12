@@ -2,6 +2,7 @@ package com.semantyca.datanest.service.soundfragment;
 
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.datanest.dto.SharedSoundFragmentDTO;
+import com.semantyca.datanest.dto.SharedSoundFragmentPatchDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPreviewDTO;
 import com.semantyca.datanest.model.soundfragment.SharedSoundFragment;
 import com.semantyca.datanest.repository.soundfragment.SharedSoundFragmentRepository;
@@ -70,6 +71,30 @@ public class SharedSoundFragmentService {
                     entity.setStatus(500);
                     return repository.insertIfNotExists(entity);
                 });
+    }
+
+    public Uni<Void> patchContributionTargets(UUID fragmentId, SharedSoundFragmentPatchDTO patch, IUser user) {
+        List<UUID> remove = patch.getRemoveTargetBrandIds() != null ? patch.getRemoveTargetBrandIds() : List.of();
+        List<UUID> add = patch.getAddTargetBrandIds() != null ? patch.getAddTargetBrandIds() : List.of();
+        boolean incognito = patch.isStayIncognito();
+        return chainRemoveShares(fragmentId, remove)
+                .chain(() -> chainAddShares(fragmentId, add, user, incognito));
+    }
+
+    private Uni<Void> chainRemoveShares(UUID fragmentId, List<UUID> brandIds) {
+        Uni<Void> chain = Uni.createFrom().voidItem();
+        for (UUID brandId : brandIds) {
+            chain = chain.chain(() -> removeShare(fragmentId, brandId));
+        }
+        return chain;
+    }
+
+    private Uni<Void> chainAddShares(UUID fragmentId, List<UUID> brandIds, IUser user, boolean stayIncognito) {
+        Uni<Void> chain = Uni.createFrom().voidItem();
+        for (UUID brandId : brandIds) {
+            chain = chain.chain(() -> addShareForOpenContributionBrand(fragmentId, brandId, user, stayIncognito));
+        }
+        return chain;
     }
 
     public Uni<List<SharedSoundFragmentDTO>> listDTOsBySoundFragmentId(UUID soundFragmentId) {
