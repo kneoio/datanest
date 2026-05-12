@@ -33,7 +33,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -561,16 +563,15 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
     }
 
     public Uni<List<SoundFragment>> getSharedWithMyBrands(int limit, int offset, IUser user) {
-        String sql = "SELECT sf.* FROM " + entityData.getTableName() + " sf " +
+        String sql = "SELECT sf.*, ssf.source_user_name, ssf.source_user_email FROM " + entityData.getTableName() + " sf " +
                 "JOIN mixpla__shared_sound_fragments ssf ON ssf.sound_fragment_id = sf.id " +
                 "JOIN mixpla__shared_sound_fragment_readers rls ON rls.entity_id = ssf.id " +
-                //"WHERE rls.reader = $1 AND sf.author != $2 AND sf.archived = 0 " +
                 "WHERE rls.reader = $1 AND sf.archived = 0 " +
-                "ORDER BY sf.reg_date DESC LIMIT $3 OFFSET $4";
+                "ORDER BY sf.reg_date DESC LIMIT $2 OFFSET $3";
         return client.preparedQuery(sql)
-                .execute(Tuple.of(user.getId(), user.getId(), limit, offset))
+                .execute(Tuple.of(user.getId(), limit, offset))
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
-                .onItem().transformToUni(row -> from(row, true, false, true))
+                .onItem().transformToUni(row -> fromWithShareInfo(row, true, false, true))
                 .concatenate()
                 .collect().asList();
     }
@@ -586,7 +587,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
     }
 
     public Uni<SoundFragment> getSharedWithMyBrandsById(UUID id, IUser user) {
-        String sql = "SELECT sf.* FROM " + entityData.getTableName() + " sf " +
+        String sql = "SELECT sf.*, ssf.source_user_name, ssf.source_user_email FROM " + entityData.getTableName() + " sf " +
                 "JOIN mixpla__shared_sound_fragments ssf ON ssf.sound_fragment_id = sf.id " +
                 "JOIN mixpla__shared_sound_fragment_readers rls ON rls.entity_id = ssf.id " +
                 "WHERE sf.id = $1 AND rls.reader = $2 AND sf.archived = 0 " +
@@ -597,7 +598,22 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                     if (!rows.iterator().hasNext()) {
                         throw new DocumentHasNotFoundException(id);
                     }
-                    return from(rows.iterator().next(), true, false, true);
+                    return fromWithShareInfo(rows.iterator().next(), true, false, true);
+                });
+    }
+
+    private Uni<SoundFragment> fromWithShareInfo(Row row, boolean includeGenres, boolean includeFiles, boolean includeLabels) {
+        return from(row, includeGenres, includeFiles, includeLabels)
+                .onItem().transform(sf -> {
+                    String name = row.getString("source_user_name");
+                    String email = row.getString("source_user_email");
+                    if (name != null || email != null) {
+                        Map<String, String> shareInfo = new HashMap<>();
+                        if (name != null) shareInfo.put("sourceUserName", name);
+                        if (email != null) shareInfo.put("sourceUserEmail", email);
+                        sf.setAddInfo(shareInfo);
+                    }
+                    return sf;
                 });
     }
 

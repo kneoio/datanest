@@ -217,6 +217,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         return repository.getSharedWithMyBrandsById(id, user).map(this::mapToPreviewDTO);
     }
 
+    @SuppressWarnings("unchecked")
     private SharedSoundFragmentPreviewDTO mapToPreviewDTO(SoundFragment doc) {
         SharedSoundFragmentPreviewDTO dto = new SharedSoundFragmentPreviewDTO();
         dto.setId(doc.getId());
@@ -226,6 +227,11 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         dto.setGenres(doc.getGenres());
         dto.setLabels(doc.getLabels());
         dto.setAlbum(doc.getAlbum());
+        if (doc.getAddInfo() instanceof Map) {
+            Map<String, String> shareInfo = (Map<String, String>) doc.getAddInfo();
+            dto.setSourceUserName(shareInfo.get("sourceUserName"));
+            dto.setSourceUserEmail(shareInfo.get("sourceUserEmail"));
+        }
         return dto;
     }
 
