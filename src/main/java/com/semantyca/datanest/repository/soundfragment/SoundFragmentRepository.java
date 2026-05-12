@@ -560,47 +560,6 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                 .onItem().transform(rows -> rows.iterator().next().getInteger(0));
     }
 
-    public Uni<List<SoundFragment>> getSharedWithMyBrands(int limit, int offset, IUser user) {
-        String sql = "SELECT sf.* FROM " + entityData.getTableName() + " sf " +
-                "JOIN mixpla__shared_sound_fragments ssf ON ssf.sound_fragment_id = sf.id " +
-                "JOIN mixpla__shared_sound_fragment_readers rls ON rls.entity_id = ssf.id " +
-                //"WHERE rls.reader = $1 AND sf.author != $2 AND sf.archived = 0 " +
-                "WHERE rls.reader = $1 AND sf.archived = 0 " +
-                "ORDER BY sf.reg_date DESC LIMIT $3 OFFSET $4";
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(user.getId(), user.getId(), limit, offset))
-                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
-                .onItem().transformToUni(row -> from(row, true, false, true))
-                .concatenate()
-                .collect().asList();
-    }
-
-    public Uni<Integer> getSharedWithMyBrandsCount(IUser user) {
-        String sql = "SELECT COUNT(DISTINCT sf.id) FROM " + entityData.getTableName() + " sf " +
-                "JOIN mixpla__shared_sound_fragments ssf ON ssf.sound_fragment_id = sf.id " +
-                "JOIN mixpla__shared_sound_fragment_readers rls ON rls.entity_id = ssf.id " +
-                "WHERE rls.reader = $1 AND sf.author != $2 AND sf.archived = 0";
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(user.getId(), user.getId()))
-                .onItem().transform(rows -> rows.iterator().next().getInteger(0));
-    }
-
-    public Uni<SoundFragment> getSharedWithMyBrandsById(UUID id, IUser user) {
-        String sql = "SELECT sf.* FROM " + entityData.getTableName() + " sf " +
-                "JOIN mixpla__shared_sound_fragments ssf ON ssf.sound_fragment_id = sf.id " +
-                "JOIN mixpla__shared_sound_fragment_readers rls ON rls.entity_id = ssf.id " +
-                "WHERE sf.id = $1 AND rls.reader = $2 AND sf.archived = 0 " +
-                "LIMIT 1";
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(id, user.getId()))
-                .onItem().transformToUni(rows -> {
-                    if (!rows.iterator().hasNext()) {
-                        throw new DocumentHasNotFoundException(id);
-                    }
-                    return from(rows.iterator().next(), true, false, true);
-                });
-    }
-
     public Uni<SoundFragment> update(UUID id, SoundFragment doc, List<UUID> representedInBrands, List<RlsActionDTO> rlsActions, IUser user) {
         return rlsRepository.findById(entityData.getRlsName(), user.getId(), id)
                 .onItem().transformToUni(permissions -> {

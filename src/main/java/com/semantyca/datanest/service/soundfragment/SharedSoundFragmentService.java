@@ -47,8 +47,12 @@ public class SharedSoundFragmentService {
         return repository.getPreviewById(soundFragmentId, user.getId());
     }
 
+    public Uni<Void> addShareForOpenContributionBrand(UUID soundFragmentId, UUID targetBrandId, IUser user) {
+        return addShareForOpenContributionBrand(soundFragmentId, targetBrandId, user, false);
+    }
+
     public Uni<Void> addShareForOpenContributionBrand(UUID soundFragmentId, UUID targetBrandId, IUser user,
-                                                       String sourceUserName, String sourceUserEmail) {
+                                                       boolean stayIncognito) {
         return brandService.getById(targetBrandId, user)
                 .onItem().transformToUni(brand -> {
                     if (brand.getSubmissionPolicy() != SubmissionPolicy.NO_RESTRICTIONS) {
@@ -57,8 +61,10 @@ public class SharedSoundFragmentService {
                     }
                     SharedSoundFragment entity = new SharedSoundFragment();
                     entity.setSourceUserId(brand.getOwner().getUserId());
-                    entity.setSourceUserName(sourceUserName);
-                    entity.setSourceUserEmail(sourceUserEmail);
+                    if (!stayIncognito) {
+                        entity.setSourceUserName(brand.getOwner().getName());
+                        entity.setSourceUserEmail(brand.getOwner().getEmail());
+                    }
                     entity.setTargetBrandId(targetBrandId);
                     entity.setSoundFragmentId(soundFragmentId);
                     entity.setStatus(500);

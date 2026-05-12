@@ -16,7 +16,6 @@ import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.AudioMetadataDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPatchDTO;
-import com.semantyca.datanest.dto.SharedSoundFragmentPreviewDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
 import com.semantyca.datanest.dto.UploadFileDTO;
 import com.semantyca.datanest.repository.soundfragment.SoundFragmentRepository;
@@ -201,34 +200,6 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         return repository.getMySharedContributionsCount(user);
     }
 
-    public Uni<List<SharedSoundFragmentPreviewDTO>> getSharedWithMyBrandsDTOs(int limit, int offset, IUser user) {
-        assert repository != null;
-        return repository.getSharedWithMyBrands(limit, offset, user)
-                .map(list -> list.stream().map(this::mapToPreviewDTO).collect(Collectors.toList()));
-    }
-
-    public Uni<Integer> getSharedWithMyBrandsCount(IUser user) {
-        assert repository != null;
-        return repository.getSharedWithMyBrandsCount(user);
-    }
-
-    public Uni<SharedSoundFragmentPreviewDTO> getSharedWithMyBrandsDTO(UUID id, IUser user) {
-        assert repository != null;
-        return repository.getSharedWithMyBrandsById(id, user).map(this::mapToPreviewDTO);
-    }
-
-    private SharedSoundFragmentPreviewDTO mapToPreviewDTO(SoundFragment doc) {
-        SharedSoundFragmentPreviewDTO dto = new SharedSoundFragmentPreviewDTO();
-        dto.setId(doc.getId());
-        dto.setTitle(doc.getTitle());
-        dto.setArtist(doc.getArtist());
-        dto.setType(doc.getType());
-        dto.setGenres(doc.getGenres());
-        dto.setLabels(doc.getLabels());
-        dto.setAlbum(doc.getAlbum());
-        return dto;
-    }
-
     public Uni<SoundFragmentDTO> patchSharedContributionTargets(UUID fragmentId, SharedSoundFragmentPatchDTO patch,
                                                                  IUser user, LanguageCode code) {
         assert repository != null;
@@ -236,7 +207,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         List<UUID> add = patch.getAddTargetBrandIds() != null ? patch.getAddTargetBrandIds() : List.of();
         return repository.requireEditPermission(fragmentId, user)
                 .chain(() -> chainRemoveShares(fragmentId, remove))
-                .chain(() -> chainAddShares(fragmentId, add, user, patch.getSourceUserName(), patch.getSourceUserEmail()))
+                .chain(() -> chainAddShares(fragmentId, add, user))
                 .chain(() -> getDTO(fragmentId, user, code));
     }
 
@@ -251,15 +222,13 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         return chain;
     }
 
-    private Uni<Void> chainAddShares(UUID fragmentId, List<UUID> brandIds, IUser user,
-                                      String sourceUserName, String sourceUserEmail) {
+    private Uni<Void> chainAddShares(UUID fragmentId, List<UUID> brandIds, IUser user) {
         if (brandIds.isEmpty()) {
             return Uni.createFrom().voidItem();
         }
         Uni<Void> chain = Uni.createFrom().voidItem();
         for (UUID brandId : brandIds) {
-            chain = chain.chain(() -> sharedSoundFragmentService.addShareForOpenContributionBrand(
-                    fragmentId, brandId, user, sourceUserName, sourceUserEmail));
+            chain = chain.chain(() -> sharedSoundFragmentService.addShareForOpenContributionBrand(fragmentId, brandId, user));
         }
         return chain;
     }
