@@ -1,6 +1,7 @@
 package com.semantyca.datanest.service.soundfragment;
 
 import com.semantyca.core.model.user.IUser;
+import com.semantyca.datanest.dto.MySharedContributionDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPatchDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPreviewDTO;
@@ -26,6 +27,14 @@ public class SharedSoundFragmentService {
     public SharedSoundFragmentService(SharedSoundFragmentRepository repository, BrandService brandService) {
         this.repository = repository;
         this.brandService = brandService;
+    }
+
+    public Uni<List<MySharedContributionDTO>> getMyContributions(int limit, int offset, IUser user) {
+        return repository.getMyContributions(limit, offset, user.getId());
+    }
+
+    public Uni<Integer> getMyContributionsCount(IUser user) {
+        return repository.getMyContributionsCount(user.getId());
     }
 
     public Uni<Void> removeShare(UUID soundFragmentId, UUID targetBrandId) {

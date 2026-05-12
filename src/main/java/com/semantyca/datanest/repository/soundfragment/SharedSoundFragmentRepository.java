@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.semantyca.core.repository.AsyncRepository;
 import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.rls.RLSRepository;
+import com.semantyca.datanest.dto.MySharedContributionDTO;
+import com.semantyca.datanest.dto.SharedSoundFragmentDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPreviewDTO;
 import com.semantyca.datanest.model.soundfragment.SharedSoundFragment;
 import com.semantyca.datanest.repository.RlsActionUtil;
@@ -29,6 +31,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     private static final String RLS_TABLE = "mixpla__shared_sound_fragment_readers";
     private static final String BRANDS_TABLE = "mixpla__brands";
     private static final String SF_TABLE = "mixpla__sound_fragments";
+    private static final String SF_RLS_TABLE = "mixpla__sound_fragment_readers";
     private static final String SF_GENRES_TABLE = "mixpla__sound_fragment_genres";
     private static final String SF_LABELS_TABLE = "mixpla__sound_fragment_labels";
 
@@ -139,6 +142,67 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .addInteger(0)
                 .addValue(entity.getSourceUserName())
                 .addValue(entity.getSourceUserEmail());
+    }
+
+    public Uni<List<MySharedContributionDTO>> getMyContributions(int limit, int offset, long userId) {
+        String sql = "SELECT sf.id, sf.title, sf.artist, sf.type, sf.album " +
+                "FROM " + SF_TABLE + " sf " +
+                "JOIN " + SF_RLS_TABLE + " rls ON sf.id = rls.entity_id " +
+                "WHERE rls.reader = $1 AND sf.author = $2 AND sf.archived = 0 " +
+                "AND EXISTS (SELECT 1 FROM " + TABLE + " ssf WHERE ssf.sound_fragment_id = sf.id) " +
+                "ORDER BY sf.reg_date DESC LIMIT $3 OFFSET $4";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(userId, userId, limit, offset))
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transformToUni(this::fromContributionRow)
+                .concatenate()
+                .collect().asList();
+    }
+
+    public Uni<Integer> getMyContributionsCount(long userId) {
+        String sql = "SELECT COUNT(*) FROM " + SF_TABLE + " sf " +
+                "JOIN " + SF_RLS_TABLE + " rls ON sf.id = rls.entity_id " +
+                "WHERE rls.reader = $1 AND sf.author = $2 AND sf.archived = 0 " +
+                "AND EXISTS (SELECT 1 FROM " + TABLE + " ssf WHERE ssf.sound_fragment_id = sf.id)";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(userId, userId))
+                .onItem().transform(rows -> rows.iterator().next().getInteger(0));
+    }
+
+    private Uni<MySharedContributionDTO> fromContributionRow(Row row) {
+        MySharedContributionDTO dto = new MySharedContributionDTO();
+        UUID sfId = row.getUUID("id");
+        dto.setId(sfId);
+        dto.setTitle(row.getString("title"));
+        dto.setArtist(row.getString("artist"));
+        dto.setType(PlaylistItemType.valueOf(row.getString("type")));
+        dto.setAlbum(row.getString("album"));
+        return loadGenres(sfId).chain(genres -> {
+            dto.setGenres(genres);
+            return loadLabels(sfId);
+        }).chain(labels -> {
+            dto.setLabels(labels);
+            return listBySoundFragmentId(sfId);
+        }).map(shares -> {
+            dto.setShares(shares.stream().map(this::toShareDTO).collect(java.util.stream.Collectors.toList()));
+            return dto;
+        });
+    }
+
+    private SharedSoundFragmentDTO toShareDTO(SharedSoundFragment e) {
+        SharedSoundFragmentDTO dto = new SharedSoundFragmentDTO();
+        dto.setId(e.getId());
+        dto.setSourceUserId(e.getSourceUserId());
+        dto.setSourceUserName(e.getSourceUserName());
+        dto.setSourceUserEmail(e.getSourceUserEmail());
+        dto.setTargetBrandId(e.getTargetBrandId());
+        dto.setSoundFragmentId(e.getSoundFragmentId());
+        dto.setExpiresAt(e.getExpiresAt());
+        dto.setPlayedCount(e.getPlayedCount());
+        dto.setRatedCount(e.getRatedCount());
+        dto.setStatus(e.getStatus());
+        dto.setArchived(e.getArchived());
+        return dto;
     }
 
     public Uni<List<SharedSoundFragmentPreviewDTO>> getPreviewList(int limit, int offset, long userId) {

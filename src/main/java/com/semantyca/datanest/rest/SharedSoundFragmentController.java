@@ -9,9 +9,9 @@ import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.repository.exception.UserNotFoundException;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
+import com.semantyca.datanest.dto.MySharedContributionDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPatchDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPreviewDTO;
-import com.semantyca.datanest.dto.SoundFragmentDTO;
 import com.semantyca.datanest.dto.actions.SoundFragmentActionsFactory;
 import com.semantyca.datanest.service.soundfragment.SharedSoundFragmentService;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
@@ -25,7 +25,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.validation.Validator;
 
-import java.util.List;
 import java.util.UUID;
 
 @ApplicationScoped
@@ -69,13 +68,13 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Obj
 
         getContextUser(rc, false, true)
                 .chain(user -> {
-                    assert soundFragmentService != null;
+                    assert sharedSoundFragmentService != null;
                     return Uni.combine().all().unis(
-                            soundFragmentService.getMySharedContributionsCount(user),
-                            soundFragmentService.getMySharedContributionDTOs(size, (page - 1) * size, user)
+                            sharedSoundFragmentService.getMyContributionsCount(user),
+                            sharedSoundFragmentService.getMyContributions(size, (page - 1) * size, user)
                     ).asTuple().map(tuple -> {
                         ViewPage viewPage = new ViewPage();
-                        View<SoundFragmentDTO> dtoEntries = new View<>(tuple.getItem2(),
+                        View<MySharedContributionDTO> dtoEntries = new View<>(tuple.getItem2(),
                                 tuple.getItem1(), page,
                                 RuntimeUtil.countMaxPage(tuple.getItem1(), size),
                                 size);
