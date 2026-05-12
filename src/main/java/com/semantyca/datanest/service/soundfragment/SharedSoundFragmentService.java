@@ -30,6 +30,10 @@ public class SharedSoundFragmentService {
         return repository.deleteBySoundFragmentAndBrand(soundFragmentId, targetBrandId).replaceWithVoid();
     }
 
+    public Uni<Integer> rejectShare(UUID soundFragmentId, IUser user) {
+        return repository.deleteByFragmentIdAndReader(soundFragmentId, user.getId());
+    }
+
     public Uni<Void> addShareForOpenContributionBrand(UUID soundFragmentId, UUID targetBrandId, IUser user) {
         return brandService.getById(targetBrandId, user)
                 .onItem().transformToUni(brand -> {

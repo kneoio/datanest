@@ -74,6 +74,30 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         );
     }
 
+    public Uni<Integer> deleteByFragmentIdAndReader(UUID soundFragmentId, long userId) {
+        String deleteSql = "DELETE FROM " + TABLE +
+                " WHERE sound_fragment_id = $1 AND id IN " +
+                "(SELECT entity_id FROM " + RLS_TABLE + " WHERE reader = $2) " +
+                "RETURNING id, source_user_id, target_brand_id";
+        return client.withTransaction(tx ->
+                tx.preparedQuery(deleteSql)
+                        .execute(Tuple.of(soundFragmentId, userId))
+                        .onItem().transformToUni(rows -> {
+                            if (!rows.iterator().hasNext()) {
+                                return Uni.createFrom().item(0);
+                            }
+                            Row row = rows.iterator().next();
+                            UUID entityId = row.getUUID("id");
+                            long sourceUserId = row.getLong("source_user_id");
+                            UUID targetBrandId = row.getUUID("target_brand_id");
+                            return Uni.combine().all().unis(
+                                    RlsActionUtil.revoke(tx, RLS_TABLE, entityId, sourceUserId),
+                                    RlsActionUtil.revokeFromJsonField(tx, RLS_TABLE, entityId, BRANDS_TABLE, targetBrandId, "owner", "userId")
+                            ).discardItems().replaceWith(1);
+                        })
+        );
+    }
+
     public Uni<Void> insertIfNotExists(SharedSoundFragment entity) {
         String insertSql = "INSERT INTO " + TABLE + " " +
                 "(source_user_id, target_brand_id, sound_fragment_id, expires_at, played_count, rated_count, status, archived) " +

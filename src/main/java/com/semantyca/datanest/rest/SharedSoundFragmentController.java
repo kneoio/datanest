@@ -13,6 +13,7 @@ import com.semantyca.datanest.dto.SharedSoundFragmentPatchDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPreviewDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
 import com.semantyca.datanest.dto.actions.SoundFragmentActionsFactory;
+import com.semantyca.datanest.service.soundfragment.SharedSoundFragmentService;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.http.HttpMethod;
@@ -31,20 +32,24 @@ import java.util.UUID;
 public class SharedSoundFragmentController extends AbstractSecuredController<Object, Object> {
 
     private final SoundFragmentService soundFragmentService;
+    private final SharedSoundFragmentService sharedSoundFragmentService;
     private final Validator validator;
 
     public SharedSoundFragmentController() {
         super(null);
         this.soundFragmentService = null;
+        this.sharedSoundFragmentService = null;
         this.validator = null;
     }
 
     @Inject
     public SharedSoundFragmentController(UserService userService,
                                          SoundFragmentService soundFragmentService,
+                                         SharedSoundFragmentService sharedSoundFragmentService,
                                          Validator validator) {
         super(userService);
         this.soundFragmentService = soundFragmentService;
+        this.sharedSoundFragmentService = sharedSoundFragmentService;
         this.validator = validator;
     }
 
@@ -55,6 +60,7 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Obj
         router.route(HttpMethod.PATCH, path + "/:fragmentId").handler(jsonBodyHandler).handler(this::patchShares);
         router.route(HttpMethod.GET, "/datanest/soundfragments/pending-review").handler(this::getPendingReview);
         router.route(HttpMethod.GET, "/datanest/soundfragments/pending-review/:id").handler(this::getPendingReviewItem);
+        router.route(HttpMethod.DELETE, "/datanest/soundfragments/pending-review/:id").handler(this::rejectShare);
     }
 
     private void getMySharedFragments(RoutingContext rc) {
@@ -129,6 +135,21 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Obj
                                 .setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")
                                 .end(JsonObject.mapFrom(dto).encode()),
+                        t -> handleFailure(rc, t)
+                );
+    }
+
+    private void rejectShare(RoutingContext rc) {
+        UUID soundFragmentId = UUID.fromString(rc.pathParam("id"));
+        getContextUser(rc, false, true)
+                .chain(user -> {
+                    assert sharedSoundFragmentService != null;
+                    return sharedSoundFragmentService.rejectShare(soundFragmentId, user);
+                })
+                .subscribe().with(
+                        count -> rc.response()
+                                .setStatusCode(count > 0 ? 200 : 404)
+                                .end(),
                         t -> handleFailure(rc, t)
                 );
     }
