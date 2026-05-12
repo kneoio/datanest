@@ -51,7 +51,7 @@ public class SoundFragmentDTO extends AbstractDTO {
     private LocalDateTime expiresAt;
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
-    private List<SharedSoundFragmentDTO> sharedSoundFragments;
+    private List<SharedSoundFragmentDTO> sharedWith;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<RlsActionDTO> rlsActions = new ArrayList<>();
 

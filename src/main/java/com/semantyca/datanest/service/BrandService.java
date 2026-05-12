@@ -130,7 +130,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     public Uni<BrandDTO> upsert(String id, BrandDTO dto, IUser user, LanguageCode code) {
         assert repository != null;
         LOGGER.info("Upserting radio station with DTO scripts: {}", dto.getScripts());
-        Brand entity = buildEntity(dto);
+        Brand entity = buildEntity(dto, user);
         LOGGER.info("Built entity with scripts: {}", entity.getScripts());
 
         List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
@@ -247,6 +247,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             dto.setScripts(scriptDTOs);
             if (doc.getOwner() != null) {
                 OwnerDTO ownerDTO = new OwnerDTO();
+                ownerDTO.setUserId(doc.getOwner().getUserId());
                 ownerDTO.setName(doc.getOwner().getName());
                 ownerDTO.setEmail(doc.getOwner().getEmail());
                 dto.setOwner(ownerDTO);
@@ -259,7 +260,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         });
     }
 
-    private Brand buildEntity(BrandDTO dto) {
+    private Brand buildEntity(BrandDTO dto, IUser user) {
         Brand doc = new Brand();
         doc.setLocalizedName(dto.getLocalizedName());
         doc.setCountry(CountryCode.fromString(dto.getCountry()));
@@ -304,6 +305,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
         if (dto.getOwner() != null) {
             Owner owner = new Owner();
+            owner.setUserId(dto.getOwner().getUserId() > 0 ? dto.getOwner().getUserId() : user.getId());
             owner.setName(dto.getOwner().getName());
             owner.setEmail(dto.getOwner().getEmail());
             doc.setOwner(owner);

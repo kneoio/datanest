@@ -358,10 +358,9 @@ public class PromptController extends AbstractSecuredController<DjPrompt, Prompt
 
         java.util.function.Consumer<TranslateService.SseEvent> consumer = ev -> {
             try {
-                StringBuilder sb = new StringBuilder();
-                sb.append("event: ").append(ev.type()).append('\n');
-                sb.append("data: ").append(ev.data() != null ? ev.data().encode() : "{}").append('\n').append('\n');
-                resp.write(sb.toString());
+                String sb = "event: " + ev.type() + '\n' +
+                        "data: " + (ev.data() != null ? ev.data().encode() : "{}") + '\n' + '\n';
+                resp.write(sb);
             } catch (Exception ignored) { }
         };
 

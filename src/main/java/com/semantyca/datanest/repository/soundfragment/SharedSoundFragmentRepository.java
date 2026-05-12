@@ -54,62 +54,6 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .collect().asList();
     }
 
-    public Uni<List<SharedSoundFragment>> listByTargetBrandId(UUID targetBrandId) {
-        String sql = "SELECT * FROM " + TABLE + " WHERE target_brand_id = $1 ORDER BY sound_fragment_id";
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(targetBrandId))
-                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
-                .onItem().transform(this::from)
-                .collect().asList();
-    }
-
-    public Uni<SharedSoundFragment> insert(SharedSoundFragment entity) {
-        String insertSql = "INSERT INTO " + TABLE + " " +
-                "(source_user_id, target_brand_id, sound_fragment_id, expires_at, played_count, rated_count, status, archived) " +
-                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *";
-        return client.withTransaction(tx ->
-                tx.preparedQuery(insertSql)
-                        .execute(buildInsertTuple(entity))
-                        .onItem().transform(rows -> from(rows.iterator().next()))
-                        .onItem().transformToUni(saved ->
-                                insertRlsForShare(tx, saved.getId(), saved.getSourceUserId(), saved.getTargetBrandId())
-                                        .replaceWith(saved)
-                        )
-        );
-    }
-
-    public Uni<SharedSoundFragment> update(UUID id, SharedSoundFragment entity) {
-        String sql = "UPDATE " + TABLE + " SET " +
-                "source_user_id = $1, target_brand_id = $2, sound_fragment_id = $3, expires_at = $4, " +
-                "played_count = $5, rated_count = $6, status = $7, archived = $8 " +
-                "WHERE id = $9";
-        Tuple params = Tuple.tuple()
-                .addValue(entity.getSourceUserId())
-                .addUUID(entity.getTargetBrandId())
-                .addUUID(entity.getSoundFragmentId())
-                .addLocalDateTime(entity.getExpiresAt())
-                .addInteger(entity.getPlayedCount() != null ? entity.getPlayedCount() : 0)
-                .addInteger(entity.getRatedCount() != null ? entity.getRatedCount() : 0)
-                .addInteger(entity.getStatus() != null ? entity.getStatus() : 1)
-                .addInteger(entity.getArchived() != null ? entity.getArchived() : 0)
-                .addUUID(id);
-        return client.preparedQuery(sql)
-                .execute(params)
-                .onItem().transformToUni(rowSet -> {
-                    if (rowSet.rowCount() == 0) {
-                        return Uni.createFrom().failure(new DocumentHasNotFoundException(id));
-                    }
-                    return findById(id);
-                });
-    }
-
-    public Uni<Integer> delete(UUID id) {
-        String sql = "DELETE FROM " + TABLE + " WHERE id = $1";
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(id))
-                .onItem().transform(SqlResult::rowCount);
-    }
-
     public Uni<Integer> deleteBySoundFragmentAndBrand(UUID soundFragmentId, UUID targetBrandId) {
         String sql = "DELETE FROM " + TABLE + " WHERE sound_fragment_id = $1 AND target_brand_id = $2";
         return client.preparedQuery(sql)
@@ -135,11 +79,8 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         );
     }
 
-    private Uni<Void> insertRlsForShare(SqlClient tx, UUID entityId, Long sourceUserId, UUID targetBrandId) {
+    private Uni<Void> insertRlsForShare(SqlClient tx, UUID entityId, long sourceUserId, UUID targetBrandId) {
         Uni<Void> brandOwnerRls = RlsActionUtil.grantFromAuthorColumn(tx, RLS_TABLE, entityId, BRANDS_TABLE, targetBrandId, false, false);
-        if (sourceUserId == null) {
-            return brandOwnerRls;
-        }
         Uni<Void> sourceUserRls = RlsActionUtil.grantMerge(tx, RLS_TABLE, entityId, sourceUserId, true, true);
         return Uni.combine().all().unis(sourceUserRls, brandOwnerRls).discardItems();
     }
@@ -150,10 +91,10 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .addUUID(entity.getTargetBrandId())
                 .addUUID(entity.getSoundFragmentId())
                 .addLocalDateTime(entity.getExpiresAt())
-                .addInteger(entity.getPlayedCount() != null ? entity.getPlayedCount() : 0)
-                .addInteger(entity.getRatedCount() != null ? entity.getRatedCount() : 0)
-                .addInteger(entity.getStatus() != null ? entity.getStatus() : 500)
-                .addInteger(entity.getArchived() != null ? entity.getArchived() : 0);
+                .addInteger(0)
+                .addInteger(100)
+                .addInteger(entity.getStatus())
+                .addInteger(0);
     }
 
     private SharedSoundFragment from(Row row) {

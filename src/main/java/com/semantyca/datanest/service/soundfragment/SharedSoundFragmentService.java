@@ -38,7 +38,7 @@ public class SharedSoundFragmentService {
                                 "Brand does not accept contributions without restrictions: " + targetBrandId));
                     }
                     SharedSoundFragment entity = new SharedSoundFragment();
-                    entity.setSourceUserId(user.getId());
+                    entity.setSourceUserId(brand.getOwner().getUserId());
                     entity.setTargetBrandId(targetBrandId);
                     entity.setSoundFragmentId(soundFragmentId);
                     return repository.insertIfNotExists(entity);
@@ -50,25 +50,8 @@ public class SharedSoundFragmentService {
                 .map(list -> list.stream().map(this::toDTO).collect(Collectors.toList()));
     }
 
-    public Uni<List<SharedSoundFragmentDTO>> listDTOsByTargetBrandId(UUID targetBrandId) {
-        return repository.listByTargetBrandId(targetBrandId)
-                .map(list -> list.stream().map(this::toDTO).collect(Collectors.toList()));
-    }
-
     public Uni<SharedSoundFragmentDTO> getDTO(UUID id) {
         return repository.findById(id).map(this::toDTO);
-    }
-
-    public Uni<SharedSoundFragmentDTO> create(SharedSoundFragmentDTO dto) {
-        return repository.insert(fromDTO(dto)).map(this::toDTO);
-    }
-
-    public Uni<SharedSoundFragmentDTO> update(UUID id, SharedSoundFragmentDTO dto) {
-        return repository.update(id, fromDTO(dto)).map(this::toDTO);
-    }
-
-    public Uni<Integer> delete(UUID id) {
-        return repository.delete(id);
     }
 
     private SharedSoundFragmentDTO toDTO(SharedSoundFragment e) {
@@ -83,19 +66,5 @@ public class SharedSoundFragmentService {
         dto.setStatus(e.getStatus());
         dto.setArchived(e.getArchived());
         return dto;
-    }
-
-    private SharedSoundFragment fromDTO(SharedSoundFragmentDTO dto) {
-        SharedSoundFragment e = new SharedSoundFragment();
-        e.setId(dto.getId());
-        e.setSourceUserId(dto.getSourceUserId());
-        e.setTargetBrandId(dto.getTargetBrandId());
-        e.setSoundFragmentId(dto.getSoundFragmentId());
-        e.setExpiresAt(dto.getExpiresAt());
-        e.setPlayedCount(dto.getPlayedCount());
-        e.setRatedCount(dto.getRatedCount());
-        e.setStatus(dto.getStatus());
-        e.setArchived(dto.getArchived());
-        return e;
     }
 }

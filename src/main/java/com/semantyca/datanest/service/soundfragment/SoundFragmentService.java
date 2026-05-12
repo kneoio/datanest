@@ -5,7 +5,6 @@ import com.semantyca.core.model.DataEntity;
 import com.semantyca.core.model.FileMetadata;
 import com.semantyca.core.model.cnst.ArchivedStatus;
 import com.semantyca.core.model.cnst.LanguageCode;
-import com.semantyca.core.model.cnst.LifecycleStatus;
 import com.semantyca.core.model.cnst.RatingAction;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
@@ -218,8 +217,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         }
         Uni<Void> chain = Uni.createFrom().voidItem();
         for (UUID brandId : brandIds) {
-            UUID id = brandId;
-            chain = chain.chain(() -> sharedSoundFragmentService.removeShare(fragmentId, id));
+            chain = chain.chain(() -> sharedSoundFragmentService.removeShare(fragmentId, brandId));
         }
         return chain;
     }
@@ -230,8 +228,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         }
         Uni<Void> chain = Uni.createFrom().voidItem();
         for (UUID brandId : brandIds) {
-            UUID id = brandId;
-            chain = chain.chain(() -> sharedSoundFragmentService.addShareForOpenContributionBrand(fragmentId, id, user));
+            chain = chain.chain(() -> sharedSoundFragmentService.addShareForOpenContributionBrand(fragmentId, brandId, user));
         }
         return chain;
     }
@@ -441,7 +438,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
     }
 
     private Uni<SoundFragmentDTO> mapToDTO(SoundFragment doc, boolean exposeFileUrl, List<UUID> representedInBrands,
-                                           List<SharedSoundFragmentDTO> sharedSoundFragments) {
+                                           List<SharedSoundFragmentDTO> shares) {
         return Uni.combine().all().unis(
                 userService.getUserName(doc.getAuthor()),
                 userService.getUserName(doc.getLastModifier())
@@ -483,8 +480,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
             dto.setExpiresAt(doc.getExpiresAt());
             dto.setUploadedFiles(files);
             dto.setRepresentedInBrands(representedInBrands);
-            if (sharedSoundFragments != null) {
-                dto.setSharedSoundFragments(sharedSoundFragments);
+            if (shares != null) {
+                dto.setSharedWith(shares);
             }
             return dto;
         });

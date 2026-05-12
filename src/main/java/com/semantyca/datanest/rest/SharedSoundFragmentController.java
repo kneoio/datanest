@@ -24,6 +24,7 @@ import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.validation.Validator;
 
 import java.util.List;
 import java.util.UUID;
@@ -33,20 +34,24 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Obj
 
     private final SoundFragmentService soundFragmentService;
     private final SoundFragmentController soundFragmentController;
+    private final Validator validator;
 
     public SharedSoundFragmentController() {
         super(null);
         this.soundFragmentService = null;
         this.soundFragmentController = null;
+        this.validator = null;
     }
 
     @Inject
     public SharedSoundFragmentController(UserService userService,
                                          SoundFragmentService soundFragmentService,
-                                         SoundFragmentController soundFragmentController) {
+                                         SoundFragmentController soundFragmentController,
+                                         Validator validator) {
         super(userService);
         this.soundFragmentService = soundFragmentService;
         this.soundFragmentController = soundFragmentController;
+        this.validator = validator;
     }
 
     public void setupRoutes(Router router) {
@@ -122,22 +127,33 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Obj
     }
 
     private void patchShares(RoutingContext rc) {
-        UUID fragmentId = UUID.fromString(rc.pathParam("fragmentId"));
-        LanguageCode languageCode = LanguageCode.valueOf(rc.request().getParam("lang", LanguageCode.en.name()));
-        SharedSoundFragmentPatchDTO patch = rc.body().asJsonObject().mapTo(SharedSoundFragmentPatchDTO.class);
+        try {
+            if (!validateJsonBody(rc)) return;
 
-        getContextUser(rc, false, true)
-                .chain(user -> {
-                    assert soundFragmentService != null;
-                    return soundFragmentService.patchSharedContributionTargets(fragmentId, patch, user, languageCode);
-                })
-                .subscribe().with(
-                        dto -> rc.response()
-                                .setStatusCode(200)
-                                .putHeader("Content-Type", "application/json")
-                                .end(JsonObject.mapFrom(dto).encode()),
-                        t -> handleFailure(rc, t)
-                );
+            UUID fragmentId = UUID.fromString(rc.pathParam("fragmentId"));
+            LanguageCode languageCode = LanguageCode.valueOf(rc.request().getParam("lang", LanguageCode.en.name()));
+            SharedSoundFragmentPatchDTO patch = rc.body().asJsonObject().mapTo(SharedSoundFragmentPatchDTO.class);
+            if (!validateDTO(rc, patch, validator)) return;
+
+            getContextUser(rc, false, true)
+                    .chain(user -> {
+                        assert soundFragmentService != null;
+                        return soundFragmentService.patchSharedContributionTargets(fragmentId, patch, user, languageCode);
+                    })
+                    .subscribe().with(
+                            dto -> rc.response()
+                                    .setStatusCode(200)
+                                    .putHeader("Content-Type", "application/json")
+                                    .end(JsonObject.mapFrom(dto).encode()),
+                            t -> handleFailure(rc, t)
+                    );
+        } catch (Exception e) {
+            if (e instanceof IllegalArgumentException) {
+                rc.fail(400, e);
+            } else {
+                rc.fail(400, new IllegalArgumentException("Invalid JSON payload"));
+            }
+        }
     }
 
     protected void handleFailure(RoutingContext rc, Throwable throwable) {
