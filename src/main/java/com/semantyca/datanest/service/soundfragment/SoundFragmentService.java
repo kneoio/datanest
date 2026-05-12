@@ -237,7 +237,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         List<UUID> add = patch.getAddTargetBrandIds() != null ? patch.getAddTargetBrandIds() : List.of();
         return repository.requireEditPermission(fragmentId, user)
                 .chain(() -> chainRemoveShares(fragmentId, remove))
-                .chain(() -> chainAddShares(fragmentId, add, user))
+                .chain(() -> chainAddShares(fragmentId, add, user, patch.getSourceUserName(), patch.getSourceUserEmail()))
                 .chain(() -> getDTO(fragmentId, user, code));
     }
 
@@ -252,13 +252,15 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         return chain;
     }
 
-    private Uni<Void> chainAddShares(UUID fragmentId, List<UUID> brandIds, IUser user) {
+    private Uni<Void> chainAddShares(UUID fragmentId, List<UUID> brandIds, IUser user,
+                                      String sourceUserName, String sourceUserEmail) {
         if (brandIds.isEmpty()) {
             return Uni.createFrom().voidItem();
         }
         Uni<Void> chain = Uni.createFrom().voidItem();
         for (UUID brandId : brandIds) {
-            chain = chain.chain(() -> sharedSoundFragmentService.addShareForOpenContributionBrand(fragmentId, brandId, user));
+            chain = chain.chain(() -> sharedSoundFragmentService.addShareForOpenContributionBrand(
+                    fragmentId, brandId, user, sourceUserName, sourceUserEmail));
         }
         return chain;
     }

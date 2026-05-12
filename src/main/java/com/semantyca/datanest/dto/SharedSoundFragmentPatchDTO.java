@@ -17,6 +17,8 @@ import java.util.UUID;
 public class SharedSoundFragmentPatchDTO {
     private List<UUID> addTargetBrandIds = new ArrayList<>();
     private List<UUID> removeTargetBrandIds = new ArrayList<>();
+    private String sourceUserName;
+    private String sourceUserEmail;
 
     @AssertTrue(message = "At least one of addTargetBrandIds or removeTargetBrandIds must be provided")
     public boolean isPatchNotEmpty() {

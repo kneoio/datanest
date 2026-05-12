@@ -11,6 +11,8 @@ import java.util.UUID;
 public class SharedSoundFragment {
     private UUID id;
     private Long sourceUserId;
+    private String sourceUserName;
+    private String sourceUserEmail;
     private UUID targetBrandId;
     private UUID soundFragmentId;
     private LocalDateTime expiresAt;

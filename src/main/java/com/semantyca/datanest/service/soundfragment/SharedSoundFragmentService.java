@@ -34,7 +34,8 @@ public class SharedSoundFragmentService {
         return repository.deleteByFragmentIdAndReader(soundFragmentId, user.getId());
     }
 
-    public Uni<Void> addShareForOpenContributionBrand(UUID soundFragmentId, UUID targetBrandId, IUser user) {
+    public Uni<Void> addShareForOpenContributionBrand(UUID soundFragmentId, UUID targetBrandId, IUser user,
+                                                       String sourceUserName, String sourceUserEmail) {
         return brandService.getById(targetBrandId, user)
                 .onItem().transformToUni(brand -> {
                     if (brand.getSubmissionPolicy() != SubmissionPolicy.NO_RESTRICTIONS) {
@@ -43,6 +44,8 @@ public class SharedSoundFragmentService {
                     }
                     SharedSoundFragment entity = new SharedSoundFragment();
                     entity.setSourceUserId(brand.getOwner().getUserId());
+                    entity.setSourceUserName(sourceUserName);
+                    entity.setSourceUserEmail(sourceUserEmail);
                     entity.setTargetBrandId(targetBrandId);
                     entity.setSoundFragmentId(soundFragmentId);
                     return repository.insertIfNotExists(entity);
@@ -62,6 +65,8 @@ public class SharedSoundFragmentService {
         SharedSoundFragmentDTO dto = new SharedSoundFragmentDTO();
         dto.setId(e.getId());
         dto.setSourceUserId(e.getSourceUserId());
+        dto.setSourceUserName(e.getSourceUserName());
+        dto.setSourceUserEmail(e.getSourceUserEmail());
         dto.setTargetBrandId(e.getTargetBrandId());
         dto.setSoundFragmentId(e.getSoundFragmentId());
         dto.setExpiresAt(e.getExpiresAt());

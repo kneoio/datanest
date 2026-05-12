@@ -100,8 +100,8 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
 
     public Uni<Void> insertIfNotExists(SharedSoundFragment entity) {
         String insertSql = "INSERT INTO " + TABLE + " " +
-                "(source_user_id, target_brand_id, sound_fragment_id, expires_at, played_count, rated_count, status, archived) " +
-                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8) " +
+                "(source_user_id, target_brand_id, sound_fragment_id, expires_at, played_count, rated_count, status, archived, source_user_name, source_user_email) " +
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) " +
                 "ON CONFLICT ON CONSTRAINT unique_brand_shared_fragment DO NOTHING RETURNING id";
         return client.withTransaction(tx ->
                 tx.preparedQuery(insertSql)
@@ -131,13 +131,17 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .addInteger(0)
                 .addInteger(100)
                 .addInteger(entity.getStatus())
-                .addInteger(0);
+                .addInteger(0)
+                .addValue(entity.getSourceUserName())
+                .addValue(entity.getSourceUserEmail());
     }
 
     private SharedSoundFragment from(Row row) {
         SharedSoundFragment e = new SharedSoundFragment();
         e.setId(row.getUUID("id"));
         e.setSourceUserId(row.getLong("source_user_id"));
+        e.setSourceUserName(row.getString("source_user_name"));
+        e.setSourceUserEmail(row.getString("source_user_email"));
         e.setTargetBrandId(row.getUUID("target_brand_id"));
         e.setSoundFragmentId(row.getUUID("sound_fragment_id"));
         e.setExpiresAt(row.getLocalDateTime("expires_at"));
