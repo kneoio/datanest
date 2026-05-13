@@ -54,12 +54,13 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
     public void setupRoutes(Router router) {
         String path = "/datanest/shared-sound-fragments";
         BodyHandler jsonBodyHandler = BodyHandler.create().setHandleFileUploads(false);
-        router.route(HttpMethod.GET, path).handler(this::getMySharedFragments);
-        router.route(HttpMethod.PATCH, path + "/:fragmentId").handler(jsonBodyHandler).handler(this::patchShares);
-        router.route(HttpMethod.GET, "/datanest/soundfragments/pending-review").handler(this::getPendingReview);
-        router.route(HttpMethod.GET, "/datanest/soundfragments/pending-review/:id").handler(this::getPendingReviewItem);
-        router.route(HttpMethod.DELETE, "/datanest/soundfragments/pending-review/:id").handler(this::rejectShare);
-        router.route(HttpMethod.GET, path + "/:id/access").handler(this::getDocumentAccess);
+        router.route(HttpMethod.GET, path).handler(this::getMySharedFragments);  //all shared song of the current user
+        router.route(HttpMethod.PATCH, path + "/:fragmentId").handler(jsonBodyHandler).handler(this::patchShares); //the current user can share and unshare (sharer)
+
+        router.route(HttpMethod.GET, "/datanest/soundfragments/pending-review").handler(this::getPendingReview);  //the user that can see shared by the others (consumer)
+        router.route(HttpMethod.GET, "/datanest/soundfragments/pending-review/:id").handler(this::getPendingReviewItem); //the consumer can open the share
+        router.route(HttpMethod.DELETE, "/datanest/soundfragments/pending-review/:id").handler(this::rejectShare); //the consumer can reject the share
+        router.route(HttpMethod.GET, path + "/:id/access").handler(this::getDocumentAccess);  // used by admin app only
     }
 
     private void getMySharedFragments(RoutingContext rc) {
@@ -146,13 +147,12 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
             if (!validateJsonBody(rc)) return;
 
             UUID fragmentId = UUID.fromString(rc.pathParam("fragmentId"));
-            LanguageCode languageCode = LanguageCode.valueOf(rc.request().getParam("lang", LanguageCode.en.name()));
             SharedSoundFragmentPatchDTO patch = rc.body().asJsonObject().mapTo(SharedSoundFragmentPatchDTO.class);
             if (!validateDTO(rc, patch, validator)) return;
 
             getContextUser(rc, false, true)
                     .chain(user -> sharedSoundFragmentService.patchContributionTargets(fragmentId, patch, user)
-                            .chain(() -> soundFragmentService.getDTO(fragmentId, user, languageCode)))
+                            .chain(() -> soundFragmentService.getDTO(fragmentId, user, LanguageCode.en)))
                     .subscribe().with(
                             dto -> rc.response()
                                     .setStatusCode(200)
