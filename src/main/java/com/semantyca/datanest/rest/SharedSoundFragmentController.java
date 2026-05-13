@@ -120,7 +120,7 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
     private void getPendingReviewItem(RoutingContext rc) {
         UUID id = UUID.fromString(rc.pathParam("id"));
         getContextUser(rc, false, true)
-                .chain(user -> sharedSoundFragmentService.getPreviewById(id, user))
+                .chain(user -> sharedSoundFragmentService.getById(id, user))
                 .subscribe().with(
                         dto -> rc.response()
                                 .setStatusCode(200)

@@ -176,18 +176,18 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .onItem().transform(rows -> rows.iterator().next().getInteger(0));
     }
 
-    public Uni<SharedSoundFragment> findBySoundFragmentId(UUID soundFragmentId, long userId) {
+    public Uni<SharedSoundFragment> findById(UUID id, long userId) {
         String sql = "SELECT sf.id, sf.title, sf.artist, sf.type, sf.album, " +
                 "ssf.source_user_name, ssf.source_user_email " +
                 "FROM " + SF_TABLE + " sf " +
                 "JOIN " + entityData.getTableName() + " ssf ON ssf.sound_fragment_id = sf.id " +
                 "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = ssf.id " +
-                "WHERE sf.id = $1 AND rls.reader = $2 AND sf.archived = 0 LIMIT 1";
+                "WHERE ssf.id = $1 AND rls.reader = $2 AND sf.archived = 0 LIMIT 1";
         return client.preparedQuery(sql)
-                .execute(Tuple.of(soundFragmentId, userId))
+                .execute(Tuple.of(id, userId))
                 .onItem().transformToUni(rows -> {
                     if (!rows.iterator().hasNext()) {
-                        throw new DocumentHasNotFoundException(soundFragmentId);
+                        throw new DocumentHasNotFoundException(id);
                     }
                     return fromSoundFragmentPreviewRow(rows.iterator().next());
                 });

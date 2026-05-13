@@ -65,8 +65,8 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return repository.getPreviewCount(user.getId());
     }
 
-    public Uni<SharedSoundFragmentPreviewDTO> getPreviewById(UUID soundFragmentId, IUser user) {
-        return repository.findBySoundFragmentId(soundFragmentId, user.getId()).map(this::toPreviewDTO);
+    public Uni<SharedSoundFragmentPreviewDTO> getById(UUID id, IUser user) {
+        return repository.findById(id, user.getId()).map(this::toPreviewDTO);
     }
 
     public Uni<Void> addShareForOpenContributionBrand(UUID soundFragmentId, UUID targetBrandId, IUser user,
