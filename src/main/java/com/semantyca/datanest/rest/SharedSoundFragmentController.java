@@ -166,7 +166,10 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Obj
                     .chain(user -> {
                         assert sharedSoundFragmentService != null;
                         return sharedSoundFragmentService.patchContributionTargets(fragmentId, patch, user)
-                                .chain(() -> soundFragmentService.getDTO(fragmentId, user, languageCode));
+                                .chain(() -> {
+                                    assert soundFragmentService != null;
+                                    return soundFragmentService.getDTO(fragmentId, user, languageCode);
+                                });
                     })
                     .subscribe().with(
                             dto -> rc.response()

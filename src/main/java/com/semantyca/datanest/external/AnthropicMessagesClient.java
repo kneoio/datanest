@@ -29,9 +29,6 @@ public class AnthropicMessagesClient {
         this.webClient = WebClient.create(vertx);
     }
 
-    /**
-     * Calls Anthropic Messages API with a single user text message and optional system prompt.
-     */
     public Uni<AnthropicTextMessageResult> createTextMessage(
             String model,
             long maxTokens,

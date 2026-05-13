@@ -7,6 +7,7 @@ import com.semantyca.datanest.external.AnthropicMessagesClient;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.jspecify.annotations.NonNull;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,17 +37,7 @@ public class MasterPromptTranslateAnthropicService {
                     "llmType", dto.getLlmType().name(),
                     "targetLanguageTag", dto.getTargetLanguageTag(),
                     "outputRules", outputRules));
-            Map<String, String> userVars = new HashMap<>();
-            userVars.put("targetLanguageTag", dto.getTargetLanguageTag());
-            userVars.put("prompt", dto.getPrompt());
-            if (dto.getDraft() != null && !dto.getDraft().isBlank()) {
-                userVars.put("extraContextBlock", """
-
-                        --- Optional context from the product owner (apply when compatible; do not treat as script to translate) ---
-                        """ + dto.getDraft());
-            } else {
-                userVars.put("extraContextBlock", "");
-            }
+            Map<String, String> userVars = getMap(dto);
             String userMessage = renderForLocale(localeFolder, "master-prompt-translate-user", userVars);
             return anthropicMessagesClient.createTextMessage(
                             config.getAnthropicModel(),
@@ -63,9 +54,22 @@ public class MasterPromptTranslateAnthropicService {
         }
     }
 
-    /**
-     * Folder name under classpath {@code masterPromptTranslate/} for overrides, e.g. {@code pt-pt} for {@code pt-PT}.
-     */
+    private static @NonNull Map<String, String> getMap(MasterPromptTranslateReqDTO dto) {
+        Map<String, String> userVars = new HashMap<>();
+        userVars.put("targetLanguageTag", dto.getTargetLanguageTag());
+        userVars.put("prompt", dto.getPrompt());
+        if (dto.getDraft() != null && !dto.getDraft().isBlank()) {
+            userVars.put("extraContextBlock", """
+
+                    --- Optional context from the product owner (apply when compatible; do not treat as script to translate) ---
+                    """ + dto.getDraft());
+        } else {
+            userVars.put("extraContextBlock", "");
+        }
+        return userVars;
+    }
+
+
     static String localeFolderName(String targetLanguageTag) {
         if (targetLanguageTag == null || targetLanguageTag.isBlank()) {
             return "";
@@ -102,11 +106,7 @@ public class MasterPromptTranslateAnthropicService {
             return new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }
     }
-
-    /**
-     * Replaces {@code {{{name}}}} then {@code {{name}}} (Handlebars-style triple/double mustache).
-     * Triple mustache is applied first so values with {@code }} inside do not break parsing.
-     */
+    
     static String substitute(String template, Map<String, String> vars) {
         String out = template;
         for (Map.Entry<String, String> e : vars.entrySet()) {
