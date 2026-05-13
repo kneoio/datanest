@@ -1,5 +1,6 @@
 package com.semantyca.datanest.dto;
 
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;

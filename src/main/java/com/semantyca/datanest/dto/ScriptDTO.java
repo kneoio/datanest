@@ -2,6 +2,7 @@ package com.semantyca.datanest.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.model.ScriptVariable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

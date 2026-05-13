@@ -2,6 +2,7 @@ package com.semantyca.datanest.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import lombok.Getter;
 import lombok.Setter;
 

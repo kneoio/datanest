@@ -1,6 +1,7 @@
 package com.semantyca.datanest.service;
 
 import com.semantyca.core.dto.DocumentAccessDTO;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.model.ScriptVariable;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.cnst.LanguageTag;
@@ -9,10 +10,25 @@ import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.WebHelper;
-import com.semantyca.datanest.dto.*;
+import com.semantyca.datanest.dto.BrandScriptDTO;
+import com.semantyca.datanest.dto.DraftDTO;
+import com.semantyca.datanest.dto.LabelFlatDTO;
+import com.semantyca.datanest.dto.PromptDTO;
+import com.semantyca.datanest.dto.SceneDTO;
+import com.semantyca.datanest.dto.ScenePromptDTO;
+import com.semantyca.datanest.dto.ScriptDTO;
+import com.semantyca.datanest.dto.ScriptExportDTO;
+import com.semantyca.datanest.dto.ScriptFlatDTO;
+import com.semantyca.datanest.dto.StagePlaylistDTO;
 import com.semantyca.datanest.repository.ScriptRepository;
 import com.semantyca.datanest.util.ScriptVariableExtractor;
-import com.semantyca.mixpla.model.*;
+import com.semantyca.mixpla.model.BrandScript;
+import com.semantyca.mixpla.model.DjPrompt;
+import com.semantyca.mixpla.model.Draft;
+import com.semantyca.mixpla.model.PlaylistRequest;
+import com.semantyca.mixpla.model.Scene;
+import com.semantyca.mixpla.model.ScenePrompt;
+import com.semantyca.mixpla.model.Script;
 import com.semantyca.mixpla.model.cnst.SceneTimingMode;
 import com.semantyca.mixpla.model.filter.ScriptFilter;
 import com.semantyca.officeframe.dto.LabelDTO;
@@ -21,7 +37,13 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
