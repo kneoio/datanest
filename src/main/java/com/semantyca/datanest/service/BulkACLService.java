@@ -2,7 +2,7 @@ package com.semantyca.datanest.service;
 
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.datanest.dto.BulkACLRequestDTO;
-import com.semantyca.datanest.dto.RlsActionDTO;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.datanest.repository.*;
 import com.semantyca.datanest.repository.prompt.PromptRepository;
 import com.semantyca.datanest.repository.soundfragment.SoundFragmentRepository;

@@ -17,7 +17,7 @@ import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.ScenePromptDTO;
 import com.semantyca.datanest.dto.StagePlaylistDTO;
-import com.semantyca.datanest.dto.RlsActionDTO;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.datanest.dto.event.EventDTO;
 import com.semantyca.datanest.dto.event.EventEntryDTO;
 import com.semantyca.datanest.external.PerplexityApiClient;

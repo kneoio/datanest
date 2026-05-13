@@ -3,7 +3,7 @@ package com.semantyca.datanest.dto.event;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
 import com.semantyca.core.dto.scheduler.ScheduleDTO;
-import com.semantyca.datanest.dto.RlsActionDTO;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.datanest.dto.ScenePromptDTO;
 import com.semantyca.datanest.dto.StagePlaylistDTO;
 import jakarta.validation.constraints.NotNull;

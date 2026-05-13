@@ -8,7 +8,7 @@ import com.semantyca.datanest.dto.MySharedContributionDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPreviewDTO;
 import com.semantyca.datanest.model.soundfragment.SharedSoundFragment;
-import com.semantyca.datanest.repository.RlsActionUtil;
+import com.semantyca.core.repository.rls.RlsActionUtil;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
@@ -126,7 +126,8 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     private Uni<Void> insertRlsForShare(SqlClient tx, UUID entityId, long sourceUserId, UUID targetBrandId) {
         Uni<Void> brandOwnerRls = RlsActionUtil.grantFromJsonField(tx, RLS_TABLE, entityId, BRANDS_TABLE, targetBrandId, "owner", "userId", false, false);
         Uni<Void> sourceUserRls = RlsActionUtil.grantMerge(tx, RLS_TABLE, entityId, sourceUserId, true, true);
-        return Uni.combine().all().unis(sourceUserRls, brandOwnerRls).discardItems();
+        return Uni.combine().all().unis(sourceUserRls, brandOwnerRls).discardItems()
+                .chain(() -> RlsActionUtil.ensureSuperUserAccess(tx, RLS_TABLE, entityId));
     }
 
     private Tuple buildInsertTuple(SharedSoundFragment entity) {

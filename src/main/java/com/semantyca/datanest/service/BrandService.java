@@ -8,7 +8,7 @@ import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.config.DatanestConfig;
-import com.semantyca.datanest.dto.RlsActionDTO;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.datanest.dto.radiostation.*;
 import com.semantyca.datanest.messaging.MetricPublisher;
 import com.semantyca.datanest.repository.BrandRepository;

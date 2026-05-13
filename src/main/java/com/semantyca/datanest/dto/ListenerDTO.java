@@ -2,7 +2,7 @@ package com.semantyca.datanest.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractReferenceDTO;
-import com.semantyca.datanest.dto.RlsActionDTO;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.model.cnst.LanguageCode;
 import jakarta.validation.constraints.Email;
 import lombok.Builder;

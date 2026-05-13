@@ -8,7 +8,7 @@ import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.exception.DocumentModificationAccessException;
 import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.table.EntityData;
-import com.semantyca.datanest.dto.RlsActionDTO;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.mixpla.model.Profile;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Multi;
@@ -16,14 +16,17 @@ import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.sqlclient.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import com.semantyca.core.repository.rls.RlsActionUtil;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
+import com.semantyca.core.repository.rls.RlsActionUtil;
 
 import static com.semantyca.mixpla.repository.MixplaNameResolver.PROFILE;
+import com.semantyca.core.repository.rls.RlsActionUtil;
 
 
 @ApplicationScoped

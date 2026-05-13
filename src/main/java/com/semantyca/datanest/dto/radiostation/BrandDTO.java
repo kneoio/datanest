@@ -2,7 +2,7 @@ package com.semantyca.datanest.dto.radiostation;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
-import com.semantyca.datanest.dto.RlsActionDTO;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.dto.validation.ValidCountry;
 import com.semantyca.core.dto.validation.ValidLocalizedName;
 import com.semantyca.core.model.cnst.LanguageCode;

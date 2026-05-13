@@ -12,7 +12,7 @@ import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.exception.DocumentModificationAccessException;
 import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.table.EntityData;
-import com.semantyca.datanest.dto.RlsActionDTO;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.mixpla.model.BrandScript;
 import com.semantyca.mixpla.model.Script;
 import com.semantyca.mixpla.model.cnst.SceneTimingMode;
@@ -25,14 +25,17 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import com.semantyca.core.repository.rls.RlsActionUtil;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import com.semantyca.core.repository.rls.RlsActionUtil;
 
 import static com.semantyca.mixpla.repository.MixplaNameResolver.SCRIPT;
+import com.semantyca.core.repository.rls.RlsActionUtil;
 
 
 @ApplicationScoped

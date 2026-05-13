@@ -11,7 +11,7 @@ import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.dto.BrandListenerDTO;
 import com.semantyca.datanest.dto.ListenerDTO;
-import com.semantyca.datanest.dto.RlsActionDTO;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.datanest.repository.ListenersRepository;
 import com.semantyca.mixpla.model.BrandListener;
 import com.semantyca.mixpla.model.Listener;

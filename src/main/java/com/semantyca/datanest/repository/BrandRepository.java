@@ -9,7 +9,7 @@ import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.exception.DocumentModificationAccessException;
 import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.table.EntityData;
-import com.semantyca.datanest.dto.RlsActionDTO;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.mixpla.model.brand.*;
 import com.semantyca.mixpla.model.cnst.ManagedBy;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
@@ -24,13 +24,16 @@ import io.vertx.mutiny.sqlclient.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
+import com.semantyca.core.repository.rls.RlsActionUtil;
 
 import java.time.OffsetDateTime;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
+import com.semantyca.core.repository.rls.RlsActionUtil;
 
 import static com.semantyca.mixpla.repository.MixplaNameResolver.*;
+import com.semantyca.core.repository.rls.RlsActionUtil;
 
 @ApplicationScoped
 public class BrandRepository extends AsyncRepository {

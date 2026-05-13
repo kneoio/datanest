@@ -8,7 +8,7 @@ import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.LabelFlatDTO;
-import com.semantyca.datanest.dto.RlsActionDTO;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.datanest.dto.aiagent.AiAgentDTO;
 import com.semantyca.datanest.dto.aiagent.AiAgentFlatDTO;
 import com.semantyca.datanest.dto.aiagent.LanguagePreferenceDTO;
