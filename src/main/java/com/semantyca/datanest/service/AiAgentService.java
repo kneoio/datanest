@@ -1,6 +1,7 @@
 package com.semantyca.datanest.service;
 
 import com.semantyca.core.dto.DocumentAccessDTO;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.model.user.IUser;
@@ -8,18 +9,12 @@ import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.LabelFlatDTO;
-import com.semantyca.core.dto.rls.RlsActionDTO;
-import com.semantyca.datanest.dto.aiagent.AiAgentDTO;
-import com.semantyca.datanest.dto.aiagent.AiAgentFlatDTO;
-import com.semantyca.datanest.dto.aiagent.LanguagePreferenceDTO;
-import com.semantyca.datanest.dto.aiagent.TTSSettingDTO;
-import com.semantyca.datanest.dto.aiagent.VoiceDTO;
+import com.semantyca.datanest.dto.aiagent.*;
 import com.semantyca.datanest.repository.AiAgentRepository;
 import com.semantyca.mixpla.model.aiagent.AiAgent;
 import com.semantyca.mixpla.model.aiagent.LanguagePreference;
 import com.semantyca.mixpla.model.aiagent.TTSSetting;
 import com.semantyca.mixpla.model.aiagent.Voice;
-import com.semantyca.mixpla.model.cnst.LlmType;
 import com.semantyca.officeframe.dto.LabelDTO;
 import com.semantyca.officeframe.service.LabelService;
 import io.smallrye.mutiny.Uni;
@@ -154,8 +149,6 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
                 dto.setPreferredLang(langPrefDTOs);
             }
 
-            dto.setLlmType(doc.getLlmType().name());
-
             if (doc.getCopilot() != null) dto.setCopilot(doc.getCopilot());
 
             if (doc.getTtsSetting() != null) {
@@ -228,8 +221,6 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
                     .collect(Collectors.toList());
             doc.setPreferredLang(langPrefs);
         }
-        
-        doc.setLlmType(LlmType.valueOf(dto.getLlmType()));
 
         if (dto.getTtsSetting() != null) {
             TTSSetting ttsSetting = new TTSSetting();
