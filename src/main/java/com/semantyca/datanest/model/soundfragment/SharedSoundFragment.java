@@ -1,9 +1,11 @@
 package com.semantyca.datanest.model.soundfragment;
 
+import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -20,4 +22,12 @@ public class SharedSoundFragment {
     private Integer ratedCount;
     private Integer status;
     private Integer archived;
+
+    // inflated from JOIN queries with sound_fragments table
+    private String title;
+    private String artist;
+    private PlaylistItemType type;
+    private String album;
+    private List<UUID> genres;
+    private List<UUID> labels;
 }

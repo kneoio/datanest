@@ -10,9 +10,11 @@ import com.semantyca.core.repository.exception.UserNotFoundException;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.datanest.dto.MySharedContributionDTO;
+import com.semantyca.datanest.dto.SharedSoundFragmentDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPatchDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPreviewDTO;
 import com.semantyca.datanest.dto.actions.SoundFragmentActionsFactory;
+import com.semantyca.datanest.model.soundfragment.SharedSoundFragment;
 import com.semantyca.datanest.service.soundfragment.SharedSoundFragmentService;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
 import io.smallrye.mutiny.Uni;
@@ -28,17 +30,14 @@ import jakarta.validation.Validator;
 import java.util.UUID;
 
 @ApplicationScoped
-public class SharedSoundFragmentController extends AbstractSecuredController<Object, Object> {
+public class SharedSoundFragmentController extends AbstractSecuredController<SharedSoundFragment, SharedSoundFragmentDTO> {
 
-    private final SoundFragmentService soundFragmentService;
-    private final SharedSoundFragmentService sharedSoundFragmentService;
-    private final Validator validator;
+    private SoundFragmentService soundFragmentService;
+    private SharedSoundFragmentService sharedSoundFragmentService;
+    private Validator validator;
 
     public SharedSoundFragmentController() {
         super(null);
-        this.soundFragmentService = null;
-        this.sharedSoundFragmentService = null;
-        this.validator = null;
     }
 
     @Inject
@@ -68,23 +67,20 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Obj
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
 
         getContextUser(rc, false, true)
-                .chain(user -> {
-                    assert sharedSoundFragmentService != null;
-                    return Uni.combine().all().unis(
-                            sharedSoundFragmentService.getMyContributionsCount(user),
-                            sharedSoundFragmentService.getMyContributions(size, (page - 1) * size, user)
-                    ).asTuple().map(tuple -> {
-                        ViewPage viewPage = new ViewPage();
-                        View<MySharedContributionDTO> dtoEntries = new View<>(tuple.getItem2(),
-                                tuple.getItem1(), page,
-                                RuntimeUtil.countMaxPage(tuple.getItem1(), size),
-                                size);
-                        viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-                        ActionBox actions = SoundFragmentActionsFactory.getViewActions(user.getActivatedRoles());
-                        viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, actions);
-                        return viewPage;
-                    });
-                })
+                .chain(user -> Uni.combine().all().unis(
+                        sharedSoundFragmentService.getMyContributionsCount(user),
+                        sharedSoundFragmentService.getMyContributions(size, (page - 1) * size, user)
+                ).asTuple().map(tuple -> {
+                    ViewPage viewPage = new ViewPage();
+                    View<MySharedContributionDTO> dtoEntries = new View<>(tuple.getItem2(),
+                            tuple.getItem1(), page,
+                            RuntimeUtil.countMaxPage(tuple.getItem1(), size),
+                            size);
+                    viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
+                    ActionBox actions = SoundFragmentActionsFactory.getViewActions(user.getActivatedRoles());
+                    viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, actions);
+                    return viewPage;
+                }))
                 .subscribe().with(
                         viewPage -> rc.response()
                                 .setStatusCode(200)
@@ -99,21 +95,18 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Obj
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
 
         getContextUser(rc, false, true)
-                .chain(user -> {
-                    assert sharedSoundFragmentService != null;
-                    return Uni.combine().all().unis(
-                            sharedSoundFragmentService.getPreviewCount(user),
-                            sharedSoundFragmentService.getPreviewList(size, (page - 1) * size, user)
-                    ).asTuple().map(tuple -> {
-                        ViewPage viewPage = new ViewPage();
-                        View<SharedSoundFragmentPreviewDTO> dtoEntries = new View<>(tuple.getItem2(),
-                                tuple.getItem1(), page,
-                                RuntimeUtil.countMaxPage(tuple.getItem1(), size),
-                                size);
-                        viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-                        return viewPage;
-                    });
-                })
+                .chain(user -> Uni.combine().all().unis(
+                        sharedSoundFragmentService.getPreviewCount(user),
+                        sharedSoundFragmentService.getPreviewList(size, (page - 1) * size, user)
+                ).asTuple().map(tuple -> {
+                    ViewPage viewPage = new ViewPage();
+                    View<SharedSoundFragmentPreviewDTO> dtoEntries = new View<>(tuple.getItem2(),
+                            tuple.getItem1(), page,
+                            RuntimeUtil.countMaxPage(tuple.getItem1(), size),
+                            size);
+                    viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
+                    return viewPage;
+                }))
                 .subscribe().with(
                         viewPage -> rc.response()
                                 .setStatusCode(200)
@@ -126,10 +119,7 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Obj
     private void getPendingReviewItem(RoutingContext rc) {
         UUID id = UUID.fromString(rc.pathParam("id"));
         getContextUser(rc, false, true)
-                .chain(user -> {
-                    assert sharedSoundFragmentService != null;
-                    return sharedSoundFragmentService.getPreviewById(id, user);
-                })
+                .chain(user -> sharedSoundFragmentService.getPreviewById(id, user))
                 .subscribe().with(
                         dto -> rc.response()
                                 .setStatusCode(200)
@@ -142,10 +132,7 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Obj
     private void rejectShare(RoutingContext rc) {
         UUID soundFragmentId = UUID.fromString(rc.pathParam("id"));
         getContextUser(rc, false, true)
-                .chain(user -> {
-                    assert sharedSoundFragmentService != null;
-                    return sharedSoundFragmentService.rejectShare(soundFragmentId, user);
-                })
+                .chain(user -> sharedSoundFragmentService.rejectShare(soundFragmentId, user))
                 .subscribe().with(
                         count -> rc.response()
                                 .setStatusCode(count > 0 ? 200 : 404)
@@ -164,14 +151,8 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Obj
             if (!validateDTO(rc, patch, validator)) return;
 
             getContextUser(rc, false, true)
-                    .chain(user -> {
-                        assert sharedSoundFragmentService != null;
-                        return sharedSoundFragmentService.patchContributionTargets(fragmentId, patch, user)
-                                .chain(() -> {
-                                    assert soundFragmentService != null;
-                                    return soundFragmentService.getDTO(fragmentId, user, languageCode);
-                                });
-                    })
+                    .chain(user -> sharedSoundFragmentService.patchContributionTargets(fragmentId, patch, user)
+                            .chain(() -> soundFragmentService.getDTO(fragmentId, user, languageCode)))
                     .subscribe().with(
                             dto -> rc.response()
                                     .setStatusCode(200)
@@ -195,10 +176,7 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Obj
             UUID documentId = UUID.fromString(id);
 
             getContextUser(rc, false, true)
-                    .chain(user -> {
-                        assert sharedSoundFragmentService != null;
-                        return sharedSoundFragmentService.getDocumentAccess(documentId, user);
-                    })
+                    .chain(user -> sharedSoundFragmentService.getDocumentAccess(documentId, user))
                     .subscribe().with(
                             accessList -> {
                                 JsonObject response = new JsonObject();

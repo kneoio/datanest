@@ -1,7 +1,10 @@
 package com.semantyca.datanest.service.soundfragment;
 
 import com.semantyca.core.dto.DocumentAccessDTO;
+import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.user.IUser;
+import com.semantyca.core.service.AbstractService;
+import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.MySharedContributionDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPatchDTO;
@@ -19,19 +22,26 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
-public class SharedSoundFragmentService {
+public class SharedSoundFragmentService extends AbstractService<SharedSoundFragment, SharedSoundFragmentDTO> {
 
     private final SharedSoundFragmentRepository repository;
     private final BrandService brandService;
 
     @Inject
-    public SharedSoundFragmentService(SharedSoundFragmentRepository repository, BrandService brandService) {
+    public SharedSoundFragmentService(UserService userService, SharedSoundFragmentRepository repository, BrandService brandService) {
+        super(userService);
         this.repository = repository;
         this.brandService = brandService;
     }
 
     public Uni<List<MySharedContributionDTO>> getMyContributions(int limit, int offset, IUser user) {
-        return repository.getMyContributions(limit, offset, user.getId());
+        return repository.getMyContributions(limit, offset, user.getId())
+                .chain(list -> {
+                    List<Uni<MySharedContributionDTO>> unis = list.stream()
+                            .map(this::toContributionDTO)
+                            .collect(Collectors.toList());
+                    return Uni.join().all(unis).andFailFast();
+                });
     }
 
     public Uni<Integer> getMyContributionsCount(IUser user) {
@@ -47,7 +57,8 @@ public class SharedSoundFragmentService {
     }
 
     public Uni<List<SharedSoundFragmentPreviewDTO>> getPreviewList(int limit, int offset, IUser user) {
-        return repository.getPreviewList(limit, offset, user.getId());
+        return repository.getPreviewList(limit, offset, user.getId())
+                .map(list -> list.stream().map(this::toPreviewDTO).collect(Collectors.toList()));
     }
 
     public Uni<Integer> getPreviewCount(IUser user) {
@@ -55,11 +66,11 @@ public class SharedSoundFragmentService {
     }
 
     public Uni<SharedSoundFragmentPreviewDTO> getPreviewById(UUID soundFragmentId, IUser user) {
-        return repository.getBySoundFragmentId(soundFragmentId, user.getId());
+        return repository.findBySoundFragmentId(soundFragmentId, user.getId()).map(this::toPreviewDTO);
     }
 
     public Uni<Void> addShareForOpenContributionBrand(UUID soundFragmentId, UUID targetBrandId, IUser user,
-                                                       boolean stayIncognito) {
+                                                      boolean stayIncognito) {
         return brandService.getById(targetBrandId, user)
                 .onItem().transformToUni(brand -> {
                     if (brand.getSubmissionPolicy() != SubmissionPolicy.NO_RESTRICTIONS) {
@@ -87,28 +98,13 @@ public class SharedSoundFragmentService {
                 .chain(() -> chainAddShares(fragmentId, add, user, incognito));
     }
 
-    private Uni<Void> chainRemoveShares(UUID fragmentId, List<UUID> brandIds) {
-        Uni<Void> chain = Uni.createFrom().voidItem();
-        for (UUID brandId : brandIds) {
-            chain = chain.chain(() -> removeShare(fragmentId, brandId));
-        }
-        return chain;
-    }
-
-    private Uni<Void> chainAddShares(UUID fragmentId, List<UUID> brandIds, IUser user, boolean stayIncognito) {
-        Uni<Void> chain = Uni.createFrom().voidItem();
-        for (UUID brandId : brandIds) {
-            chain = chain.chain(() -> addShareForOpenContributionBrand(fragmentId, brandId, user, stayIncognito));
-        }
-        return chain;
-    }
-
     public Uni<List<SharedSoundFragmentDTO>> listDTOsBySoundFragmentId(UUID soundFragmentId) {
         return repository.listBySoundFragmentId(soundFragmentId)
                 .map(list -> list.stream().map(this::toDTO).collect(Collectors.toList()));
     }
 
-    public Uni<SharedSoundFragmentDTO> getDTO(UUID id) {
+    @Override
+    public Uni<SharedSoundFragmentDTO> getDTO(UUID id, IUser user, LanguageCode language) {
         return repository.findById(id).map(this::toDTO);
     }
 
@@ -116,15 +112,38 @@ public class SharedSoundFragmentService {
         return repository.getDocumentAccessInfo(documentId, user)
                 .onItem().transform(accessInfoList ->
                         accessInfoList.stream()
-                                .map(info -> DocumentAccessDTO.builder()
-                                        .userId(info.getUserId())
-                                        .canEdit(info.getCanEdit())
-                                        .canDelete(info.getCanDelete())
-                                        .userLogin(info.getUserLogin())
-                                        .IsSu(info.isIsSu())
-                                        .build())
+                                .map(this::mapToDocumentAccessDTO)
                                 .collect(Collectors.toList())
                 );
+    }
+
+    private Uni<MySharedContributionDTO> toContributionDTO(SharedSoundFragment e) {
+        return listDTOsBySoundFragmentId(e.getSoundFragmentId()).map(shares -> {
+            MySharedContributionDTO dto = new MySharedContributionDTO();
+            dto.setId(e.getSoundFragmentId());
+            dto.setTitle(e.getTitle());
+            dto.setArtist(e.getArtist());
+            dto.setType(e.getType());
+            dto.setAlbum(e.getAlbum());
+            dto.setGenres(e.getGenres());
+            dto.setLabels(e.getLabels());
+            dto.setShares(shares);
+            return dto;
+        });
+    }
+
+    private SharedSoundFragmentPreviewDTO toPreviewDTO(SharedSoundFragment e) {
+        SharedSoundFragmentPreviewDTO dto = new SharedSoundFragmentPreviewDTO();
+        dto.setId(e.getSoundFragmentId());
+        dto.setTitle(e.getTitle());
+        dto.setArtist(e.getArtist());
+        dto.setType(e.getType());
+        dto.setAlbum(e.getAlbum());
+        dto.setGenres(e.getGenres());
+        dto.setLabels(e.getLabels());
+        dto.setSharerUserName(e.getSourceUserName());
+        dto.setSharerUserEmail(e.getSourceUserEmail());
+        return dto;
     }
 
     private SharedSoundFragmentDTO toDTO(SharedSoundFragment e) {
@@ -141,5 +160,21 @@ public class SharedSoundFragmentService {
         dto.setStatus(e.getStatus());
         dto.setArchived(e.getArchived());
         return dto;
+    }
+
+    private Uni<Void> chainRemoveShares(UUID fragmentId, List<UUID> brandIds) {
+        Uni<Void> chain = Uni.createFrom().voidItem();
+        for (UUID brandId : brandIds) {
+            chain = chain.chain(() -> removeShare(fragmentId, brandId));
+        }
+        return chain;
+    }
+
+    private Uni<Void> chainAddShares(UUID fragmentId, List<UUID> brandIds, IUser user, boolean stayIncognito) {
+        Uni<Void> chain = Uni.createFrom().voidItem();
+        for (UUID brandId : brandIds) {
+            chain = chain.chain(() -> addShareForOpenContributionBrand(fragmentId, brandId, user, stayIncognito));
+        }
+        return chain;
     }
 }
