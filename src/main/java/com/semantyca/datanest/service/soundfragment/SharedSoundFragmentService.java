@@ -134,7 +134,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
 
     private SharedSoundFragmentPreviewDTO toPreviewDTO(SharedSoundFragment e) {
         SharedSoundFragmentPreviewDTO dto = new SharedSoundFragmentPreviewDTO();
-        dto.setId(e.getSoundFragmentId());
+        dto.setId(e.getId());
         dto.setTitle(e.getTitle());
         dto.setArtist(e.getArtist());
         dto.setType(e.getType());

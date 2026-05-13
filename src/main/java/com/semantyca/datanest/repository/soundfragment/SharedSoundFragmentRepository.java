@@ -151,7 +151,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     }
 
     public Uni<List<SharedSoundFragment>> getPreviewList(int limit, int offset, long userId) {
-        String sql = "SELECT sf.id, sf.title, sf.artist, sf.type, sf.album, " +
+        String sql = "SELECT ssf.id AS ssf_id, sf.id AS sf_id, sf.title, sf.artist, sf.type, sf.album, " +
                 "ssf.source_user_name, ssf.source_user_email " +
                 "FROM " + SF_TABLE + " sf " +
                 "JOIN " + entityData.getTableName() + " ssf ON ssf.sound_fragment_id = sf.id " +
@@ -177,7 +177,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     }
 
     public Uni<SharedSoundFragment> findById(UUID id, long userId) {
-        String sql = "SELECT sf.id, sf.title, sf.artist, sf.type, sf.album, " +
+        String sql = "SELECT ssf.id AS ssf_id, sf.id AS sf_id, sf.title, sf.artist, sf.type, sf.album, " +
                 "ssf.source_user_name, ssf.source_user_email " +
                 "FROM " + SF_TABLE + " sf " +
                 "JOIN " + entityData.getTableName() + " ssf ON ssf.sound_fragment_id = sf.id " +
@@ -216,7 +216,8 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
 
     private Uni<SharedSoundFragment> fromSoundFragmentPreviewRow(Row row) {
         SharedSoundFragment e = new SharedSoundFragment();
-        UUID sfId = row.getUUID("id");
+        e.setId(row.getUUID("ssf_id"));
+        UUID sfId = row.getUUID("sf_id");
         e.setSoundFragmentId(sfId);
         e.setTitle(row.getString("title"));
         e.setArtist(row.getString("artist"));
