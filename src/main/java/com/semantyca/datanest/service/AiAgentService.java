@@ -15,6 +15,7 @@ import com.semantyca.mixpla.model.aiagent.AiAgent;
 import com.semantyca.mixpla.model.aiagent.LanguagePreference;
 import com.semantyca.mixpla.model.aiagent.TTSSetting;
 import com.semantyca.mixpla.model.aiagent.Voice;
+import com.semantyca.mixpla.model.cnst.LlmType;
 import com.semantyca.officeframe.dto.LabelDTO;
 import com.semantyca.officeframe.service.LabelService;
 import io.smallrye.mutiny.Uni;
@@ -209,6 +210,8 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
         } else {
             doc.setLabels(new ArrayList<>());
         }
+
+        doc.setLlmType(LlmType.CLAUDE);
         
         if (dto.getPreferredLang() != null && !dto.getPreferredLang().isEmpty()) {
             List<LanguagePreference> langPrefs = dto.getPreferredLang().stream()
