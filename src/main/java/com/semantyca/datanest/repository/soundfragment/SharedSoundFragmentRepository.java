@@ -1,9 +1,12 @@
 package com.semantyca.datanest.repository.soundfragment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.semantyca.core.model.embedded.DocumentAccessInfo;
+import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.repository.AsyncRepository;
 import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.rls.RLSRepository;
+import com.semantyca.core.repository.table.EntityData;
 import com.semantyca.datanest.dto.MySharedContributionDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPreviewDTO;
@@ -33,6 +36,9 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     private static final String SF_RLS_TABLE = "mixpla__sound_fragment_readers";
     private static final String SF_GENRES_TABLE = "mixpla__sound_fragment_genres";
     private static final String SF_LABELS_TABLE = "mixpla__sound_fragment_labels";
+
+    @Deprecated
+    private static final EntityData entityData = new EntityData(TABLE, RLS_TABLE);
 
     @Inject
     public SharedSoundFragmentRepository(Pool client, ObjectMapper mapper, RLSRepository rlsRepository) {
@@ -231,7 +237,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .onItem().transform(rows -> rows.iterator().next().getInteger(0));
     }
 
-    public Uni<SharedSoundFragmentPreviewDTO> getPreviewById(UUID soundFragmentId, long userId) {
+    public Uni<SharedSoundFragmentPreviewDTO> getBySoundFragmentId(UUID soundFragmentId, long userId) {
         String sql = "SELECT sf.id, sf.title, sf.artist, sf.type, sf.album, " +
                 "ssf.source_user_name, ssf.source_user_email " +
                 "FROM " + SF_TABLE + " sf " +
@@ -301,5 +307,9 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         e.setStatus(row.getInteger("status"));
         e.setArchived(row.getInteger("archived"));
         return e;
+    }
+
+    public Uni<List<DocumentAccessInfo>> getDocumentAccessInfo(UUID documentId, IUser user) {
+        return getDocumentAccessInfo(documentId, entityData, user);
     }
 }

@@ -1,5 +1,6 @@
 package com.semantyca.datanest.service.soundfragment;
 
+import com.semantyca.core.dto.DocumentAccessDTO;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.datanest.dto.MySharedContributionDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentDTO;
@@ -54,7 +55,7 @@ public class SharedSoundFragmentService {
     }
 
     public Uni<SharedSoundFragmentPreviewDTO> getPreviewById(UUID soundFragmentId, IUser user) {
-        return repository.getPreviewById(soundFragmentId, user.getId());
+        return repository.getBySoundFragmentId(soundFragmentId, user.getId());
     }
 
     public Uni<Void> addShareForOpenContributionBrand(UUID soundFragmentId, UUID targetBrandId, IUser user,
@@ -109,6 +110,21 @@ public class SharedSoundFragmentService {
 
     public Uni<SharedSoundFragmentDTO> getDTO(UUID id) {
         return repository.findById(id).map(this::toDTO);
+    }
+
+    public Uni<List<DocumentAccessDTO>> getDocumentAccess(UUID documentId, IUser user) {
+        return repository.getDocumentAccessInfo(documentId, user)
+                .onItem().transform(accessInfoList ->
+                        accessInfoList.stream()
+                                .map(info -> DocumentAccessDTO.builder()
+                                        .userId(info.getUserId())
+                                        .canEdit(info.getCanEdit())
+                                        .canDelete(info.getCanDelete())
+                                        .userLogin(info.getUserLogin())
+                                        .IsSu(info.isIsSu())
+                                        .build())
+                                .collect(Collectors.toList())
+                );
     }
 
     private SharedSoundFragmentDTO toDTO(SharedSoundFragment e) {

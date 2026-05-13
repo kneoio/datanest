@@ -60,6 +60,7 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Obj
         router.route(HttpMethod.GET, "/datanest/soundfragments/pending-review").handler(this::getPendingReview);
         router.route(HttpMethod.GET, "/datanest/soundfragments/pending-review/:id").handler(this::getPendingReviewItem);
         router.route(HttpMethod.DELETE, "/datanest/soundfragments/pending-review/:id").handler(this::rejectShare);
+        router.route(HttpMethod.GET, path + "/:id/access").handler(this::getDocumentAccess);
     }
 
     private void getMySharedFragments(RoutingContext rc) {
@@ -184,6 +185,34 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Obj
             } else {
                 rc.fail(400, new IllegalArgumentException("Invalid JSON payload"));
             }
+        }
+    }
+
+    private void getDocumentAccess(RoutingContext rc) {
+        String id = rc.pathParam("id");
+
+        try {
+            UUID documentId = UUID.fromString(id);
+
+            getContextUser(rc, false, true)
+                    .chain(user -> {
+                        assert sharedSoundFragmentService != null;
+                        return sharedSoundFragmentService.getDocumentAccess(documentId, user);
+                    })
+                    .subscribe().with(
+                            accessList -> {
+                                JsonObject response = new JsonObject();
+                                response.put("documentId", id);
+                                response.put("accessList", accessList);
+                                rc.response()
+                                        .setStatusCode(200)
+                                        .putHeader("Content-Type", "application/json")
+                                        .end(response.encode());
+                            },
+                            t -> handleFailure(rc, t)
+                    );
+        } catch (IllegalArgumentException e) {
+            rc.fail(400, new IllegalArgumentException("Invalid document ID format"));
         }
     }
 
