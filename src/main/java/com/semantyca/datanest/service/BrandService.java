@@ -146,6 +146,23 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         return saveOperation.chain(this::mapToDTO);
     }
 
+    public Uni<List<BrandDTO>> getAllOpenForSubmissionDTO(int limit, int offset, IUser user) {
+        return repository.getAllOpenForSubmission(limit, offset, user.getId())
+                .chain(list -> {
+                    if (list.isEmpty()) {
+                        return Uni.createFrom().item(List.of());
+                    }
+                    List<Uni<BrandDTO>> unis = list.stream()
+                            .map(this::mapToDTO)
+                            .collect(Collectors.toList());
+                    return Uni.join().all(unis).andFailFast();
+                });
+    }
+
+    public Uni<Integer> getAllOpenForSubmissionCount(IUser user) {
+        return repository.getAllOpenForSubmissionCount(user.getId());
+    }
+
     public Uni<Integer> archive(String id, IUser user) {
         assert repository != null;
         return repository.findById(UUID.fromString(id), user, false)

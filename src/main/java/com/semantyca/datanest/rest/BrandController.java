@@ -56,6 +56,7 @@
             String path = "/datanest/brands";
             router.route(path + "*").handler(BodyHandler.create());
             router.get(path).handler(this::getAll);
+            router.get(path + "/discover").handler(this::getOpenForSubmission);
             router.get(path + "/:id").handler(this::getById);
             router.post(path + "/:id?").handler(this::upsert);
             router.delete(path + "/:id").handler(this::delete);
@@ -90,6 +91,35 @@
                                     .end(io.vertx.core.json.Json.encode(viewPage)),
                             throwable -> {
                                 LOGGER.error("Failed to get all radio stations", throwable);
+                                rc.fail(throwable);
+                            }
+                    );
+        }
+
+        private void getOpenForSubmission(RoutingContext rc) {
+            int page = Integer.parseInt(rc.request().getParam("page", "1"));
+            int size = Integer.parseInt(rc.request().getParam("size", "10"));
+
+            getContextUser(rc, false, true)
+                    .chain(user -> Uni.combine().all().unis(
+                            service.getAllOpenForSubmissionCount(user),
+                            service.getAllOpenForSubmissionDTO(size, (page - 1) * size, user)
+                    ).asTuple().map(tuple -> {
+                        ViewPage viewPage = new ViewPage();
+                        View<BrandDTO> dtoEntries = new View<>(tuple.getItem2(),
+                                tuple.getItem1(), page,
+                                RuntimeUtil.countMaxPage(tuple.getItem1(), size),
+                                size);
+                        viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
+                        return viewPage;
+                    }))
+                    .subscribe().with(
+                            viewPage -> rc.response()
+                                    .setStatusCode(200)
+                                    .putHeader("Content-Type", "application/json")
+                                    .end(io.vertx.core.json.Json.encode(viewPage)),
+                            throwable -> {
+                                LOGGER.error("Failed to get open-for-submission brands", throwable);
                                 rc.fail(throwable);
                             }
                     );

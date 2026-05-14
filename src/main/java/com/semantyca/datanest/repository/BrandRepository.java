@@ -516,6 +516,32 @@ public class BrandRepository extends AsyncRepository {
                 });
     }
 
+    public Uni<List<Brand>> getAllOpenForSubmission(int limit, int offset, long currentUserId) {
+        String sql = "SELECT t.* FROM " + entityData.getTableName() + " t" +
+                " WHERE t.archived = 0" +
+                " AND t.submission_policy = 'NO_RESTRICTIONS'" +
+                " AND ((t.owner->>'userId')::bigint IS NULL OR (t.owner->>'userId')::bigint != $1)" +
+                " ORDER BY t.last_mod_date DESC" +
+                (limit > 0 ? " LIMIT " + limit + " OFFSET " + offset : "");
+
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(currentUserId))
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transformToUniAndConcatenate(row -> from(row, false))
+                .collect().asList();
+    }
+
+    public Uni<Integer> getAllOpenForSubmissionCount(long currentUserId) {
+        String sql = "SELECT COUNT(*) FROM " + entityData.getTableName() + " t" +
+                " WHERE t.archived = 0" +
+                " AND t.submission_policy = 'NO_RESTRICTIONS'" +
+                " AND ((t.owner->>'userId')::bigint IS NULL OR (t.owner->>'userId')::bigint != $1)";
+
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(currentUserId))
+                .onItem().transform(rows -> rows.iterator().next().getInteger(0));
+    }
+
     public Uni<Void> upsertStationAccessWithCountAndGeo(String stationName, Long accessCount, OffsetDateTime lastAccessTime, String userAgent, String ipAddress, String countryCode) {
         String sql = "INSERT INTO " + brandStats.getTableName() +
                 " (station_name, access_count, last_access_time, user_agent, ip_address, country_code) " +
