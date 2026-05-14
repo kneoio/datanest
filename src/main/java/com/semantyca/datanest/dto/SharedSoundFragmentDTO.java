@@ -14,14 +14,14 @@ import java.util.UUID;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class SharedSoundFragmentDTO {
     private UUID id;
-    private Long sourceUserId;
+    private long sourceUserId;
     private String sourceUserName;
     private String sourceUserEmail;
     private UUID targetBrandId;
     private UUID soundFragmentId;
     private LocalDateTime expiresAt;
-    private Integer playedCount;
-    private Integer ratedCount;
-    private Integer status;
-    private Integer archived;
+    private int playedCount;
+    private int ratedCount;
+    private int status;
+    private int archived;
 }

@@ -175,10 +175,6 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                 .onItem().transform(rows -> rows.iterator().next().getInteger(0));
     }
 
-    public Uni<List<SoundFragment>> findByTypeAndBrand(PlaylistItemType type, UUID brandId, int limit, int offset) {
-        SoundFragmentBrandRepository brandRepository = new SoundFragmentBrandRepository(client, mapper, rlsRepository);
-        return brandRepository.getBrandSongs(brandId, type, limit, offset);
-    }
 
     public Uni<FileMetadata> getFileBySlugName(UUID id, String slugName, IUser user, boolean includeArchived) {
         assert fileHandler != null;
