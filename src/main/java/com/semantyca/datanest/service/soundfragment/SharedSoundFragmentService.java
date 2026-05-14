@@ -136,7 +136,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
     }
 
     public Uni<List<DocumentAccessDTO>> getDocumentAccess(UUID documentId, IUser user) {
-        return repository.getDocumentAccessInfo(documentId, SuperUser.build())
+        return repository.getDocumentAccessInfo(documentId, user)
                 .onItem().transform(accessInfoList ->
                         accessInfoList.stream()
                                 .map(this::mapToDocumentAccessDTO)
