@@ -5,7 +5,6 @@ import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.view.View;
 import com.semantyca.core.dto.view.ViewPage;
-import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.repository.exception.UserNotFoundException;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
@@ -16,7 +15,6 @@ import com.semantyca.datanest.dto.SharedSoundFragmentPreviewDTO;
 import com.semantyca.datanest.dto.actions.SoundFragmentActionsFactory;
 import com.semantyca.datanest.model.soundfragment.SharedSoundFragment;
 import com.semantyca.datanest.service.soundfragment.SharedSoundFragmentService;
-import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
@@ -32,7 +30,6 @@ import java.util.UUID;
 @ApplicationScoped
 public class SharedSoundFragmentController extends AbstractSecuredController<SharedSoundFragment, SharedSoundFragmentDTO> {
 
-    private SoundFragmentService soundFragmentService;
     private SharedSoundFragmentService sharedSoundFragmentService;
     private Validator validator;
 
@@ -42,11 +39,9 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
 
     @Inject
     public SharedSoundFragmentController(UserService userService,
-                                         SoundFragmentService soundFragmentService,
                                          SharedSoundFragmentService sharedSoundFragmentService,
                                          Validator validator) {
         super(userService);
-        this.soundFragmentService = soundFragmentService;
         this.sharedSoundFragmentService = sharedSoundFragmentService;
         this.validator = validator;
     }
@@ -151,12 +146,12 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
 
             getContextUser(rc, false, true)
                     .chain(user -> sharedSoundFragmentService.patchContributionTargets(fragmentId, patch, user)
-                            .chain(() -> soundFragmentService.getDTO(fragmentId, user, LanguageCode.en)))
+                            .chain(() -> sharedSoundFragmentService.listDTOsBySoundFragmentId(fragmentId)))
                     .subscribe().with(
-                            dto -> rc.response()
+                            shares -> rc.response()
                                     .setStatusCode(200)
                                     .putHeader("Content-Type", "application/json")
-                                    .end(JsonObject.mapFrom(dto).encode()),
+                                    .end(io.vertx.core.json.Json.encode(shares)),
                             t -> handleFailure(rc, t)
                     );
         } catch (Exception e) {
