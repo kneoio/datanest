@@ -85,14 +85,14 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 });
     }
 
-    public Uni<Integer> deleteByFragmentIdAndReader(UUID soundFragmentId, long userId) {
+    public Uni<Integer> deleteByIdAndReader(UUID shareId, long userId) {
         String deleteSql = "DELETE FROM " + entityData.getTableName() +
-                " WHERE sound_fragment_id = $1 AND id IN " +
+                " WHERE id = $1 AND id IN " +
                 "(SELECT entity_id FROM " + entityData.getRlsName() + " WHERE reader = $2) " +
                 "RETURNING id, source_user_id, target_brand_id";
         return client.withTransaction(tx ->
                 tx.preparedQuery(deleteSql)
-                        .execute(Tuple.of(soundFragmentId, userId))
+                        .execute(Tuple.of(shareId, userId))
                         .onItem().transformToUni(rows -> {
                             if (!rows.iterator().hasNext()) {
                                 return Uni.createFrom().item(0);

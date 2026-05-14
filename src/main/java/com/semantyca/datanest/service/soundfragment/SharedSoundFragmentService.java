@@ -60,8 +60,8 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return repository.deleteBySoundFragmentAndBrand(soundFragmentId, targetBrandId).replaceWithVoid();
     }
 
-    public Uni<Integer> rejectShare(UUID soundFragmentId, IUser user) {
-        return repository.deleteByFragmentIdAndReader(soundFragmentId, user.getId());
+    public Uni<Integer> rejectShare(UUID shareId, IUser user) {
+        return repository.deleteByIdAndReader(shareId, user.getId());
     }
 
     public Uni<List<SharedSoundFragmentPreviewDTO>> getPreviewList(int limit, int offset, IUser user) {

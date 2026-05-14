@@ -125,9 +125,9 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
     }
 
     private void rejectShare(RoutingContext rc) {
-        UUID soundFragmentId = UUID.fromString(rc.pathParam("id"));
+        UUID shareId = UUID.fromString(rc.pathParam("id"));
         getContextUser(rc, false, true)
-                .chain(user -> sharedSoundFragmentService.rejectShare(soundFragmentId, user))
+                .chain(user -> sharedSoundFragmentService.rejectShare(shareId, user))
                 .subscribe().with(
                         count -> rc.response()
                                 .setStatusCode(count > 0 ? 200 : 404)
