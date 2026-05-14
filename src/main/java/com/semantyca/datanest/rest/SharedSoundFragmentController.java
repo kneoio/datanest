@@ -47,7 +47,7 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
     }
 
     public void setupRoutes(Router router) {
-        String path = "/datanest/sound-fragments";
+        String path = "/datanest/shared-sound-fragments";
         BodyHandler jsonBodyHandler = BodyHandler.create().setHandleFileUploads(false);
         router.route(HttpMethod.GET,    path + "/shared").handler(this::getMySharedFragments);
         router.route(HttpMethod.PATCH,  path + "/shared/:fragmentId").handler(jsonBodyHandler).handler(this::patchShares);
