@@ -118,7 +118,17 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .execute(buildInsertTuple(entity))
                 .onItem().transformToUni(rows -> {
                     if (!rows.iterator().hasNext()) {
-                        return Uni.createFrom().voidItem();
+                        String selectSql = "SELECT id FROM " + entityData.getTableName() +
+                                " WHERE sound_fragment_id = $1 AND target_brand_id = $2";
+                        return tx.preparedQuery(selectSql)
+                                .execute(Tuple.of(entity.getSoundFragmentId(), entity.getTargetBrandId()))
+                                .onItem().transformToUni(selectRows -> {
+                                    if (!selectRows.iterator().hasNext()) {
+                                        return Uni.createFrom().voidItem();
+                                    }
+                                    UUID existingId = selectRows.iterator().next().getUUID("id");
+                                    return RlsActionUtil.ensureSuperUserAccess(tx, entityData.getRlsName(), existingId);
+                                });
                     }
                     UUID newId = rows.iterator().next().getUUID("id");
                     return insertRlsForShare(tx, newId, entity.getSourceUserId(), entity.getTargetBrandId());
