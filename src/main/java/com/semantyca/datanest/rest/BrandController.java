@@ -301,6 +301,12 @@
                     }
                 }
 
+                String searchTerm = json.getString("searchTerm");
+                if (searchTerm != null && !searchTerm.trim().isEmpty()) {
+                    dto.setSearchTerm(searchTerm.trim());
+                    any = true;
+                }
+
                 if (json.containsKey("activated")) {
                     dto.setActivated(json.getBoolean("activated", false));
                     any = true;

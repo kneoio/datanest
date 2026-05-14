@@ -50,7 +50,13 @@ public class BrandRepository extends AsyncRepository {
 
     public Uni<List<Brand>> getAll(int limit, int offset, boolean includeArchived, final IUser user, BrandFilter filter) {
         StringBuilder sql = new StringBuilder();
-        sql.append("SELECT * FROM ").append(entityData.getTableName()).append(" t, ")
+        boolean hasSearchTerm = filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty();
+
+        sql.append("SELECT t.*, rls.*");
+        if (hasSearchTerm) {
+            sql.append(", similarity(t.search_name, $2) AS sim");
+        }
+        sql.append(" FROM ").append(entityData.getTableName()).append(" t, ")
                 .append(entityData.getRlsName()).append(" rls ")
                 .append("WHERE t.id = rls.entity_id AND rls.reader = $1");
 
@@ -62,7 +68,11 @@ public class BrandRepository extends AsyncRepository {
             sql.append(buildFilterConditions(filter));
         }
 
-        sql.append(" ORDER BY t.last_mod_date DESC");
+        if (hasSearchTerm) {
+            sql.append(" ORDER BY sim DESC");
+        } else {
+            sql.append(" ORDER BY t.last_mod_date DESC");
+        }
         if (limit > 0) {
             sql.append(" LIMIT ").append(limit).append(" OFFSET ").append(offset);
         }
@@ -627,10 +637,16 @@ public class BrandRepository extends AsyncRepository {
                     .append("'");
         }
 
+        if (filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
+            conditions.append(" AND (t.search_name ILIKE '%' || $2 || '%' OR similarity(t.search_name, $2) > 0.05)");
+        }
+
         return conditions.toString();
     }
 
     private void addFilterParameters(Tuple params, BrandFilter filter) {
-        // No parameters to add for now - countries, labels, and publicBrand are inline in SQL
+        if (filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
+            params.addString(filter.getSearchTerm());
+        }
     }
 }
