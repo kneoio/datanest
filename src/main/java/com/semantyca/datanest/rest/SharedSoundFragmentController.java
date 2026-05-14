@@ -129,9 +129,7 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
         getContextUser(rc, false, true)
                 .chain(user -> sharedSoundFragmentService.rejectShare(shareId, user))
                 .subscribe().with(
-                        count -> rc.response()
-                                .setStatusCode(count > 0 ? 200 : 404)
-                                .end(),
+                        count -> rc.response().setStatusCode(204).end(),
                         t -> handleFailure(rc, t)
                 );
     }
