@@ -18,7 +18,6 @@ import jakarta.inject.Inject;
 import org.apache.commons.text.StringEscapeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -29,14 +28,12 @@ import java.util.function.Consumer;
 @ApplicationScoped
 public class TranslateService {
     private static final Logger LOGGER = LoggerFactory.getLogger(TranslateService.class);
-
     private final MasterPromptTranslateAnthropicService masterPromptTranslateAnthropicService;
     private final PromptService promptService;
-
-    public record SseEvent(String type, JsonObject data) {}
-
     private final Map<String, JobState> jobs = new ConcurrentHashMap<>();
     private final Map<String, List<Consumer<SseEvent>>> subscribers = new ConcurrentHashMap<>();
+
+    public record SseEvent(String type, JsonObject data) {}
 
     @Inject
     public TranslateService(MasterPromptTranslateAnthropicService masterPromptTranslateAnthropicService, PromptService promptService) {

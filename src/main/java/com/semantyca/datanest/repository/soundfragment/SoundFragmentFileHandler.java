@@ -5,7 +5,6 @@ import com.semantyca.core.repository.IFileStorage;
 import com.semantyca.core.repository.exception.attachment.FileRetrievalFailureException;
 import com.semantyca.core.repository.exception.attachment.MissingFileRecordException;
 import io.smallrye.mutiny.Uni;
-import io.vertx.mutiny.pgclient.PgPool;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -24,7 +23,7 @@ public class SoundFragmentFileHandler {
     private final IFileStorage fileStorage;
 
     @Inject
-    public SoundFragmentFileHandler(PgPool client, @Named("hetzner") IFileStorage fileStorage) {
+    public SoundFragmentFileHandler(Pool client, @Named("hetzner") IFileStorage fileStorage) {
     //public SoundFragmentFileHandler(PgPool client, @Named("digitalOcean") IFileStorage fileStorage) {
         this.client = client;
         this.fileStorage = fileStorage;

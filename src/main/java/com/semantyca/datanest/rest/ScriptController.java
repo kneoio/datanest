@@ -45,7 +45,6 @@ import java.util.stream.Collectors;
 @ApplicationScoped
 public class ScriptController extends AbstractSecuredController<Script, ScriptDTO> {
     private ScriptService service;
-    private BrandScriptUpdateService brandScriptUpdateService;
     private Validator validator;
 
     public ScriptController() {
@@ -57,7 +56,6 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
                             Validator validator) {
         super(userService);
         this.service = service;
-        this.brandScriptUpdateService = brandScriptUpdateService;
         this.validator = validator;
     }
 
