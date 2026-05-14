@@ -527,6 +527,22 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                 dto.setAuthor(author);
                 hasConcreteFilters = true;
             }
+            JsonArray b = json.getJsonArray("brands");
+            if (b != null && !b.isEmpty()) {
+                List<UUID> brands = new ArrayList<>();
+                for (Object o : b) {
+                    if (o instanceof String str) {
+                        try {
+                            brands.add(UUID.fromString(str));
+                        } catch (IllegalArgumentException ignored) {
+                        }
+                    }
+                }
+                if (!brands.isEmpty()) {
+                    dto.setBrands(brands);
+                    hasConcreteFilters = true;
+                }
+            }
             if (json.containsKey("activated")) {
                 dto.setActivated(json.getBoolean("activated", false));
             } else if (json.containsKey("filterActivated")) {

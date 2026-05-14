@@ -122,6 +122,15 @@ public class SoundFragmentQueryBuilder {
             conditions.append(" AND t.author = ").append(filter.getAuthor());
         }
 
+        if (filter.getBrands() != null && !filter.getBrands().isEmpty()) {
+            conditions.append(" AND EXISTS (SELECT 1 FROM mixpla__brand_sound_fragments bsf WHERE bsf.sound_fragment_id = t.id AND bsf.brand_id IN (");
+            for (int i = 0; i < filter.getBrands().size(); i++) {
+                if (i > 0) conditions.append(", ");
+                conditions.append("'").append(filter.getBrands().get(i).toString()).append("'");
+            }
+            conditions.append("))");
+        }
+
         return conditions.toString();
     }
 }
