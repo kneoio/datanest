@@ -142,8 +142,8 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         String sql = "SELECT sf.id, sf.title, sf.artist, sf.type, sf.album " +
                 "FROM " + SF_TABLE + " sf " +
                 "JOIN " + SF_RLS_TABLE + " rls ON sf.id = rls.entity_id " +
-                "WHERE rls.reader = $1 AND sf.archived = 0 " +
-                "AND EXISTS (SELECT 1 FROM " + entityData.getTableName() + " ssf WHERE ssf.sound_fragment_id = sf.id AND ssf.source_user_id = $2) " +
+                "WHERE rls.reader = $1 AND sf.author = $2 AND sf.archived = 0 " +
+                "AND EXISTS (SELECT 1 FROM " + entityData.getTableName() + " ssf WHERE ssf.sound_fragment_id = sf.id) " +
                 "ORDER BY sf.reg_date DESC LIMIT $3 OFFSET $4";
         return client.preparedQuery(sql)
                 .execute(Tuple.of(userId, userId, limit, offset))
@@ -156,8 +156,8 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     public Uni<Integer> getMyContributionsCount(long userId) {
         String sql = "SELECT COUNT(*) FROM " + SF_TABLE + " sf " +
                 "JOIN " + SF_RLS_TABLE + " rls ON sf.id = rls.entity_id " +
-                "WHERE rls.reader = $1 AND sf.archived = 0 " +
-                "AND EXISTS (SELECT 1 FROM " + entityData.getTableName() + " ssf WHERE ssf.sound_fragment_id = sf.id AND ssf.source_user_id = $2)";
+                "WHERE rls.reader = $1 AND sf.author = $2 AND sf.archived = 0 " +
+                "AND EXISTS (SELECT 1 FROM " + entityData.getTableName() + " ssf WHERE ssf.sound_fragment_id = sf.id)";
         return client.preparedQuery(sql)
                 .execute(Tuple.of(userId, userId))
                 .onItem().transform(rows -> rows.iterator().next().getInteger(0));
