@@ -68,43 +68,39 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     }
 
     private Uni<Integer> deleteInTx(SqlClient tx, UUID soundFragmentId, UUID targetBrandId) {
-        String deleteSql = "DELETE FROM " + entityData.getTableName() + " WHERE sound_fragment_id = $1 AND target_brand_id = $2 RETURNING id, source_user_id";
-        return tx.preparedQuery(deleteSql)
+        String selectSql = "SELECT id FROM " + entityData.getTableName() +
+                " WHERE sound_fragment_id = $1 AND target_brand_id = $2";
+        String deleteRlsSql = "DELETE FROM " + entityData.getRlsName() + " WHERE entity_id = $1";
+        String deleteMainSql = "DELETE FROM " + entityData.getTableName() + " WHERE id = $1";
+        return tx.preparedQuery(selectSql)
                 .execute(Tuple.of(soundFragmentId, targetBrandId))
                 .onItem().transformToUni(rows -> {
                     if (!rows.iterator().hasNext()) {
                         return Uni.createFrom().item(0);
                     }
-                    Row row = rows.iterator().next();
-                    UUID entityId = row.getUUID("id");
-                    long sourceUserId = row.getLong("source_user_id");
-                    return Uni.combine().all().unis(
-                            RlsActionUtil.revoke(tx, entityData.getRlsName(), entityId, sourceUserId),
-                            RlsActionUtil.revokeFromJsonField(tx, entityData.getRlsName(), entityId, BRANDS_TABLE, targetBrandId, "owner", "userId")
-                    ).discardItems().replaceWith(1);
+                    UUID entityId = rows.iterator().next().getUUID("id");
+                    return tx.preparedQuery(deleteRlsSql).execute(Tuple.of(entityId))
+                            .chain(() -> tx.preparedQuery(deleteMainSql).execute(Tuple.of(entityId)))
+                            .replaceWith(1);
                 });
     }
 
     public Uni<Integer> deleteByIdAndReader(UUID shareId, long userId) {
-        String deleteSql = "DELETE FROM " + entityData.getTableName() +
-                " WHERE id = $1 AND id IN " +
-                "(SELECT entity_id FROM " + entityData.getRlsName() + " WHERE reader = $2) " +
-                "RETURNING id, source_user_id, target_brand_id";
+        String selectSql = "SELECT id FROM " + entityData.getTableName() +
+                " WHERE id = $1 AND id IN (SELECT entity_id FROM " + entityData.getRlsName() + " WHERE reader = $2)";
+        String deleteRlsSql = "DELETE FROM " + entityData.getRlsName() + " WHERE entity_id = $1";
+        String deleteMainSql = "DELETE FROM " + entityData.getTableName() + " WHERE id = $1";
         return client.withTransaction(tx ->
-                tx.preparedQuery(deleteSql)
+                tx.preparedQuery(selectSql)
                         .execute(Tuple.of(shareId, userId))
                         .onItem().transformToUni(rows -> {
                             if (!rows.iterator().hasNext()) {
                                 return Uni.createFrom().item(0);
                             }
-                            Row row = rows.iterator().next();
-                            UUID entityId = row.getUUID("id");
-                            long sourceUserId = row.getLong("source_user_id");
-                            UUID targetBrandId = row.getUUID("target_brand_id");
-                            return Uni.combine().all().unis(
-                                    RlsActionUtil.revoke(tx, entityData.getRlsName(), entityId, sourceUserId),
-                                    RlsActionUtil.revokeFromJsonField(tx, entityData.getRlsName(), entityId, BRANDS_TABLE, targetBrandId, "owner", "userId")
-                            ).discardItems().replaceWith(1);
+                            UUID entityId = rows.iterator().next().getUUID("id");
+                            return tx.preparedQuery(deleteRlsSql).execute(Tuple.of(entityId))
+                                    .chain(() -> tx.preparedQuery(deleteMainSql).execute(Tuple.of(entityId)))
+                                    .replaceWith(1);
                         })
         );
     }
