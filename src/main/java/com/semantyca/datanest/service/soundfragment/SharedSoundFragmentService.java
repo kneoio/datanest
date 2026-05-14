@@ -45,6 +45,9 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
     public Uni<List<MySharedContributionDTO>> getMyContributions(int limit, int offset, IUser user) {
         return repository.getMyContributions(limit, offset, user.getId())
                 .chain(list -> {
+                    if (list.isEmpty()) {
+                        return Uni.createFrom().item(List.of());
+                    }
                     List<Uni<MySharedContributionDTO>> unis = list.stream()
                             .map(this::toContributionDTO)
                             .collect(Collectors.toList());
