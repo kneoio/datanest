@@ -3,6 +3,7 @@ package com.semantyca.datanest.service.soundfragment;
 import com.semantyca.core.dto.DocumentAccessDTO;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.user.IUser;
+import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.MySharedContributionDTO;
@@ -11,7 +12,9 @@ import com.semantyca.datanest.dto.SharedSoundFragmentPatchDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPreviewDTO;
 import com.semantyca.datanest.model.soundfragment.SharedSoundFragment;
 import com.semantyca.datanest.repository.soundfragment.SharedSoundFragmentRepository;
+import com.semantyca.datanest.repository.soundfragment.SoundFragmentRepository;
 import com.semantyca.datanest.service.BrandService;
+import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -25,12 +28,17 @@ import java.util.stream.Collectors;
 public class SharedSoundFragmentService extends AbstractService<SharedSoundFragment, SharedSoundFragmentDTO> {
 
     private final SharedSoundFragmentRepository repository;
+    private final SoundFragmentRepository soundFragmentRepository;
     private final BrandService brandService;
 
     @Inject
-    public SharedSoundFragmentService(UserService userService, SharedSoundFragmentRepository repository, BrandService brandService) {
+    public SharedSoundFragmentService(UserService userService,
+                                      SharedSoundFragmentRepository repository,
+                                      SoundFragmentRepository soundFragmentRepository,
+                                      BrandService brandService) {
         super(userService);
         this.repository = repository;
+        this.soundFragmentRepository = soundFragmentRepository;
         this.brandService = brandService;
     }
 
@@ -69,33 +77,49 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return repository.findById(id, user.getId()).map(this::toPreviewDTO);
     }
 
-    public Uni<Void> addShareForOpenContributionBrand(UUID soundFragmentId, UUID targetBrandId, IUser user,
-                                                      boolean stayIncognito) {
-        return brandService.getById(targetBrandId, user)
-                .onItem().transformToUni(brand -> {
-                    if (brand.getSubmissionPolicy() != SubmissionPolicy.NO_RESTRICTIONS) {
-                        return Uni.createFrom().failure(new IllegalArgumentException(
-                                "Brand does not accept contributions without restrictions: " + targetBrandId));
-                    }
-                    SharedSoundFragment entity = new SharedSoundFragment();
-                    entity.setSourceUserId(brand.getOwner().getUserId());
-                    if (!stayIncognito) {
-                        entity.setSourceUserName(brand.getOwner().getName());
-                        entity.setSourceUserEmail(brand.getOwner().getEmail());
-                    }
-                    entity.setTargetBrandId(targetBrandId);
-                    entity.setSoundFragmentId(soundFragmentId);
-                    entity.setStatus(500);
-                    return repository.insertIfNotExists(entity);
-                });
-    }
-
     public Uni<Void> patchContributionTargets(UUID fragmentId, SharedSoundFragmentPatchDTO patch, IUser user) {
         List<UUID> remove = patch.getRemoveTargetBrandIds() != null ? patch.getRemoveTargetBrandIds() : List.of();
         List<UUID> add = patch.getAddTargetBrandIds() != null ? patch.getAddTargetBrandIds() : List.of();
         boolean incognito = patch.isStayIncognito();
-        return chainRemoveShares(fragmentId, remove)
-                .chain(() -> chainAddShares(fragmentId, add, user, incognito));
+
+        if (add.isEmpty()) {
+            return repository.applyPatch(fragmentId, remove, List.of());
+        }
+
+        return soundFragmentRepository.getBrandsForSoundFragment(fragmentId, user)
+                .chain(brandIds -> {
+                    if (brandIds.isEmpty()) {
+                        return Uni.createFrom().failure(new IllegalArgumentException(
+                                "Sound fragment has no associated brand: " + fragmentId));
+                    }
+                    return brandService.getById(brandIds.get(0), SuperUser.build());
+                })
+                .chain(sourceBrand -> validateAndBuildEntities(fragmentId, add, sourceBrand, incognito))
+                .chain(entities -> repository.applyPatch(fragmentId, remove, entities));
+    }
+
+    private Uni<List<SharedSoundFragment>> validateAndBuildEntities(UUID fragmentId, List<UUID> targetBrandIds,
+                                                                     Brand sourceBrand, boolean stayIncognito) {
+        List<Uni<SharedSoundFragment>> unis = targetBrandIds.stream()
+                .map(targetBrandId -> brandService.getById(targetBrandId, SuperUser.build())
+                        .onItem().transformToUni(targetBrand -> {
+                            if (targetBrand.getSubmissionPolicy() != SubmissionPolicy.NO_RESTRICTIONS) {
+                                return Uni.createFrom().failure(new IllegalArgumentException(
+                                        "Brand does not accept contributions without restrictions: " + targetBrandId));
+                            }
+                            SharedSoundFragment entity = new SharedSoundFragment();
+                            entity.setSourceUserId(sourceBrand.getOwner().getUserId());
+                            if (!stayIncognito) {
+                                entity.setSourceUserName(sourceBrand.getOwner().getName());
+                                entity.setSourceUserEmail(sourceBrand.getOwner().getEmail());
+                            }
+                            entity.setTargetBrandId(targetBrandId);
+                            entity.setSoundFragmentId(fragmentId);
+                            entity.setStatus(500);
+                            return Uni.createFrom().item(entity);
+                        }))
+                .collect(Collectors.toList());
+        return Uni.join().all(unis).andFailFast();
     }
 
     public Uni<List<SharedSoundFragmentDTO>> listDTOsBySoundFragmentId(UUID soundFragmentId) {
@@ -162,19 +186,4 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return dto;
     }
 
-    private Uni<Void> chainRemoveShares(UUID fragmentId, List<UUID> brandIds) {
-        Uni<Void> chain = Uni.createFrom().voidItem();
-        for (UUID brandId : brandIds) {
-            chain = chain.chain(() -> removeShare(fragmentId, brandId));
-        }
-        return chain;
-    }
-
-    private Uni<Void> chainAddShares(UUID fragmentId, List<UUID> brandIds, IUser user, boolean stayIncognito) {
-        Uni<Void> chain = Uni.createFrom().voidItem();
-        for (UUID brandId : brandIds) {
-            chain = chain.chain(() -> addShareForOpenContributionBrand(fragmentId, brandId, user, stayIncognito));
-        }
-        return chain;
-    }
 }

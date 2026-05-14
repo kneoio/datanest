@@ -64,23 +64,25 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     }
 
     public Uni<Integer> deleteBySoundFragmentAndBrand(UUID soundFragmentId, UUID targetBrandId) {
+        return client.withTransaction(tx -> deleteInTx(tx, soundFragmentId, targetBrandId));
+    }
+
+    private Uni<Integer> deleteInTx(SqlClient tx, UUID soundFragmentId, UUID targetBrandId) {
         String deleteSql = "DELETE FROM " + entityData.getTableName() + " WHERE sound_fragment_id = $1 AND target_brand_id = $2 RETURNING id, source_user_id";
-        return client.withTransaction(tx ->
-                tx.preparedQuery(deleteSql)
-                        .execute(Tuple.of(soundFragmentId, targetBrandId))
-                        .onItem().transformToUni(rows -> {
-                            if (!rows.iterator().hasNext()) {
-                                return Uni.createFrom().item(0);
-                            }
-                            Row row = rows.iterator().next();
-                            UUID entityId = row.getUUID("id");
-                            long sourceUserId = row.getLong("source_user_id");
-                            return Uni.combine().all().unis(
-                                    RlsActionUtil.revoke(tx, entityData.getRlsName(), entityId, sourceUserId),
-                                    RlsActionUtil.revokeFromJsonField(tx, entityData.getRlsName(), entityId, BRANDS_TABLE, targetBrandId, "owner", "userId")
-                            ).discardItems().replaceWith(1);
-                        })
-        );
+        return tx.preparedQuery(deleteSql)
+                .execute(Tuple.of(soundFragmentId, targetBrandId))
+                .onItem().transformToUni(rows -> {
+                    if (!rows.iterator().hasNext()) {
+                        return Uni.createFrom().item(0);
+                    }
+                    Row row = rows.iterator().next();
+                    UUID entityId = row.getUUID("id");
+                    long sourceUserId = row.getLong("source_user_id");
+                    return Uni.combine().all().unis(
+                            RlsActionUtil.revoke(tx, entityData.getRlsName(), entityId, sourceUserId),
+                            RlsActionUtil.revokeFromJsonField(tx, entityData.getRlsName(), entityId, BRANDS_TABLE, targetBrandId, "owner", "userId")
+                    ).discardItems().replaceWith(1);
+                });
     }
 
     public Uni<Integer> deleteByFragmentIdAndReader(UUID soundFragmentId, long userId) {
@@ -108,21 +110,36 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     }
 
     public Uni<Void> insertIfNotExists(SharedSoundFragment entity) {
+        return client.withTransaction(tx -> insertInTx(tx, entity));
+    }
+
+    private Uni<Void> insertInTx(SqlClient tx, SharedSoundFragment entity) {
         String insertSql = "INSERT INTO " + entityData.getTableName() + " " +
                 "(source_user_id, target_brand_id, sound_fragment_id, expires_at, played_count, rated_count, status, archived, source_user_name, source_user_email) " +
                 "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) " +
                 "ON CONFLICT ON CONSTRAINT unique_brand_shared_fragment DO NOTHING RETURNING id";
-        return client.withTransaction(tx ->
-                tx.preparedQuery(insertSql)
-                        .execute(buildInsertTuple(entity))
-                        .onItem().transformToUni(rows -> {
-                            if (!rows.iterator().hasNext()) {
-                                return Uni.createFrom().voidItem();
-                            }
-                            UUID newId = rows.iterator().next().getUUID("id");
-                            return insertRlsForShare(tx, newId, entity.getSourceUserId(), entity.getTargetBrandId());
-                        })
-        );
+        return tx.preparedQuery(insertSql)
+                .execute(buildInsertTuple(entity))
+                .onItem().transformToUni(rows -> {
+                    if (!rows.iterator().hasNext()) {
+                        return Uni.createFrom().voidItem();
+                    }
+                    UUID newId = rows.iterator().next().getUUID("id");
+                    return insertRlsForShare(tx, newId, entity.getSourceUserId(), entity.getTargetBrandId());
+                });
+    }
+
+    public Uni<Void> applyPatch(UUID fragmentId, List<UUID> removeTargetBrandIds, List<SharedSoundFragment> toAdd) {
+        return client.withTransaction(tx -> {
+            Uni<Void> chain = Uni.createFrom().voidItem();
+            for (UUID brandId : removeTargetBrandIds) {
+                chain = chain.chain(() -> deleteInTx(tx, fragmentId, brandId).replaceWithVoid());
+            }
+            for (SharedSoundFragment entity : toAdd) {
+                chain = chain.chain(() -> insertInTx(tx, entity));
+            }
+            return chain;
+        });
     }
 
     public Uni<List<SharedSoundFragment>> getMyContributions(int limit, int offset, long userId) {
