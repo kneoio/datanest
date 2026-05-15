@@ -88,7 +88,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 });
     }
 
-    public Uni<Integer> deleteByIdAndReader(UUID shareId, long userId) {
+    public Uni<Integer> rejectByReceiver(UUID shareId, long userId) {
         String selectSql = "SELECT id FROM " + entityData.getTableName() +
                 " WHERE id = $1 AND id IN (SELECT entity_id FROM " + entityData.getRlsName() + " WHERE reader = $2)";
         String deleteRlsSql = "DELETE FROM " + entityData.getRlsName() + " WHERE entity_id = $1";

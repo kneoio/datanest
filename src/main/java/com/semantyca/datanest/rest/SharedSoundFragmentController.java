@@ -53,10 +53,9 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
         router.route(HttpMethod.PATCH,  path + "/shared/:fragmentId").handler(jsonBodyHandler).handler(this::patchShares);
         router.route(HttpMethod.GET,    path + "/received").handler(this::getReceived);
         router.route(HttpMethod.GET,    path + "/received/:id").handler(this::getReceivedDoc);
-        router.route(HttpMethod.DELETE, path + "/received/:id").handler(this::rejectShare);
-        router.route(HttpMethod.GET,    path + "/shared/:id/access").handler(this::getDocumentAccess);
+        router.route(HttpMethod.DELETE, path + "/received/:id").handler(this::rejectShareByReceiver);
         //only for administrator app
-        router.route(HttpMethod.GET,    "/datanest/shared-sound-fragments/:id/access").handler(this::getDocumentAccess);
+        router.route(HttpMethod.GET,    path + "/shared/:id/access").handler(this::getDocumentAccess);
     }
 
     private void getMySharedFragments(RoutingContext rc) {
@@ -126,7 +125,7 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
                 );
     }
 
-    private void rejectShare(RoutingContext rc) {
+    private void rejectShareByReceiver(RoutingContext rc) {
         UUID shareId = UUID.fromString(rc.pathParam("id"));
         getContextUser(rc, false, true)
                 .chain(user -> sharedSoundFragmentService.rejectShareByReceiver(shareId, user))

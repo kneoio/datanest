@@ -60,7 +60,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
     }
 
     public Uni<Integer> rejectShareByReceiver(UUID shareId, IUser user) {
-        return repository.deleteByIdAndReader(shareId, user.getId());
+        return repository.rejectByReceiver(shareId, user.getId());
     }
 
     public Uni<List<SharedSoundFragmentPreviewDTO>> getReceivedList(int limit, int offset, IUser user) {
