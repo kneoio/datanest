@@ -31,6 +31,7 @@ public class SoundFragmentQueryBuilder {
         }
 
         if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
+            sql.append(" AND (t.search_name ILIKE '%' || $1 || '%' OR similarity(t.search_name, $1) > 0.05)");
             sql.append(" ORDER BY sim DESC");
         } else {
             sql.append(" ORDER BY t.last_mod_date DESC");
@@ -63,6 +64,7 @@ public class SoundFragmentQueryBuilder {
         }
 
         if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
+            sql.append(" AND (t.search_name ILIKE '%' || $1 || '%' OR similarity(t.search_name, $1) > 0.05)");
             sql.append(" ORDER BY sim DESC");
         } else {
             sql.append(" ORDER BY t.last_mod_date DESC");
@@ -77,10 +79,6 @@ public class SoundFragmentQueryBuilder {
 
     String buildFilterConditions(SoundFragmentFilter filter) {
         StringBuilder conditions = new StringBuilder();
-
-        if (filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
-            conditions.append(" AND (t.search_name ILIKE '%' || $1 || '%' OR similarity(t.search_name, $1) > 0.05)");
-        }
 
         if (filter.getGenre() != null && !filter.getGenre().isEmpty()) {
             conditions.append(" AND EXISTS (SELECT 1 FROM mixpla__sound_fragment_genres sfg2 WHERE sfg2.sound_fragment_id = t.id AND sfg2.genre_id IN (");

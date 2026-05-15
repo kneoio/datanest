@@ -380,7 +380,9 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
     }
 
     private SoundFragmentFilter parseFilterDTOForBrand(RoutingContext rc) {
-        return parseFilterDTO(rc, List.of(SourceType.USER_UPLOAD, SourceType.CONTRIBUTION));
+        SoundFragmentFilter filter = parseFilterDTO(rc, List.of(SourceType.USER_UPLOAD, SourceType.CONTRIBUTION));
+        filter.setShared(true);
+        return filter;
     }
 
     SoundFragmentFilter parseFilterDTO(RoutingContext rc, List<SourceType> allowedSources) {
@@ -495,11 +497,6 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                     dto.setBrands(brands);
                     hasConcreteFilters = true;
                 }
-            }
-            Boolean shared = json.getBoolean("shared");
-            if (shared != null && shared) {
-                dto.setShared(true);
-                hasConcreteFilters = true;
             }
             if (json.containsKey("activated")) {
                 dto.setActivated(json.getBoolean("activated", false));

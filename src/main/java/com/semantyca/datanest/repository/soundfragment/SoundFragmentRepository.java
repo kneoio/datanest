@@ -142,6 +142,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
         }
 
         if (filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
+            sql += " AND (t.search_name ILIKE '%' || $1 || '%' OR similarity(t.search_name, $1) > 0.05)";
             return client.preparedQuery(sql)
                     .execute(Tuple.of(filter.getSearchTerm()))
                     .onItem().transform(rows -> rows.iterator().next().getInteger(0));
@@ -164,6 +165,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
         }
 
         if (filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
+            sql += " AND (t.search_name ILIKE '%' || $1 || '%' OR similarity(t.search_name, $1) > 0.05)";
             return client.preparedQuery(sql)
                     .execute(Tuple.of(filter.getSearchTerm()))
                     .onItem().transform(rows -> rows.iterator().next().getInteger(0));

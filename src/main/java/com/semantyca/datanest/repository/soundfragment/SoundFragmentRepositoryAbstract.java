@@ -11,7 +11,6 @@ import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.table.EntityData;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.cnst.SourceType;
-import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
 import com.semantyca.mixpla.model.soundfragment.SoundFragment;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Multi;
@@ -159,51 +158,4 @@ public abstract class SoundFragmentRepositoryAbstract extends AsyncRepository {
                 });
     }
 
-    protected String buildFilterConditions(SoundFragmentFilter filter) {
-        StringBuilder conditions = new StringBuilder();
-
-        if (filter.getGenre() != null && !filter.getGenre().isEmpty()) {
-            conditions.append(" AND EXISTS (SELECT 1 FROM mixpla__sound_fragment_genres sfg2 ")
-                    .append("WHERE sfg2.sound_fragment_id = t.id AND sfg2.genre_id IN (");
-            for (int i = 0; i < filter.getGenre().size(); i++) {
-                if (i > 0) conditions.append(", ");
-                conditions.append("'").append(filter.getGenre().get(i).toString()).append("'");
-            }
-            conditions.append("))");
-        }
-
-        if (filter.getLabels() != null && !filter.getLabels().isEmpty()) {
-            conditions.append(" AND EXISTS (SELECT 1 FROM mixpla__sound_fragment_labels sfl ")
-                    .append("WHERE sfl.id = t.id AND sfl.label_id IN (");
-            for (int i = 0; i < filter.getLabels().size(); i++) {
-                if (i > 0) conditions.append(", ");
-                conditions.append("'").append(filter.getLabels().get(i).toString()).append("'");
-            }
-            conditions.append("))");
-        }
-
-        if (filter.getSource() != null && !filter.getSource().isEmpty()) {
-            conditions.append(" AND t.source IN (");
-            for (int i = 0; i < filter.getSource().size(); i++) {
-                if (i > 0) conditions.append(", ");
-                conditions.append("'").append(filter.getSource().get(i).name()).append("'");
-            }
-            conditions.append(")");
-        }
-
-        if (filter.getType() != null && !filter.getType().isEmpty()) {
-            conditions.append(" AND t.type IN (");
-            for (int i = 0; i < filter.getType().size(); i++) {
-                if (i > 0) conditions.append(", ");
-                conditions.append("'").append(filter.getType().get(i).name()).append("'");
-            }
-            conditions.append(")");
-        }
-
-        if (filter.getAuthor() > 0) {
-            conditions.append(" AND t.author = ").append(filter.getAuthor());
-        }
-
-        return conditions.toString();
-    }
 }

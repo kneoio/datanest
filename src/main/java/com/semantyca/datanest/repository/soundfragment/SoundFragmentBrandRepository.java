@@ -24,9 +24,13 @@ import java.util.UUID;
 @ApplicationScoped
 public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstract {
 
+    private final SoundFragmentQueryBuilder queryBuilder;
+
     @Inject
-    public SoundFragmentBrandRepository(Pool client, ObjectMapper mapper, RLSRepository rlsRepository) {
+    public SoundFragmentBrandRepository(Pool client, ObjectMapper mapper, RLSRepository rlsRepository,
+                                        SoundFragmentQueryBuilder queryBuilder) {
         super(client, mapper, rlsRepository);
+        this.queryBuilder = queryBuilder;
     }
 
     public Uni<List<BrandSoundFragmentFlat>> findForBrandFlat(UUID brandId, final int limit, final int offset,
@@ -48,7 +52,7 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
         }
 
         if (filter != null && filter.isActivated()) {
-            sql += buildFilterConditions(filter);
+            sql += queryBuilder.buildFilterConditions(filter);
         }
 
         if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
@@ -85,7 +89,7 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
         }
 
         if (filter != null && filter.isActivated()) {
-            sql += buildFilterConditions(filter);
+            sql += queryBuilder.buildFilterConditions(filter);
         }
 
         Tuple params = (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty())
