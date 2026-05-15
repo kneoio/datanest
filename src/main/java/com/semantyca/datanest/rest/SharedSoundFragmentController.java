@@ -11,7 +11,7 @@ import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.datanest.dto.SharedSoundDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPatchDTO;
-import com.semantyca.datanest.dto.SharedSoundFragmentPreviewDTO;
+import com.semantyca.datanest.dto.ReceivedSoundFragmentDTO;
 import com.semantyca.datanest.dto.actions.SoundFragmentActionsFactory;
 import com.semantyca.datanest.model.soundfragment.SharedSoundFragment;
 import com.semantyca.datanest.service.soundfragment.SharedSoundFragmentService;
@@ -49,17 +49,17 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
     public void setupRoutes(Router router) {
         String path = "/datanest/shared-sound-fragments";
         BodyHandler jsonBodyHandler = BodyHandler.create().setHandleFileUploads(false);
-        router.route(HttpMethod.GET,    path + "/shared").handler(this::getMySharedFragments);
         router.route(HttpMethod.PATCH,  path + "/shared/:fragmentId").handler(jsonBodyHandler).handler(this::patchShares);
         router.route(HttpMethod.GET,    path + "/received").handler(this::getReceived);
         router.route(HttpMethod.GET,    path + "/received/:id").handler(this::getReceivedDoc);
         router.route(HttpMethod.DELETE, path + "/received/:id").handler(this::rejectShareByReceiver);
         //only for administrator app
+        router.route(HttpMethod.GET,    path + "/shared").handler(this::getSharedFragments);
         router.route(HttpMethod.GET,    path + "/received/:id/access").handler(this::getDocumentAccess);
         router.route(HttpMethod.DELETE, path + "/received/:id").handler(this::delete);
     }
 
-    private void getMySharedFragments(RoutingContext rc) {
+    private void getSharedFragments(RoutingContext rc) {
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
 
@@ -97,7 +97,7 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
                         sharedSoundFragmentService.getReceivedList(size, (page - 1) * size, user)
                 ).asTuple().map(tuple -> {
                     ViewPage viewPage = new ViewPage();
-                    View<SharedSoundFragmentPreviewDTO> dtoEntries = new View<>(tuple.getItem2(),
+                    View<ReceivedSoundFragmentDTO> dtoEntries = new View<>(tuple.getItem2(),
                             tuple.getItem1(), page,
                             RuntimeUtil.countMaxPage(tuple.getItem1(), size),
                             size);

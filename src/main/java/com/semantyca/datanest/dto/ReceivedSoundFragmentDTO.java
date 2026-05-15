@@ -15,7 +15,7 @@ import java.util.UUID;
 @Getter
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class SharedSoundFragmentPreviewDTO {
+public class ReceivedSoundFragmentDTO {
     private UUID id;
     private String title;
     private String artist;
