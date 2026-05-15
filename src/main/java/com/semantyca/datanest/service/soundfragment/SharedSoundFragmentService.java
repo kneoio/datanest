@@ -63,6 +63,10 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return repository.rejectByReceiver(shareId, user.getId());
     }
 
+    public Uni<Integer> archiveShare(UUID shareId, IUser user) {
+        return repository.archiveById(shareId);
+    }
+
     public Uni<List<SharedSoundFragmentPreviewDTO>> getReceivedList(int limit, int offset, IUser user) {
         return repository.getReceivedList(limit, offset, user.getId())
                 .map(list -> list.stream().map(this::toPreviewDTO).collect(Collectors.toList()));

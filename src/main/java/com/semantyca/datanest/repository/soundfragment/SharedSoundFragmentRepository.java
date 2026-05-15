@@ -92,7 +92,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         String selectSql = "SELECT id FROM " + entityData.getTableName() +
                 " WHERE id = $1 AND id IN (SELECT entity_id FROM " + entityData.getRlsName() + " WHERE reader = $2)";
         String deleteRlsSql = "DELETE FROM " + entityData.getRlsName() + " WHERE entity_id = $1";
-        String deleteMainSql = "DELETE FROM " + entityData.getTableName() + " WHERE id = $1";
+        String updateStatusSql = "UPDATE " + entityData.getTableName() + " SET status = 501 WHERE id = $1";
         return client.withTransaction(tx ->
                 tx.preparedQuery(selectSql)
                         .execute(Tuple.of(shareId, userId))
@@ -102,10 +102,17 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                             }
                             UUID entityId = rows.iterator().next().getUUID("id");
                             return tx.preparedQuery(deleteRlsSql).execute(Tuple.of(entityId))
-                                    .chain(() -> tx.preparedQuery(deleteMainSql).execute(Tuple.of(entityId)))
+                                    .chain(() -> tx.preparedQuery(updateStatusSql).execute(Tuple.of(entityId)))
                                     .replaceWith(1);
                         })
         );
+    }
+
+    public Uni<Integer> archiveById(UUID shareId) {
+        String sql = "UPDATE " + entityData.getTableName() + " SET archived = 1 WHERE id = $1";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(shareId))
+                .onItem().transform(rows -> rows.rowCount());
     }
 
     private Uni<Void> insertInTx(SqlClient tx, SharedSoundFragment entity) {
