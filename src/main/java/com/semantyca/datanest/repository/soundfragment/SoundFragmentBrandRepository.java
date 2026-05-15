@@ -32,7 +32,7 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
     public Uni<List<BrandSoundFragmentFlat>> findForBrandFlat(UUID brandId, final int limit, final int offset,
                                                               IUser user, SoundFragmentFilter filter) {
         String sql = "SELECT t.id, t.title, t.artist, t.album, t.source, " +
-                "bsf.played_by_brand_count, bsf.rated_by_brand_count, bsf.last_time_played_by_brand";
+                "bsf.played_by_brand_count, bsf.last_time_played_by_brand";
         
         if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
             sql += ", similarity(t.search_name, $3) AS sim";
@@ -133,7 +133,6 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
                     flat.setId(soundFragmentId);
                     flat.setDefaultBrandId(brandId);
                     flat.setPlayedByBrandCount(row.getInteger("played_by_brand_count"));
-                    //flat.setRatedByBrandCount(row.getInteger("rated_by_brand_count"));
                     flat.setPlayedTime(row.getLocalDateTime("last_time_played_by_brand"));
                     flat.setTitle(row.getString("title"));
                     flat.setArtist(row.getString("artist"));

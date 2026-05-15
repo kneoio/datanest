@@ -18,7 +18,6 @@ public class BrandSoundFragmentFlatDTO {
     private UUID id;
     private UUID defaultBrandId;
     private int playedByBrandCount;
-    private int ratedByBrandCount;
     private LocalDateTime lastTimePlayedByBrand;
     private String title;
     private String artist;

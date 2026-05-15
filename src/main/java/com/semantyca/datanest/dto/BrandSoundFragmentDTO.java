@@ -16,7 +16,6 @@ public class BrandSoundFragmentDTO {
     @JsonProperty("soundfragment")
     private SoundFragmentDTO soundFragmentDTO;
     private int playedByBrandCount;
-    private int ratedByBrandCount;
     private LocalDateTime lastTimePlayedByBrand;
     private List<UUID> representedInBrands;
 }

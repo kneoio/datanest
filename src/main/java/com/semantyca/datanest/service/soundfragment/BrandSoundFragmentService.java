@@ -64,7 +64,6 @@ public class BrandSoundFragmentService {
         dto.setId(flat.getId());
         dto.setDefaultBrandId(flat.getDefaultBrandId());
         dto.setPlayedByBrandCount(flat.getPlayedByBrandCount());
-        dto.setRatedByBrandCount(flat.getRatedByBrandCount());
         dto.setLastTimePlayedByBrand(flat.getPlayedTime());
         dto.setTitle(flat.getTitle());
         dto.setArtist(flat.getArtist());
