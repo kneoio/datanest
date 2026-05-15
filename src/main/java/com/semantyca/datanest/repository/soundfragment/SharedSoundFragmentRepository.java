@@ -14,11 +14,7 @@ import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonObject;
-import io.vertx.mutiny.sqlclient.Pool;
-import io.vertx.mutiny.sqlclient.Row;
-import io.vertx.mutiny.sqlclient.RowSet;
-import io.vertx.mutiny.sqlclient.SqlClient;
-import io.vertx.mutiny.sqlclient.Tuple;
+import io.vertx.mutiny.sqlclient.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -108,11 +104,11 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         );
     }
 
-    public Uni<Integer> archiveById(UUID shareId) {
+    public Uni<Integer> archive(UUID shareId) {
         String sql = "UPDATE " + entityData.getTableName() + " SET archived = 1 WHERE id = $1";
         return client.preparedQuery(sql)
                 .execute(Tuple.of(shareId))
-                .onItem().transform(rows -> rows.rowCount());
+                .onItem().transform(SqlResult::rowCount);
     }
 
     private Uni<Void> insertInTx(SqlClient tx, SharedSoundFragment entity) {

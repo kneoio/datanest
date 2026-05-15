@@ -55,8 +55,8 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
         router.route(HttpMethod.GET,    path + "/received/:id").handler(this::getReceivedDoc);
         router.route(HttpMethod.DELETE, path + "/received/:id").handler(this::rejectShareByReceiver);
         //only for administrator app
-        router.route(HttpMethod.GET,    path + "/shared/:id/access").handler(this::getDocumentAccess);
-        router.route(HttpMethod.DELETE, path + "/shared/:id").handler(this::archiveShare);
+        router.route(HttpMethod.GET,    path + "/received/:id/access").handler(this::getDocumentAccess);
+        router.route(HttpMethod.DELETE, path + "/received/:id").handler(this::delete);
     }
 
     private void getMySharedFragments(RoutingContext rc) {
@@ -163,10 +163,10 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
         }
     }
 
-    private void archiveShare(RoutingContext rc) {
+    private void delete(RoutingContext rc) {
         UUID shareId = UUID.fromString(rc.pathParam("id"));
         getContextUser(rc, false, true)
-                .chain(user -> sharedSoundFragmentService.archiveShare(shareId, user))
+                .chain(user -> sharedSoundFragmentService.delete(shareId, user))
                 .subscribe().with(
                         count -> rc.response().setStatusCode(204).end(),
                         t -> handleFailure(rc, t)
