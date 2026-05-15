@@ -108,10 +108,6 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         );
     }
 
-    public Uni<Void> insertIfNotExists(SharedSoundFragment entity) {
-        return client.withTransaction(tx -> insertInTx(tx, entity));
-    }
-
     private Uni<Void> insertInTx(SqlClient tx, SharedSoundFragment entity) {
         String insertSql = "INSERT INTO " + entityData.getTableName() + " " +
                 "(source_user_id, target_brand_id, sound_fragment_id, expires_at, played_count, rated_count, status, archived, source_user_name, source_user_email) " +
@@ -151,7 +147,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         });
     }
 
-    public Uni<List<SharedSoundFragment>> getMyContributions(int limit, int offset, long userId) {
+    public Uni<List<SharedSoundFragment>> getSharedCount(int limit, int offset, long userId) {
         String sql = "SELECT sf.id, sf.title, sf.artist, sf.type, sf.album " +
                 "FROM " + SF_TABLE + " sf " +
                 "JOIN " + SF_RLS_TABLE + " rls ON sf.id = rls.entity_id " +
@@ -166,7 +162,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .collect().asList();
     }
 
-    public Uni<Integer> getMyContributionsCount(long userId) {
+    public Uni<Integer> getSharedCount(long userId) {
         String sql = "SELECT COUNT(*) FROM " + SF_TABLE + " sf " +
                 "JOIN " + SF_RLS_TABLE + " rls ON sf.id = rls.entity_id " +
                 "WHERE rls.reader = $1 AND sf.archived = 0 " +

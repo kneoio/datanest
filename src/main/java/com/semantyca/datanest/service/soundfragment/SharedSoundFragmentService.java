@@ -43,7 +43,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
     }
 
     public Uni<List<MySharedContributionDTO>> getMyContributions(int limit, int offset, IUser user) {
-        return repository.getMyContributions(limit, offset, user.getId())
+        return repository.getSharedCount(limit, offset, user.getId())
                 .chain(list -> {
                     if (list.isEmpty()) {
                         return Uni.createFrom().item(List.of());
@@ -56,7 +56,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
     }
 
     public Uni<Integer> getMyContributionsCount(IUser user) {
-        return repository.getMyContributionsCount(user.getId());
+        return repository.getSharedCount(user.getId());
     }
 
     public Uni<Void> removeShare(UUID soundFragmentId, UUID targetBrandId) {

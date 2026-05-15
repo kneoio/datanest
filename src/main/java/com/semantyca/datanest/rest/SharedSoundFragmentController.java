@@ -55,6 +55,7 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
         router.route(HttpMethod.GET,    path + "/received/:id").handler(this::getReceivedDoc);
         router.route(HttpMethod.DELETE, path + "/received/:id").handler(this::rejectShare);
         router.route(HttpMethod.GET,    path + "/shared/:id/access").handler(this::getDocumentAccess);
+        //only for administrator app
         router.route(HttpMethod.GET,    "/datanest/shared-sound-fragments/:id/access").handler(this::getDocumentAccess);
     }
 
