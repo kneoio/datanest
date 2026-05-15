@@ -380,9 +380,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
     }
 
     private SoundFragmentFilter parseFilterDTOForBrand(RoutingContext rc) {
-        SoundFragmentFilter filter = parseFilterDTO(rc, List.of(SourceType.USER_UPLOAD, SourceType.CONTRIBUTION));
-        filter.setShared(true);
-        return filter;
+        return parseFilterDTO(rc, List.of(SourceType.USER_UPLOAD, SourceType.CONTRIBUTION));
     }
 
     SoundFragmentFilter parseFilterDTO(RoutingContext rc, List<SourceType> allowedSources) {
