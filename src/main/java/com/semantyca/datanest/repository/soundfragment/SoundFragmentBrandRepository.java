@@ -137,7 +137,7 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
                     flat.setId(soundFragmentId);
                     flat.setDefaultBrandId(brandId);
                     flat.setPlayedByBrandCount(row.getInteger("played_by_brand_count"));
-                    flat.setRatedByBrandCount(row.getInteger("rated_by_brand_count"));
+                    //flat.setRatedByBrandCount(row.getInteger("rated_by_brand_count"));
                     flat.setPlayedTime(row.getLocalDateTime("last_time_played_by_brand"));
                     flat.setTitle(row.getString("title"));
                     flat.setArtist(row.getString("artist"));
