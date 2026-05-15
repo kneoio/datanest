@@ -131,6 +131,10 @@ public class SoundFragmentQueryBuilder {
             conditions.append("))");
         }
 
+        if (filter.isShared()) {
+            conditions.append(" AND EXISTS (SELECT 1 FROM mixpla__shared_sound_fragments ssf WHERE ssf.sound_fragment_id = t.id)");
+        }
+
         return conditions.toString();
     }
 }

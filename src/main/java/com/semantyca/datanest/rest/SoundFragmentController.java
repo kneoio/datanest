@@ -496,6 +496,11 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                     hasConcreteFilters = true;
                 }
             }
+            Boolean shared = json.getBoolean("shared");
+            if (shared != null && shared) {
+                dto.setShared(true);
+                hasConcreteFilters = true;
+            }
             if (json.containsKey("activated")) {
                 dto.setActivated(json.getBoolean("activated", false));
             } else if (json.containsKey("filterActivated")) {
