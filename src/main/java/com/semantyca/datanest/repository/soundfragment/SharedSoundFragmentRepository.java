@@ -129,7 +129,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                                         return Uni.createFrom().voidItem();
                                     }
                                     UUID existingId = selectRows.iterator().next().getUUID("id");
-                                    return RlsActionUtil.ensureSuperUserAccess(tx, entityData.getRlsName(), existingId);
+                                    return insertRlsForReceivers(tx, existingId, entity.getSourceUserId(), entity.getTargetBrandId());
                                 });
                     }
                     UUID newId = rows.iterator().next().getUUID("id");
@@ -290,8 +290,8 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
 
     private Uni<Void> insertRlsForReceivers(SqlClient tx, UUID entityId, long sourceUserId, UUID targetBrandId) {
         Uni<Void> brandOwnerRls = RlsActionUtil.grantFromJsonField(tx, entityData.getRlsName(), entityId, BRANDS_TABLE, targetBrandId, "owner", "userId", false, false);
-        //Uni<Void> sourceUserRls = RlsActionUtil.grantMerge(tx, entityData.getRlsName(), entityId, sourceUserId, true, true);
-        return Uni.combine().all().unis(brandOwnerRls).discardItems()
+        Uni<Void> sourceUserRls = RlsActionUtil.grantMerge(tx, entityData.getRlsName(), entityId, sourceUserId, true, true);
+        return Uni.combine().all().unis(brandOwnerRls, sourceUserRls).discardItems()
                 .chain(() -> RlsActionUtil.ensureSuperUserAccess(tx, entityData.getRlsName(), entityId));
     }
 
