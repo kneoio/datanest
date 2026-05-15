@@ -78,7 +78,7 @@ public class ProfileController extends AbstractSecuredController<Profile, Profil
                             RuntimeUtil.countMaxPage(tuple.getItem1(), size),
                             size);
                     viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-                    ActionBox actions = ProfileActionsFactory.getViewActions(user.getActivatedRoles());
+                    ActionBox actions = ProfileActionsFactory.getViewActions();
                     viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, actions);
                     return viewPage;
                 }))

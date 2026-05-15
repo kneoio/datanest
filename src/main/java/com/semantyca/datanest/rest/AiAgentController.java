@@ -67,7 +67,7 @@ public class AiAgentController extends AbstractSecuredController<AiAgent, AiAgen
                             RuntimeUtil.countMaxPage(tuple.getItem1(), size),
                             size);
                     viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-                    ActionBox actions = AiAgentActionsFactory.getViewActions(user.getActivatedRoles());
+                    ActionBox actions = AiAgentActionsFactory.getViewActions();
                     viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, actions);
                     return viewPage;
                 }))

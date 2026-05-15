@@ -1,7 +1,7 @@
 package com.semantyca.datanest.service.util;
 
 import io.smallrye.mutiny.Uni;
-import io.vertx.mutiny.pgclient.PgPool;
+import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -15,7 +15,7 @@ public class BrandScriptUpdateService {
     private static final Logger LOGGER = LoggerFactory.getLogger(BrandScriptUpdateService.class);
 
     @Inject
-    PgPool client;
+    Pool client;
 
     public Uni<Void> addScriptToBrand(UUID brandId, UUID scriptId, int rank, boolean active) {
         String sql = "INSERT INTO mixpla__brand_scripts " +

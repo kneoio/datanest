@@ -2,11 +2,11 @@ package com.semantyca.datanest.repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.semantyca.core.model.cnst.ChatType;
+import com.semantyca.core.model.cnst.SummaryType;
 import com.semantyca.core.repository.AsyncRepository;
 import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.datanest.model.ChatSummary;
-import com.semantyca.datanest.model.cnst.SummaryType;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.sqlclient.Pool;

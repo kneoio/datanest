@@ -1,10 +1,9 @@
 package com.semantyca.datanest.repository.soundfragment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.model.FileMetadata;
 import com.semantyca.core.model.cnst.FileStorageType;
-import com.semantyca.core.dto.rls.RlsActionDTO;
-import com.semantyca.core.repository.rls.RlsActionUtil;
 import com.semantyca.core.model.embedded.DocumentAccessInfo;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.repository.IFileStorage;
@@ -12,10 +11,10 @@ import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.exception.DocumentModificationAccessException;
 import com.semantyca.core.repository.exception.UploadAbsenceException;
 import com.semantyca.core.repository.rls.RLSRepository;
+import com.semantyca.core.repository.rls.RlsActionUtil;
 import com.semantyca.core.repository.table.EntityData;
 import com.semantyca.core.service.external.hetzner.HetznerStorageService;
 import com.semantyca.core.util.WebHelper;
-import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
 import com.semantyca.mixpla.model.soundfragment.SoundFragment;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
@@ -507,48 +506,6 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
                 .onItem().transform(row -> row.getUUID("brand_id"))
                 .collect().asList();
-    }
-
-    public Uni<Void> requireEditPermission(UUID soundFragmentId, IUser user) {
-        return rlsRepository.findById(entityData.getRlsName(), user.getId(), soundFragmentId)
-                .onItem().transformToUni(permissions -> {
-                    if (!permissions[0]) {
-                        return Uni.createFrom().failure(new DocumentModificationAccessException(
-                                "User does not have edit permission", user.getUserName(), soundFragmentId));
-                    }
-                    return Uni.createFrom().voidItem();
-                });
-    }
-
-    /**
-     * Fragments authored by the user that have at least one row in {@code mixpla__shared_sound_fragments}.
-     */
-    public Uni<List<SoundFragment>> getMySharedContributions(int limit, int offset, IUser user) {
-        String sql = String.format(
-                "SELECT theTable.*, rls.* FROM %s theTable "
-                        + "JOIN %s rls ON theTable.id = rls.entity_id "
-                        + "WHERE rls.reader = $1 AND theTable.author = $2 AND theTable.archived = 0 "
-                        + "AND EXISTS (SELECT 1 FROM mixpla__shared_sound_fragments ssf WHERE ssf.sound_fragment_id = theTable.id) "
-                        + "ORDER BY theTable.reg_date DESC LIMIT $3 OFFSET $4",
-                entityData.getTableName(), entityData.getRlsName());
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(user.getId(), user.getId(), limit, offset))
-                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
-                .onItem().transformToUni(row -> from(row, false, false, false))
-                .concatenate()
-                .collect().asList();
-    }
-
-    public Uni<Integer> getMySharedContributionsCount(IUser user) {
-        String sql = String.format(
-                "SELECT COUNT(*) FROM %s theTable "
-                        + "JOIN %s rls ON theTable.id = rls.entity_id "
-                        + "WHERE rls.reader = $1 AND theTable.author = $2 AND theTable.archived = 0 "
-                        + "AND EXISTS (SELECT 1 FROM mixpla__shared_sound_fragments ssf WHERE ssf.sound_fragment_id = theTable.id)",
-                entityData.getTableName(), entityData.getRlsName());
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(user.getId(), user.getId()))
-                .onItem().transform(rows -> rows.iterator().next().getInteger(0));
     }
 
     public Uni<SoundFragment> update(UUID id, SoundFragment doc, List<UUID> representedInBrands, List<RlsActionDTO> rlsActions, IUser user) {

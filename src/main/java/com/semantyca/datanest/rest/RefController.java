@@ -89,7 +89,7 @@ public class RefController extends BaseController {
                                     size);
                             viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
 
-                            ActionBox actions = AiAgentActionsFactory.getViewActions(superUser.getActivatedRoles());
+                            ActionBox actions = AiAgentActionsFactory.getViewActions();
                             viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, actions);
                             return viewPage;
                         })
@@ -147,7 +147,7 @@ public class RefController extends BaseController {
                                     size);
                             viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
 
-                            ActionBox actions = ProfileActionsFactory.getViewActions(superUser.getActivatedRoles());
+                            ActionBox actions = ProfileActionsFactory.getViewActions();
                             viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, actions);
                             return viewPage;
                         })

@@ -4,13 +4,10 @@ package com.semantyca.datanest.dto.actions;
 import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.actions.ActionsFactory;
 import com.semantyca.core.model.cnst.LanguageCode;
-import com.semantyca.core.model.user.IRole;
-
-import java.util.List;
 
 public class AiAgentActionsFactory {
 
-    public static ActionBox getViewActions(List<IRole> activatedRoles) {
+    public static ActionBox getViewActions() {
         ActionBox actions = ActionsFactory.getDefaultViewActions(LanguageCode.en);
         /*Action action = new Action();
         action.setIsOn(RunMode.ON);

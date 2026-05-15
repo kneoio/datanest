@@ -4,14 +4,13 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.streams.ReadStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
 
 public class InputStreamReadStream implements ReadStream<Buffer> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(InputStreamReadStream.class);
+    private static final Logger LOGGER = Logger.getLogger(InputStreamReadStream.class);
     
     private final Vertx vertx;
     private final InputStream inputStream;

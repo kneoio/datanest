@@ -1,7 +1,7 @@
 package com.semantyca.datanest.model;
 
 import com.semantyca.core.model.cnst.ChatType;
-import com.semantyca.datanest.model.cnst.SummaryType;
+import com.semantyca.core.model.cnst.SummaryType;
 import lombok.Getter;
 import lombok.Setter;
 

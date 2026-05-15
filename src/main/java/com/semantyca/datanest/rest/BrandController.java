@@ -80,7 +80,7 @@
                                 RuntimeUtil.countMaxPage(tuple.getItem1(), size),
                                 size);
                         viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-                        ActionBox actions = SoundFragmentActionsFactory.getViewActions(user.getActivatedRoles());
+                        ActionBox actions = SoundFragmentActionsFactory.getViewActions();
                         viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, actions);
                         return viewPage;
                     }))
