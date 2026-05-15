@@ -94,7 +94,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
     private void get(RoutingContext rc) {
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
-        SoundFragmentFilter filter = parseFilterDTOForAdmin(rc);
+        SoundFragmentFilter filter = parseFilterDTO(rc);
 
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
@@ -123,7 +123,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
     private void getUnassignedBrands(RoutingContext rc) {
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
-        SoundFragmentFilter filter = parseFilterDTOForAdmin(rc);
+        SoundFragmentFilter filter = parseFilterDTO(rc);
 
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
@@ -375,7 +375,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
     }
 
 
-    private SoundFragmentFilter parseFilterDTOForAdmin(RoutingContext rc) {
+    private SoundFragmentFilter parseFilterDTO(RoutingContext rc) {
         return parseFilterDTO(rc, null);
     }
 
