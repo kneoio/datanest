@@ -5,7 +5,6 @@ import com.semantyca.core.model.DataEntity;
 import com.semantyca.core.model.FileMetadata;
 import com.semantyca.core.model.cnst.ArchivedStatus;
 import com.semantyca.core.model.cnst.LanguageCode;
-import com.semantyca.core.model.cnst.RatingAction;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
@@ -531,38 +530,6 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
             return name.substring(0, dot);
         }
         return name;
-    }
-
-    public Uni<Integer> rateSoundFragmentByAction(String brandSlug, UUID soundFragmentId, RatingAction action, String previousAction, IUser user) {
-        int delta;
-        switch (action) {
-            case LIKE:
-                delta = 10;
-                break;
-            case DISLIKE:
-                delta = -10;
-                break;
-            case CANCEL:
-                if ("LIKE".equals(previousAction)) {
-                    delta = -10;
-                } else if ("DISLIKE".equals(previousAction)) {
-                    delta = 10;
-                } else {
-                    delta = 0;
-                }
-                break;
-            default:
-                return Uni.createFrom().failure(new IllegalArgumentException("Invalid action: " + action));
-        }
-
-        return resolveBrandSlug(brandSlug)
-                .chain(brandId -> {
-                    if (brandId == null) {
-                        return Uni.createFrom().failure(new IllegalArgumentException("Brand not found: " + brandSlug));
-                    }
-                    assert repository != null;
-                    return repository.updateRatedByBrandCount(brandId, soundFragmentId, delta, user);
-                });
     }
 
 }

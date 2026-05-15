@@ -7,7 +7,6 @@ import com.semantyca.core.dto.form.FormPage;
 import com.semantyca.core.dto.view.View;
 import com.semantyca.core.dto.view.ViewPage;
 import com.semantyca.core.model.cnst.LanguageCode;
-import com.semantyca.core.model.cnst.RatingAction;
 import com.semantyca.core.repository.exception.UserNotFoundException;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.FileSecurityUtils;
@@ -89,7 +88,6 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         router.route(HttpMethod.DELETE, path + "/:id").handler(this::delete);
         router.route(HttpMethod.DELETE, path + "/:id/access").handler(this::revokeMyAccess);
         router.route(HttpMethod.GET, path + "/:id/access").handler(this::getDocumentAccess);
-        router.route(HttpMethod.PATCH, path + "/:id/rating").handler(jsonBodyHandler).handler(this::rateFragment);
 
     }
 
@@ -292,51 +290,6 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         }
     }
 
-
-    private void rateFragment(RoutingContext rc) {
-        try {
-            if (!validateJsonBody(rc)) {
-                return;
-            }
-
-            String id = rc.pathParam("id");
-            String brandSlug = rc.request().getParam("brand");
-            if (brandSlug == null || brandSlug.isBlank()) {
-                rc.fail(400, new IllegalArgumentException("brand is required"));
-                return;
-            }
-
-            JsonObject body = rc.body().asJsonObject();
-            String actionStr = body.getString("action");
-            if (actionStr == null) {
-                rc.fail(400, new IllegalArgumentException("action is required (LIKE or DISLIKE)"));
-                return;
-            }
-
-            RatingAction action;
-            try {
-                action = RatingAction.valueOf(actionStr);
-            } catch (IllegalArgumentException e) {
-                rc.fail(400, new IllegalArgumentException("Invalid action. Use LIKE or DISLIKE"));
-                return;
-            }
-
-            UUID fragmentId = UUID.fromString(id);
-            String previousAction = null; //always null since it affects immediately
-            getContextUser(rc, false, true)
-                    .chain(user -> service.rateSoundFragmentByAction(brandSlug, fragmentId, action, previousAction, user))
-                    .subscribe().with(
-                            updated -> {
-                                JsonObject response = new JsonObject();
-                                response.put("updated", updated);
-                                rc.response().setStatusCode(200).putHeader("Content-Type", "application/json").end(response.encode());
-                            },
-                            t -> handleFailure(rc, t)
-                    );
-        } catch (Exception e) {
-            rc.fail(400, new IllegalArgumentException("Invalid JSON payload"));
-        }
-    }
 
 
     private void getBySlugName(RoutingContext rc) {
