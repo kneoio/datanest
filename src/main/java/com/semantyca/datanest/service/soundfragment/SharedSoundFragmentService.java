@@ -15,6 +15,7 @@ import com.semantyca.datanest.repository.soundfragment.SharedSoundFragmentReposi
 import com.semantyca.datanest.repository.soundfragment.SoundFragmentRepository;
 import com.semantyca.datanest.service.BrandService;
 import com.semantyca.mixpla.model.brand.Brand;
+import com.semantyca.mixpla.model.brand.Owner;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -111,10 +112,15 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
                                         "Brand does not accept contributions without restrictions: " + targetBrandId));
                             }
                             SharedSoundFragment entity = new SharedSoundFragment();
-                            entity.setSourceUserId(sourceBrand.getOwner().getUserId());
+                            Owner owner = sourceBrand.getOwner();
+                            if (owner == null) {
+                                return Uni.createFrom().failure(new IllegalStateException(
+                                        "Source brand has no owner: " + sourceBrand.getId()));
+                            }
+                            entity.setSourceUserId(owner.getUserId());
                             if (!stayIncognito) {
-                                entity.setSourceUserName(sourceBrand.getOwner().getName());
-                                entity.setSourceUserEmail(sourceBrand.getOwner().getEmail());
+                                entity.setSourceUserName(owner.getName());
+                                entity.setSourceUserEmail(owner.getEmail());
                             }
                             entity.setTargetBrandId(targetBrandId);
                             entity.setSoundFragmentId(fragmentId);
