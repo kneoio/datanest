@@ -496,11 +496,6 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                         .replaceWithVoid());
     }
 
-    public Uni<Integer> updateRatedByBrandCount(UUID brandId, UUID soundFragmentId, int delta, IUser user) {
-        SoundFragmentBrandRepository brandRepository = new SoundFragmentBrandRepository(client, mapper, rlsRepository);
-        return brandRepository.updateRatedByBrandCount(brandId, soundFragmentId, delta, user);
-    }
-
     public Uni<List<UUID>> getBrandsForSoundFragment(UUID soundFragmentId, IUser user) {
         String sql = "SELECT bsf.brand_id " +
                 "FROM mixpla__brand_sound_fragments bsf " +
