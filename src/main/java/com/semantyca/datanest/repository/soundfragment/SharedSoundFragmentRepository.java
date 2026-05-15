@@ -1,6 +1,7 @@
 package com.semantyca.datanest.repository.soundfragment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.embedded.DocumentAccessInfo;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.repository.AsyncRepository;
@@ -12,6 +13,7 @@ import com.semantyca.datanest.model.soundfragment.SharedSoundFragment;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
@@ -20,6 +22,7 @@ import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
+import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
 
@@ -175,10 +178,11 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
 
     public Uni<List<SharedSoundFragment>> getPreviewList(int limit, int offset, long userId) {
         String sql = "SELECT ssf.id AS ssf_id, sf.id AS sf_id, sf.title, sf.artist, sf.type, sf.album, " +
-                "ssf.source_user_name, ssf.source_user_email " +
+                "ssf.source_user_name, ssf.source_user_email, b.loc_name AS target_brand_name " +
                 "FROM " + SF_TABLE + " sf " +
                 "JOIN " + entityData.getTableName() + " ssf ON ssf.sound_fragment_id = sf.id " +
                 "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = ssf.id " +
+                "LEFT JOIN " + BRANDS_TABLE + " b ON b.id = ssf.target_brand_id " +
                 "WHERE rls.reader = $1 AND sf.archived = 0 " +
                 "ORDER BY sf.reg_date DESC LIMIT $2 OFFSET $3";
         return client.preparedQuery(sql)
@@ -201,10 +205,11 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
 
     public Uni<SharedSoundFragment> findById(UUID id, long userId) {
         String sql = "SELECT ssf.id AS ssf_id, sf.id AS sf_id, sf.title, sf.artist, sf.type, sf.album, " +
-                "ssf.source_user_name, ssf.source_user_email " +
+                "ssf.source_user_name, ssf.source_user_email, b.loc_name AS target_brand_name " +
                 "FROM " + SF_TABLE + " sf " +
                 "JOIN " + entityData.getTableName() + " ssf ON ssf.sound_fragment_id = sf.id " +
                 "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = ssf.id " +
+                "LEFT JOIN " + BRANDS_TABLE + " b ON b.id = ssf.target_brand_id " +
                 "WHERE ssf.id = $1 AND rls.reader = $2 AND sf.archived = 0 LIMIT 1";
         return client.preparedQuery(sql)
                 .execute(Tuple.of(id, userId))
@@ -248,6 +253,13 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         e.setAlbum(row.getString("album"));
         e.setSourceUserName(row.getString("source_user_name"));
         e.setSourceUserEmail(row.getString("source_user_email"));
+        JsonObject locNameJson = row.getJsonObject("target_brand_name");
+        if (locNameJson != null) {
+            EnumMap<LanguageCode, String> targetBrandName = new EnumMap<>(LanguageCode.class);
+            locNameJson.getMap().forEach((key, value) ->
+                    targetBrandName.put(LanguageCode.valueOf(key), (String) value));
+            e.setTargetBrandName(targetBrandName);
+        }
         return loadGenres(sfId).chain(genres -> {
             e.setGenres(genres);
             return loadLabels(sfId);

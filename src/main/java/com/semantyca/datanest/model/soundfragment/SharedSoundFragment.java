@@ -1,10 +1,12 @@
 package com.semantyca.datanest.model.soundfragment;
 
+import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
 
@@ -30,4 +32,7 @@ public class SharedSoundFragment {
     private String album;
     private List<UUID> genres;
     private List<UUID> labels;
+
+    // inflated from JOIN with brands table
+    private EnumMap<LanguageCode, String> targetBrandName;
 }

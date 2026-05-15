@@ -1,11 +1,13 @@
 package com.semantyca.datanest.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,4 +25,5 @@ public class SharedSoundFragmentPreviewDTO {
     private String album;
     private String sharerUserName;
     private String sharerUserEmail;
+    private EnumMap<LanguageCode, String> targetBrandName;
 }
