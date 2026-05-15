@@ -51,8 +51,8 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
         BodyHandler jsonBodyHandler = BodyHandler.create().setHandleFileUploads(false);
         router.route(HttpMethod.GET,    path + "/shared").handler(this::getMySharedFragments);
         router.route(HttpMethod.PATCH,  path + "/shared/:fragmentId").handler(jsonBodyHandler).handler(this::patchShares);
-        router.route(HttpMethod.GET,    path + "/received").handler(this::getPendingReview);
-        router.route(HttpMethod.GET,    path + "/received/:id").handler(this::getPendingReviewItem);
+        router.route(HttpMethod.GET,    path + "/received").handler(this::getReceived);
+        router.route(HttpMethod.GET,    path + "/received/:id").handler(this::getReceivedDoc);
         router.route(HttpMethod.DELETE, path + "/received/:id").handler(this::rejectShare);
         router.route(HttpMethod.GET,    path + "/shared/:id/access").handler(this::getDocumentAccess);
         router.route(HttpMethod.GET,    "/datanest/shared-sound-fragments/:id/access").handler(this::getDocumentAccess);
@@ -86,14 +86,14 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
                 );
     }
 
-    private void getPendingReview(RoutingContext rc) {
+    private void getReceived(RoutingContext rc) {
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
 
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
-                        sharedSoundFragmentService.getPreviewCount(user),
-                        sharedSoundFragmentService.getPreviewList(size, (page - 1) * size, user)
+                        sharedSoundFragmentService.getReceivedListCount(user),
+                        sharedSoundFragmentService.getReceivedList(size, (page - 1) * size, user)
                 ).asTuple().map(tuple -> {
                     ViewPage viewPage = new ViewPage();
                     View<SharedSoundFragmentPreviewDTO> dtoEntries = new View<>(tuple.getItem2(),
@@ -112,7 +112,7 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
                 );
     }
 
-    private void getPendingReviewItem(RoutingContext rc) {
+    private void getReceivedDoc(RoutingContext rc) {
         UUID id = UUID.fromString(rc.pathParam("id"));
         getContextUser(rc, false, true)
                 .chain(user -> sharedSoundFragmentService.getById(id, user))

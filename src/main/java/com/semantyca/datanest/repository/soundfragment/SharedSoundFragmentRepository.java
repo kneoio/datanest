@@ -176,7 +176,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .onItem().transform(rows -> rows.iterator().next().getInteger(0));
     }
 
-    public Uni<List<SharedSoundFragment>> getPreviewList(int limit, int offset, long userId) {
+    public Uni<List<SharedSoundFragment>> getReceivedList(int limit, int offset, long userId) {
         String sql = "SELECT ssf.id AS ssf_id, sf.id AS sf_id, sf.title, sf.artist, sf.type, sf.album, " +
                 "ssf.source_user_name, ssf.source_user_email, b.loc_name AS target_brand_name " +
                 "FROM " + SF_TABLE + " sf " +
@@ -193,7 +193,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .collect().asList();
     }
 
-    public Uni<Integer> getPreviewCount(long userId) {
+    public Uni<Integer> getReceivedListCount(long userId) {
         String sql = "SELECT COUNT(DISTINCT sf.id) FROM " + SF_TABLE + " sf " +
                 "JOIN " + entityData.getTableName() + " ssf ON ssf.sound_fragment_id = sf.id " +
                 "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = ssf.id " +

@@ -67,13 +67,13 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return repository.deleteByIdAndReader(shareId, user.getId());
     }
 
-    public Uni<List<SharedSoundFragmentPreviewDTO>> getPreviewList(int limit, int offset, IUser user) {
-        return repository.getPreviewList(limit, offset, user.getId())
+    public Uni<List<SharedSoundFragmentPreviewDTO>> getReceivedList(int limit, int offset, IUser user) {
+        return repository.getReceivedList(limit, offset, user.getId())
                 .map(list -> list.stream().map(this::toPreviewDTO).collect(Collectors.toList()));
     }
 
-    public Uni<Integer> getPreviewCount(IUser user) {
-        return repository.getPreviewCount(user.getId());
+    public Uni<Integer> getReceivedListCount(IUser user) {
+        return repository.getReceivedListCount(user.getId());
     }
 
     public Uni<SharedSoundFragmentPreviewDTO> getById(UUID id, IUser user) {
