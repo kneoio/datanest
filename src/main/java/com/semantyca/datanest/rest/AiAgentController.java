@@ -9,7 +9,7 @@ import com.semantyca.core.dto.view.ViewPage;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
-import com.semantyca.datanest.dto.actions.AiAgentActionsFactory;
+import com.semantyca.datanest.dto.actionbars.AiAgentActionsFactory;
 import com.semantyca.datanest.dto.aiagent.AiAgentDTO;
 import com.semantyca.datanest.service.AiAgentService;
 import com.semantyca.mixpla.model.aiagent.AiAgent;

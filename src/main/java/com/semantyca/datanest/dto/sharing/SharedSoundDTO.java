@@ -1,4 +1,4 @@
-package com.semantyca.datanest.dto;
+package com.semantyca.datanest.dto.sharing;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
@@ -21,5 +21,5 @@ public class SharedSoundDTO {
     private String album;
     private List<UUID> genres;
     private List<UUID> labels;
-    private List<SharedSoundFragmentDTO> shares;
+    private List<SharedSoundFragmentDTO> shares;  // ?????
 }

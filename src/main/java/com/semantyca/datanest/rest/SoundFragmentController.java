@@ -15,7 +15,7 @@ import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.datanest.dto.BrandSoundFragmentFlatDTO;
 import com.semantyca.datanest.dto.BulkBrandUpdateDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
-import com.semantyca.datanest.dto.actions.SoundFragmentActionsFactory;
+import com.semantyca.datanest.dto.actionbars.SoundFragmentActionsFactory;
 import com.semantyca.datanest.service.soundfragment.BrandSoundFragmentService;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
 import com.semantyca.datanest.service.util.FileDownloadService;

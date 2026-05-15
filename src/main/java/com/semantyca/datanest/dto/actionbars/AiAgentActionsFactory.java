@@ -1,11 +1,12 @@
-package com.semantyca.datanest.dto.actions;
+package com.semantyca.datanest.dto.actionbars;
 
 
 import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.actions.ActionsFactory;
 import com.semantyca.core.model.cnst.LanguageCode;
 
-public class ProfileActionsFactory {
+public class AiAgentActionsFactory {
+
     public static ActionBox getViewActions() {
         ActionBox actions = ActionsFactory.getDefaultViewActions(LanguageCode.en);
         /*Action action = new Action();
@@ -14,4 +15,5 @@ public class ProfileActionsFactory {
         actions.addAction(action);*/
         return actions;
     }
+
 }

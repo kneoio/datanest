@@ -1,4 +1,4 @@
-package com.semantyca.datanest.dto.actions;
+package com.semantyca.datanest.dto.actionbars;
 
 import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.actions.ActionsFactory;

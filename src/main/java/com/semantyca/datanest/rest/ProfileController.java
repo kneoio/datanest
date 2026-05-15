@@ -11,7 +11,7 @@ import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.ProblemDetailsUtil;
 import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.datanest.dto.ProfileDTO;
-import com.semantyca.datanest.dto.actions.ProfileActionsFactory;
+import com.semantyca.datanest.dto.actionbars.ProfileActionsFactory;
 import com.semantyca.datanest.service.ProfileService;
 import com.semantyca.mixpla.model.Profile;
 import io.smallrye.mutiny.Uni;

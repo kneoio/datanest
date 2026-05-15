@@ -8,11 +8,11 @@ import com.semantyca.core.dto.view.ViewPage;
 import com.semantyca.core.repository.exception.UserNotFoundException;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
-import com.semantyca.datanest.dto.SharedSoundDTO;
-import com.semantyca.datanest.dto.SharedSoundFragmentDTO;
+import com.semantyca.datanest.dto.sharing.SharedSoundDTO;
+import com.semantyca.datanest.dto.sharing.SharedSoundFragmentDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPatchDTO;
-import com.semantyca.datanest.dto.ReceivedSoundFragmentDTO;
-import com.semantyca.datanest.dto.actions.SoundFragmentActionsFactory;
+import com.semantyca.datanest.dto.sharing.SharingPreviewDTO;
+import com.semantyca.datanest.dto.actionbars.SoundFragmentActionsFactory;
 import com.semantyca.datanest.model.soundfragment.SharedSoundFragment;
 import com.semantyca.datanest.service.soundfragment.SharedSoundFragmentService;
 import io.smallrye.mutiny.Uni;
@@ -59,6 +59,7 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
         router.route(HttpMethod.DELETE, path + "/received/:id").handler(this::delete);
     }
 
+    @Deprecated
     private void getSharedFragments(RoutingContext rc) {
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
@@ -93,11 +94,11 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
 
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
-                        sharedSoundFragmentService.getReceivedListCount(user),
-                        sharedSoundFragmentService.getReceivedList(size, (page - 1) * size, user)
+                        sharedSoundFragmentService.getSharingPreviewCount(user),
+                        sharedSoundFragmentService.getSharingPreviewList(size, (page - 1) * size, user)
                 ).asTuple().map(tuple -> {
                     ViewPage viewPage = new ViewPage();
-                    View<ReceivedSoundFragmentDTO> dtoEntries = new View<>(tuple.getItem2(),
+                    View<SharingPreviewDTO> dtoEntries = new View<>(tuple.getItem2(),
                             tuple.getItem1(), page,
                             RuntimeUtil.countMaxPage(tuple.getItem1(), size),
                             size);

@@ -1,6 +1,7 @@
-package com.semantyca.datanest.dto;
+package com.semantyca.datanest.dto.sharing;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.semantyca.core.dto.AbstractDTO;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import lombok.Getter;
@@ -15,7 +16,7 @@ import java.util.UUID;
 @Getter
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class ReceivedSoundFragmentDTO {
+public class SharingPreviewDTO extends AbstractDTO {
     private UUID id;
     private String title;
     private String artist;

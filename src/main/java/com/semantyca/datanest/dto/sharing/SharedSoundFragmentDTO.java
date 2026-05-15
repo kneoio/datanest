@@ -1,6 +1,7 @@
-package com.semantyca.datanest.dto;
+package com.semantyca.datanest.dto.sharing;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.semantyca.core.dto.AbstractDTO;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -12,7 +13,9 @@ import java.util.UUID;
 @Getter
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class SharedSoundFragmentDTO {
+//will be represented by SF
+@Deprecated
+public class SharedSoundFragmentDTO extends AbstractDTO {
     private UUID id;
     private long sourceUserId;
     private String sourceUserName;

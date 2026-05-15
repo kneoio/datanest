@@ -6,10 +6,10 @@ import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
-import com.semantyca.datanest.dto.SharedSoundDTO;
-import com.semantyca.datanest.dto.SharedSoundFragmentDTO;
+import com.semantyca.datanest.dto.sharing.SharedSoundDTO;
+import com.semantyca.datanest.dto.sharing.SharedSoundFragmentDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPatchDTO;
-import com.semantyca.datanest.dto.ReceivedSoundFragmentDTO;
+import com.semantyca.datanest.dto.sharing.SharingPreviewDTO;
 import com.semantyca.datanest.model.soundfragment.SharedSoundFragment;
 import com.semantyca.datanest.repository.soundfragment.SharedSoundFragmentRepository;
 import com.semantyca.datanest.repository.soundfragment.SoundFragmentRepository;
@@ -42,6 +42,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         this.brandService = brandService;
     }
 
+    @Deprecated
     public Uni<List<SharedSoundDTO>> getShared(int limit, int offset, IUser user) {
         return repository.getSharedCount(limit, offset, user.getId())
                 .chain(list -> {
@@ -49,12 +50,13 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
                         return Uni.createFrom().item(List.of());
                     }
                     List<Uni<SharedSoundDTO>> unis = list.stream()
-                            .map(this::toContributionDTO)
+                            .map(this::toShareSoundFragmentDTO)
                             .collect(Collectors.toList());
                     return Uni.join().all(unis).andFailFast();
                 });
     }
 
+    @Deprecated
     public Uni<Integer> getSharedCount(IUser user) {
         return repository.getSharedCount(user.getId());
     }
@@ -67,17 +69,17 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return repository.archive(shareId);
     }
 
-    public Uni<List<ReceivedSoundFragmentDTO>> getReceivedList(int limit, int offset, IUser user) {
+    public Uni<List<SharingPreviewDTO>> getSharingPreviewList(int limit, int offset, IUser user) {
         return repository.getReceivedList(limit, offset, user.getId())
-                .map(list -> list.stream().map(this::toPreviewDTO).collect(Collectors.toList()));
+                .map(list -> list.stream().map(this::toSharingPreviewDTO).collect(Collectors.toList()));
     }
 
-    public Uni<Integer> getReceivedListCount(IUser user) {
+    public Uni<Integer> getSharingPreviewCount(IUser user) {
         return repository.getReceivedListCount(user.getId());
     }
 
-    public Uni<ReceivedSoundFragmentDTO> getById(UUID id, IUser user) {
-        return repository.findById(id, user.getId()).map(this::toPreviewDTO);
+    public Uni<SharingPreviewDTO> getById(UUID id, IUser user) {
+        return repository.findById(id, user.getId()).map(this::toSharingPreviewDTO);
     }
 
     public Uni<Void> patchShares(UUID fragmentId, SharedSoundFragmentPatchDTO patch, IUser user) {
@@ -144,7 +146,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
                 );
     }
 
-    private Uni<SharedSoundDTO> toContributionDTO(SharedSoundFragment e) {
+    private Uni<SharedSoundDTO> toShareSoundFragmentDTO(SharedSoundFragment e) {
         return listSharedSoundFragmentDTO(e.getSoundFragmentId()).map(shares -> {
             SharedSoundDTO dto = new SharedSoundDTO();
             dto.setId(e.getSoundFragmentId());
@@ -159,8 +161,8 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         });
     }
 
-    private ReceivedSoundFragmentDTO toPreviewDTO(SharedSoundFragment e) {
-        ReceivedSoundFragmentDTO dto = new ReceivedSoundFragmentDTO();
+    private SharingPreviewDTO toSharingPreviewDTO(SharedSoundFragment e) {
+        SharingPreviewDTO dto = new SharingPreviewDTO();
         dto.setId(e.getId());
         dto.setTitle(e.getTitle());
         dto.setArtist(e.getArtist());
