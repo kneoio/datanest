@@ -6,7 +6,7 @@ import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
-import com.semantyca.datanest.dto.MySharedContributionDTO;
+import com.semantyca.datanest.dto.SharedSoundDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPatchDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPreviewDTO;
@@ -42,28 +42,24 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         this.brandService = brandService;
     }
 
-    public Uni<List<MySharedContributionDTO>> getMyContributions(int limit, int offset, IUser user) {
+    public Uni<List<SharedSoundDTO>> getShared(int limit, int offset, IUser user) {
         return repository.getSharedCount(limit, offset, user.getId())
                 .chain(list -> {
                     if (list.isEmpty()) {
                         return Uni.createFrom().item(List.of());
                     }
-                    List<Uni<MySharedContributionDTO>> unis = list.stream()
+                    List<Uni<SharedSoundDTO>> unis = list.stream()
                             .map(this::toContributionDTO)
                             .collect(Collectors.toList());
                     return Uni.join().all(unis).andFailFast();
                 });
     }
 
-    public Uni<Integer> getMyContributionsCount(IUser user) {
+    public Uni<Integer> getSharedCount(IUser user) {
         return repository.getSharedCount(user.getId());
     }
 
-    public Uni<Void> removeShare(UUID soundFragmentId, UUID targetBrandId) {
-        return repository.deleteBySoundFragmentAndBrand(soundFragmentId, targetBrandId).replaceWithVoid();
-    }
-
-    public Uni<Integer> rejectShare(UUID shareId, IUser user) {
+    public Uni<Integer> rejectShareByReceiver(UUID shareId, IUser user) {
         return repository.deleteByIdAndReader(shareId, user.getId());
     }
 
@@ -80,7 +76,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return repository.findById(id, user.getId()).map(this::toPreviewDTO);
     }
 
-    public Uni<Void> patchContributionTargets(UUID fragmentId, SharedSoundFragmentPatchDTO patch, IUser user) {
+    public Uni<Void> patchShares(UUID fragmentId, SharedSoundFragmentPatchDTO patch, IUser user) {
         List<UUID> remove = patch.getRemoveTargetBrandIds() != null ? patch.getRemoveTargetBrandIds() : List.of();
         List<UUID> add = patch.getAddTargetBrandIds() != null ? patch.getAddTargetBrandIds() : List.of();
         boolean incognito = patch.isStayIncognito();
@@ -95,7 +91,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
                         return Uni.createFrom().failure(new IllegalArgumentException(
                                 "Sound fragment has no associated brand: " + fragmentId));
                     }
-                    return brandService.getById(brandIds.get(0), SuperUser.build());
+                    return brandService.getById(brandIds.getFirst(), SuperUser.build());
                 })
                 .chain(sourceBrand -> validateAndBuildEntities(fragmentId, add, sourceBrand, incognito))
                 .chain(entities -> repository.applyPatch(fragmentId, remove, entities));
@@ -125,7 +121,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return Uni.join().all(unis).andFailFast();
     }
 
-    public Uni<List<SharedSoundFragmentDTO>> listDTOsBySoundFragmentId(UUID soundFragmentId) {
+    public Uni<List<SharedSoundFragmentDTO>> listSharedSoundFragmentDTO(UUID soundFragmentId) {
         return repository.listBySoundFragmentId(soundFragmentId)
                 .map(list -> list.stream().map(this::toDTO).collect(Collectors.toList()));
     }
@@ -144,9 +140,9 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
                 );
     }
 
-    private Uni<MySharedContributionDTO> toContributionDTO(SharedSoundFragment e) {
-        return listDTOsBySoundFragmentId(e.getSoundFragmentId()).map(shares -> {
-            MySharedContributionDTO dto = new MySharedContributionDTO();
+    private Uni<SharedSoundDTO> toContributionDTO(SharedSoundFragment e) {
+        return listSharedSoundFragmentDTO(e.getSoundFragmentId()).map(shares -> {
+            SharedSoundDTO dto = new SharedSoundDTO();
             dto.setId(e.getSoundFragmentId());
             dto.setTitle(e.getTitle());
             dto.setArtist(e.getArtist());

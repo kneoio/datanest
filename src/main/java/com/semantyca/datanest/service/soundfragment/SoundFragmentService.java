@@ -169,7 +169,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                     SoundFragment doc = tuple.getItem1();
                     List<UUID> representedInBrands = tuple.getItem2();
                     assert sharedSoundFragmentService != null;
-                    return sharedSoundFragmentService.listDTOsBySoundFragmentId(doc.getId())
+                    return sharedSoundFragmentService.listSharedSoundFragmentDTO(doc.getId())
                             .chain(shared -> mapToDTO(doc, true, representedInBrands, shared));
                 });
     }

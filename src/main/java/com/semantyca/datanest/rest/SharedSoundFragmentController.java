@@ -8,7 +8,7 @@ import com.semantyca.core.dto.view.ViewPage;
 import com.semantyca.core.repository.exception.UserNotFoundException;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
-import com.semantyca.datanest.dto.MySharedContributionDTO;
+import com.semantyca.datanest.dto.SharedSoundDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPatchDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPreviewDTO;
@@ -65,11 +65,11 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
 
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
-                        sharedSoundFragmentService.getMyContributionsCount(user),
-                        sharedSoundFragmentService.getMyContributions(size, (page - 1) * size, user)
+                        sharedSoundFragmentService.getSharedCount(user),
+                        sharedSoundFragmentService.getShared(size, (page - 1) * size, user)
                 ).asTuple().map(tuple -> {
                     ViewPage viewPage = new ViewPage();
-                    View<MySharedContributionDTO> dtoEntries = new View<>(tuple.getItem2(),
+                    View<SharedSoundDTO> dtoEntries = new View<>(tuple.getItem2(),
                             tuple.getItem1(), page,
                             RuntimeUtil.countMaxPage(tuple.getItem1(), size),
                             size);
@@ -129,7 +129,7 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
     private void rejectShare(RoutingContext rc) {
         UUID shareId = UUID.fromString(rc.pathParam("id"));
         getContextUser(rc, false, true)
-                .chain(user -> sharedSoundFragmentService.rejectShare(shareId, user))
+                .chain(user -> sharedSoundFragmentService.rejectShareByReceiver(shareId, user))
                 .subscribe().with(
                         count -> rc.response().setStatusCode(204).end(),
                         t -> handleFailure(rc, t)
@@ -145,8 +145,8 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
             if (!validateDTO(rc, patch, validator)) return;
 
             getContextUser(rc, false, true)
-                    .chain(user -> sharedSoundFragmentService.patchContributionTargets(fragmentId, patch, user)
-                            .chain(() -> sharedSoundFragmentService.listDTOsBySoundFragmentId(fragmentId)))
+                    .chain(user -> sharedSoundFragmentService.patchShares(fragmentId, patch, user)
+                            .chain(() -> sharedSoundFragmentService.listSharedSoundFragmentDTO(fragmentId)))
                     .subscribe().with(
                             shares -> rc.response()
                                     .setStatusCode(200)

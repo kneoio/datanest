@@ -13,7 +13,7 @@ import java.util.UUID;
 @Getter
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class MySharedContributionDTO {
+public class SharedSoundDTO {
     private UUID id;
     private String title;
     private String artist;
