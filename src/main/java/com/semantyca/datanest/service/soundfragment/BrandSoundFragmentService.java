@@ -53,9 +53,7 @@ public class BrandSoundFragmentService {
                     if (brand == null) {
                         return Uni.createFrom().failure(new IllegalArgumentException("Brand not found: " + brandName));
                     }
-
-                    UUID brandId = brand.getId();
-                    return repository.findForBrandCount(brandId, user, filter);
+                    return repository.findForBrandCount(brand.getId(), user, filter);
                 });
     }
 
@@ -72,6 +70,7 @@ public class BrandSoundFragmentService {
         dto.setLabels(flat.getLabels());
         dto.setGenres(flat.getGenres());
         dto.setRepresentedInBrands(flat.getRepresentedInBrands());
+        dto.setShared(flat.isShared());
         return dto;
     }
 

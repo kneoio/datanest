@@ -26,4 +26,5 @@ public class BrandSoundFragmentFlatDTO {
     private List<LabelDTO> labels;
     private List<GenreDTO> genres;
     private List<UUID> representedInBrands;
+    private boolean shared;
 }
