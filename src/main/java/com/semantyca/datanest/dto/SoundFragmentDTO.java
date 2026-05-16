@@ -52,6 +52,8 @@ public class SoundFragmentDTO extends AbstractDTO {
     private List<UUID> representedInBrands;
     private LocalDateTime expiresAt;
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    private boolean shared;
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<ShareDTO> sharedWith;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)

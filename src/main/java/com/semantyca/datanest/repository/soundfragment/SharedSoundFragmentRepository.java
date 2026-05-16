@@ -54,11 +54,26 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     }
 
     public Uni<List<SharedSoundFragment>> listBySoundFragmentId(UUID soundFragmentId) {
-        String sql = "SELECT * FROM " + entityData.getTableName() + " WHERE sound_fragment_id = $1 AND archived = 0 ORDER BY target_brand_id";
+        String sql = "SELECT ssf.*, b.slug_name AS brand_slug_name, b.loc_name AS brand_loc_name " +
+                "FROM " + entityData.getTableName() + " ssf " +
+                "LEFT JOIN " + BRANDS_TABLE + " b ON b.id = ssf.target_brand_id " +
+                "WHERE ssf.sound_fragment_id = $1 AND ssf.archived = 0 ORDER BY ssf.target_brand_id";
         return client.preparedQuery(sql)
                 .execute(Tuple.of(soundFragmentId))
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
-                .onItem().transform(this::from)
+                .onItem().transform(this::fromWithBrand)
+                .collect().asList();
+    }
+
+    public Uni<List<UUID>> hasActiveShares(List<UUID> fragmentIds) {
+        if (fragmentIds.isEmpty()) return Uni.createFrom().item(List.of());
+        String sql = "SELECT DISTINCT sound_fragment_id FROM " + entityData.getTableName() +
+                " WHERE sound_fragment_id = ANY($1) AND archived = 0";
+        UUID[] arr = fragmentIds.toArray(new UUID[0]);
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(arr))
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transform(row -> row.getUUID("sound_fragment_id"))
                 .collect().asList();
     }
 
@@ -282,6 +297,19 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .addInteger(0)
                 .addValue(entity.getSourceUserName())
                 .addValue(entity.getSourceUserEmail());
+    }
+
+    private SharedSoundFragment fromWithBrand(Row row) {
+        SharedSoundFragment e = from(row);
+        e.setBrandSlugName(row.getString("brand_slug_name"));
+        JsonObject locNameJson = row.getJsonObject("brand_loc_name");
+        if (locNameJson != null) {
+            EnumMap<LanguageCode, String> targetBrandName = new EnumMap<>(LanguageCode.class);
+            locNameJson.getMap().forEach((key, value) ->
+                    targetBrandName.put(LanguageCode.valueOf(key), (String) value));
+            e.setTargetBrandName(targetBrandName);
+        }
+        return e;
     }
 
     private SharedSoundFragment from(Row row) {

@@ -85,16 +85,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
     public Uni<List<SoundFragmentDTO>> getAllDTO(final int limit, final int offset, final IUser user, final SoundFragmentFilter filter) {
         assert repository != null;
         return repository.getAll(limit, offset, false, user, filter)
-                .chain(list -> {
-                    if (list.isEmpty()) {
-                        return Uni.createFrom().item(List.of());
-                    } else {
-                        List<Uni<SoundFragmentDTO>> unis = list.stream()
-                                .map(doc -> mapToDTO(doc, false, null, null))
-                                .collect(Collectors.toList());
-                        return Uni.join().all(unis).andFailFast();
-                    }
-                });
+                .chain(this::buildListDTOs);
     }
 
     public Uni<Integer> getAllCount(final IUser user, final SoundFragmentFilter filter) {
@@ -106,16 +97,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                                                         final IUser user, final SoundFragmentFilter filter) {
         assert repository != null;
         return repository.getAllWithoutBrandAssociation(limit, offset, user, filter)
-                .chain(list -> {
-                    if (list.isEmpty()) {
-                        return Uni.createFrom().item(List.of());
-                    } else {
-                        List<Uni<SoundFragmentDTO>> unis = list.stream()
-                                .map(doc -> mapToDTO(doc, false, null, null))
-                                .collect(Collectors.toList());
-                        return Uni.join().all(unis).andFailFast();
-                    }
-                });
+                .chain(this::buildListDTOs);
     }
 
     public Uni<Integer> getAllCountWithoutBrandAssociation(final IUser user, final SoundFragmentFilter filter) {
@@ -128,16 +110,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         assert repository != null;
         Integer archivedCode = archivedStatus != null ? archivedStatus.getCode() : null;
         return repository.getAll(limit, offset, false, user, filter, archivedCode)
-                .chain(list -> {
-                    if (list.isEmpty()) {
-                        return Uni.createFrom().item(List.of());
-                    } else {
-                        List<Uni<SoundFragmentDTO>> unis = list.stream()
-                                .map(doc -> mapToDTO(doc, false, null, null))
-                                .collect(Collectors.toList());
-                        return Uni.join().all(unis).andFailFast();
-                    }
-                });
+                .chain(this::buildListDTOs);
     }
 
     public Uni<Integer> getAllCount(final IUser user, final SoundFragmentFilter filter, final ArchivedStatus archivedStatus) {
@@ -368,6 +341,20 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                         .filter(Objects::nonNull)
                         .map(Brand::getId)
                         .collect(Collectors.toList()));
+    }
+
+    private Uni<List<SoundFragmentDTO>> buildListDTOs(List<SoundFragment> list) {
+        if (list.isEmpty()) return Uni.createFrom().item(List.of());
+        List<UUID> ids = list.stream().map(SoundFragment::getId).collect(Collectors.toList());
+        return sharedSoundFragmentService.getSharedFragmentIds(ids)
+                .chain(sharedIds -> {
+                    Set<UUID> sharedSet = new HashSet<>(sharedIds);
+                    List<Uni<SoundFragmentDTO>> unis = list.stream()
+                            .map(doc -> mapToDTO(doc, false, null, null)
+                                    .map(dto -> { dto.setShared(sharedSet.contains(doc.getId())); return dto; }))
+                            .collect(Collectors.toList());
+                    return Uni.join().all(unis).andFailFast();
+                });
     }
 
     private Uni<SoundFragmentDTO> mapToDTO(SoundFragment doc, boolean exposeFileUrl, List<UUID> representedInBrands,

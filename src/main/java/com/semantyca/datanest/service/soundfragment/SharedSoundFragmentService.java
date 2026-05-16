@@ -112,6 +112,10 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
                 .map(list -> list.stream().map(this::toDTO).collect(Collectors.toList()));
     }
 
+    public Uni<List<UUID>> getSharedFragmentIds(List<UUID> fragmentIds) {
+        return repository.hasActiveShares(fragmentIds);
+    }
+
     @Override
     public Uni<ShareDTO> getDTO(UUID id, IUser user, LanguageCode language) {
         return repository.findById(id).map(this::toDTO);
@@ -143,17 +147,16 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
 
     private ShareDTO toDTO(SharedSoundFragment e) {
         ShareDTO dto = new ShareDTO();
-        dto.setId(e.getId());
-        dto.setSourceUserId(e.getSourceUserId());
-        dto.setSourceUserName(e.getSourceUserName());
-        dto.setSourceUserEmail(e.getSourceUserEmail());
-        dto.setTargetBrandId(e.getTargetBrandId());
-        dto.setSoundFragmentId(e.getSoundFragmentId());
-        dto.setExpiresAt(e.getExpiresAt());
-        dto.setPlayedCount(e.getPlayedCount());
-        dto.setRatedCount(e.getRatedCount());
         dto.setStatus(e.getStatus());
-        dto.setArchived(e.getArchived());
+        dto.setShared(e.getStatus() == null || e.getStatus() != 501);
+        String brandName = null;
+        if (e.getTargetBrandName() != null && !e.getTargetBrandName().isEmpty()) {
+            brandName = e.getTargetBrandName().get(LanguageCode.en);
+            if (brandName == null) {
+                brandName = e.getTargetBrandName().values().iterator().next();
+            }
+        }
+        dto.setTargetBrand(brandName != null ? brandName : e.getBrandSlugName());
         return dto;
     }
 

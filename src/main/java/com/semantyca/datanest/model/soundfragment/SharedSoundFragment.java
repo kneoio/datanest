@@ -28,6 +28,9 @@ public class SharedSoundFragment {
     private Integer status;
     private Integer archived;
 
+    // inflated from JOIN with brands table on write queries
+    private String brandSlugName;
+
     // inflated from JOIN queries with sound_fragments table
     private String title;
     private String artist;
