@@ -54,7 +54,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     }
 
     public Uni<List<SharedSoundFragment>> listBySoundFragmentId(UUID soundFragmentId) {
-        String sql = "SELECT * FROM " + entityData.getTableName() + " WHERE sound_fragment_id = $1 ORDER BY target_brand_id";
+        String sql = "SELECT * FROM " + entityData.getTableName() + " WHERE sound_fragment_id = $1 AND archived = 0 ORDER BY target_brand_id";
         return client.preparedQuery(sql)
                 .execute(Tuple.of(soundFragmentId))
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))

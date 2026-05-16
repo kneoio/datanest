@@ -53,7 +53,7 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
         router.route(HttpMethod.DELETE, path + "/received/:id").handler(this::rejectShareByReceiver);
         //only for 42next
         router.route(HttpMethod.GET,    path + "/received/:id/access").handler(this::getDocumentAccess);
-        router.route(HttpMethod.DELETE, path + "/received/:id").handler(this::delete);
+        router.route(HttpMethod.DELETE, path + "/shared/:id").handler(this::delete);
     }
 
     private void getReceived(RoutingContext rc) {
