@@ -6,8 +6,8 @@ import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
-import com.semantyca.datanest.dto.sharing.SharedSoundFragmentDTO;
-import com.semantyca.datanest.dto.SharedSoundFragmentPatchDTO;
+import com.semantyca.datanest.dto.sharing.ShareDTO;
+import com.semantyca.datanest.dto.SharePatchDTO;
 import com.semantyca.datanest.dto.sharing.SharingPreviewDTO;
 import com.semantyca.datanest.model.soundfragment.SharedSoundFragment;
 import com.semantyca.datanest.repository.soundfragment.SharedSoundFragmentRepository;
@@ -24,7 +24,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
-public class SharedSoundFragmentService extends AbstractService<SharedSoundFragment, SharedSoundFragmentDTO> {
+public class SharedSoundFragmentService extends AbstractService<SharedSoundFragment, ShareDTO> {
 
     private final SharedSoundFragmentRepository repository;
     private final SoundFragmentRepository soundFragmentRepository;
@@ -62,7 +62,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return repository.findById(id, user.getId()).map(this::toSharingPreviewDTO);
     }
 
-    public Uni<Void> patchShares(UUID fragmentId, SharedSoundFragmentPatchDTO patch, IUser user) {
+    public Uni<Void> patchShares(UUID fragmentId, SharePatchDTO patch, IUser user) {
         List<UUID> remove = patch.getRemoveTargetBrandIds() != null ? patch.getRemoveTargetBrandIds() : List.of();
         List<UUID> add = patch.getAddTargetBrandIds() != null ? patch.getAddTargetBrandIds() : List.of();
         boolean incognito = patch.isStayIncognito();
@@ -107,13 +107,13 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return Uni.join().all(unis).andFailFast();
     }
 
-    public Uni<List<SharedSoundFragmentDTO>> listSharedSoundFragmentDTO(UUID soundFragmentId) {
+    public Uni<List<ShareDTO>> listSharedSoundFragmentDTO(UUID soundFragmentId) {
         return repository.listBySoundFragmentId(soundFragmentId)
                 .map(list -> list.stream().map(this::toDTO).collect(Collectors.toList()));
     }
 
     @Override
-    public Uni<SharedSoundFragmentDTO> getDTO(UUID id, IUser user, LanguageCode language) {
+    public Uni<ShareDTO> getDTO(UUID id, IUser user, LanguageCode language) {
         return repository.findById(id).map(this::toDTO);
     }
 
@@ -141,8 +141,8 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return dto;
     }
 
-    private SharedSoundFragmentDTO toDTO(SharedSoundFragment e) {
-        SharedSoundFragmentDTO dto = new SharedSoundFragmentDTO();
+    private ShareDTO toDTO(SharedSoundFragment e) {
+        ShareDTO dto = new ShareDTO();
         dto.setId(e.getId());
         dto.setSourceUserId(e.getSourceUserId());
         dto.setSourceUserName(e.getSourceUserName());

@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.datatype.jsr310.ser.DurationSerializer;
 import com.semantyca.core.dto.AbstractDTO;
 import com.semantyca.core.dto.rls.RlsActionDTO;
-import com.semantyca.datanest.dto.sharing.SharedSoundFragmentDTO;
+import com.semantyca.datanest.dto.sharing.ShareDTO;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.cnst.SourceType;
 import jakarta.validation.constraints.NotBlank;
@@ -53,7 +53,7 @@ public class SoundFragmentDTO extends AbstractDTO {
     private LocalDateTime expiresAt;
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
-    private List<SharedSoundFragmentDTO> sharedWith;
+    private List<ShareDTO> sharedWith;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<RlsActionDTO> rlsActions = new ArrayList<>();
 

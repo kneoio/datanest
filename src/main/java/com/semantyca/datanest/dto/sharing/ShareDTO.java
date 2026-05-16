@@ -13,9 +13,7 @@ import java.util.UUID;
 @Getter
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-//will be represented by SF
-@Deprecated
-public class SharedSoundFragmentDTO extends AbstractDTO {
+public class ShareDTO extends AbstractDTO {
     private UUID id;
     private long sourceUserId;
     private String sourceUserName;

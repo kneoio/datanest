@@ -14,7 +14,7 @@ import java.util.UUID;
 @Getter
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class SharedSoundFragmentPatchDTO {
+public class SharePatchDTO {
     private List<UUID> addTargetBrandIds = new ArrayList<>();
     private List<UUID> removeTargetBrandIds = new ArrayList<>();
     private boolean stayIncognito = false;
