@@ -402,6 +402,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
             dto.setRepresentedInBrands(representedInBrands);
             if (shares != null) {
                 dto.setSharedWith(shares);
+                dto.setShared(!shares.isEmpty());
             }
             return dto;
         });
