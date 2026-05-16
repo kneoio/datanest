@@ -107,7 +107,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return Uni.join().all(unis).andFailFast();
     }
 
-    public Uni<List<ShareDTO>> listSharedSoundFragmentDTO(UUID soundFragmentId) {
+    public Uni<List<ShareDTO>> listShareDTO(UUID soundFragmentId) {
         return repository.listBySoundFragmentId(soundFragmentId)
                 .map(list -> list.stream().map(this::toDTO).collect(Collectors.toList()));
     }

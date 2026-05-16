@@ -120,7 +120,7 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
 
             getContextUser(rc, false, true)
                     .chain(user -> sharedSoundFragmentService.patchShares(fragmentId, patch, user)
-                            .chain(() -> sharedSoundFragmentService.listSharedSoundFragmentDTO(fragmentId)))
+                            .chain(() -> sharedSoundFragmentService.listShareDTO(fragmentId)))
                     .subscribe().with(
                             shares -> rc.response()
                                     .setStatusCode(200)

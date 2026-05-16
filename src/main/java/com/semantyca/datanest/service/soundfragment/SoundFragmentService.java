@@ -159,9 +159,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
     @Override
     public Uni<SoundFragmentDTO> getDTO(UUID uuid, IUser user, LanguageCode code) {
         assert repository != null;
-
         Uni<SoundFragment> soundFragmentUni = repository.findById(uuid, user.getId(), false, true, true);
-
         Uni<List<UUID>> brandsUni = repository.getBrandsForSoundFragment(uuid, user);
 
         return Uni.combine().all().unis(soundFragmentUni, brandsUni).asTuple()
@@ -169,7 +167,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                     SoundFragment doc = tuple.getItem1();
                     List<UUID> representedInBrands = tuple.getItem2();
                     assert sharedSoundFragmentService != null;
-                    return sharedSoundFragmentService.listSharedSoundFragmentDTO(doc.getId())
+                    return sharedSoundFragmentService.listShareDTO(doc.getId())
                             .chain(shared -> mapToDTO(doc, true, representedInBrands, shared));
                 });
     }

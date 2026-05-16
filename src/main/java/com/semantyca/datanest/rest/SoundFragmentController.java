@@ -80,7 +80,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         BodyHandler jsonBodyHandler = BodyHandler.create().setHandleFileUploads(false);
         router.route(HttpMethod.GET, path).handler(this::get);
         router.route(HttpMethod.GET, path + "/available-soundfragments").handler(this::getForBrand);
-        router.route(HttpMethod.GET, path + "/unassigned-brands").handler(this::getUnassignedBrands); //archived in regular user context
+        router.route(HttpMethod.GET, path + "/unassigned-brands").handler(this::getUnassignedBrands); //it is archived from regular POV
         router.route(HttpMethod.GET, path + "/:id").handler(this::getById);
         router.route(HttpMethod.GET, path + "/files/:id/:slug").handler(this::getBySlugName);
         router.route(HttpMethod.POST, path + "/bulk-brand-update").handler(jsonBodyHandler).handler(this::bulkBrandUpdate);
