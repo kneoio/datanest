@@ -47,12 +47,17 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
     public void setupRoutes(Router router) {
         String path = "/datanest/shared-sound-fragments";
         BodyHandler jsonBodyHandler = BodyHandler.create().setHandleFileUploads(false);
+        // sender adds or removes target brands for a shared fragment
         router.route(HttpMethod.PATCH,  path + "/shared/:fragmentId").handler(jsonBodyHandler).handler(this::patchToShare);
+        // receiver: list all shares sent to the current user
         router.route(HttpMethod.GET,    path + "/received").handler(this::getReceived);
+        // receiver: get a single received share by id
         router.route(HttpMethod.GET,    path + "/received/:id").handler(this::getReceivedDoc);
+        // receiver: reject a received share — removes RLS access, marks status 501, main record stays
         router.route(HttpMethod.DELETE, path + "/received/:id").handler(this::rejectShareByReceiver);
-        //only for 42next
+        // only for 42next — list brands that have access to a received fragment
         router.route(HttpMethod.GET,    path + "/received/:id/access").handler(this::getDocumentAccess);
+        // sender/admin: archive a share — sets archived=1, excluded from sharedWith going forward
         router.route(HttpMethod.DELETE, path + "/shared/:id").handler(this::delete);
     }
 
