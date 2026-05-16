@@ -6,7 +6,6 @@ import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
-import com.semantyca.datanest.dto.sharing.SharedSoundDTO;
 import com.semantyca.datanest.dto.sharing.SharedSoundFragmentDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPatchDTO;
 import com.semantyca.datanest.dto.sharing.SharingPreviewDTO;
@@ -40,25 +39,6 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         this.repository = repository;
         this.soundFragmentRepository = soundFragmentRepository;
         this.brandService = brandService;
-    }
-
-    @Deprecated
-    public Uni<List<SharedSoundDTO>> getShared(int limit, int offset, IUser user) {
-        return repository.getSharedCount(limit, offset, user.getId())
-                .chain(list -> {
-                    if (list.isEmpty()) {
-                        return Uni.createFrom().item(List.of());
-                    }
-                    List<Uni<SharedSoundDTO>> unis = list.stream()
-                            .map(this::toShareSoundFragmentDTO)
-                            .collect(Collectors.toList());
-                    return Uni.join().all(unis).andFailFast();
-                });
-    }
-
-    @Deprecated
-    public Uni<Integer> getSharedCount(IUser user) {
-        return repository.getSharedCount(user.getId());
     }
 
     public Uni<Integer> rejectShareByReceiver(UUID shareId, IUser user) {
@@ -144,21 +124,6 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
                                 .map(this::mapToDocumentAccessDTO)
                                 .collect(Collectors.toList())
                 );
-    }
-
-    private Uni<SharedSoundDTO> toShareSoundFragmentDTO(SharedSoundFragment e) {
-        return listSharedSoundFragmentDTO(e.getSoundFragmentId()).map(shares -> {
-            SharedSoundDTO dto = new SharedSoundDTO();
-            dto.setId(e.getSoundFragmentId());
-            dto.setTitle(e.getTitle());
-            dto.setArtist(e.getArtist());
-            dto.setType(e.getType());
-            dto.setAlbum(e.getAlbum());
-            dto.setGenres(e.getGenres());
-            dto.setLabels(e.getLabels());
-            dto.setShares(shares);
-            return dto;
-        });
     }
 
     private SharingPreviewDTO toSharingPreviewDTO(SharedSoundFragment e) {

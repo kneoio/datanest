@@ -150,31 +150,6 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         });
     }
 
-    public Uni<List<SharedSoundFragment>> getSharedCount(int limit, int offset, long userId) {
-        String sql = "SELECT sf.id, sf.title, sf.artist, sf.type, sf.album " +
-                "FROM " + SF_TABLE + " sf " +
-                "JOIN " + SF_RLS_TABLE + " rls ON sf.id = rls.entity_id " +
-                "WHERE rls.reader = $1 AND sf.archived = 0 " +
-                "AND EXISTS (SELECT 1 FROM " + entityData.getTableName() + " ssf WHERE ssf.sound_fragment_id = sf.id) " +
-                "ORDER BY sf.reg_date DESC LIMIT $2 OFFSET $3";
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(userId, limit, offset))
-                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
-                .onItem().transformToUni(this::fromSoundFragmentRow)
-                .concatenate()
-                .collect().asList();
-    }
-
-    public Uni<Integer> getSharedCount(long userId) {
-        String sql = "SELECT COUNT(*) FROM " + SF_TABLE + " sf " +
-                "JOIN " + SF_RLS_TABLE + " rls ON sf.id = rls.entity_id " +
-                "WHERE rls.reader = $1 AND sf.archived = 0 " +
-                "AND EXISTS (SELECT 1 FROM " + entityData.getTableName() + " ssf WHERE ssf.sound_fragment_id = sf.id)";
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(userId))
-                .onItem().transform(rows -> rows.iterator().next().getInteger(0));
-    }
-
     public Uni<List<SharedSoundFragment>> getReceivedList(int limit, int offset, long userId) {
         String sql = "SELECT ssf.id AS ssf_id, sf.id AS sf_id, sf.title, sf.artist, sf.type, sf.album, " +
                 "ssf.source_user_name, ssf.source_user_email, b.loc_name AS target_brand_name " +

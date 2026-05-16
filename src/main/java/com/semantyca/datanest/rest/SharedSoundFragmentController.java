@@ -8,11 +8,9 @@ import com.semantyca.core.dto.view.ViewPage;
 import com.semantyca.core.repository.exception.UserNotFoundException;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
-import com.semantyca.datanest.dto.sharing.SharedSoundDTO;
 import com.semantyca.datanest.dto.sharing.SharedSoundFragmentDTO;
 import com.semantyca.datanest.dto.SharedSoundFragmentPatchDTO;
 import com.semantyca.datanest.dto.sharing.SharingPreviewDTO;
-import com.semantyca.datanest.dto.actionbars.SoundFragmentActionsFactory;
 import com.semantyca.datanest.model.soundfragment.SharedSoundFragment;
 import com.semantyca.datanest.service.soundfragment.SharedSoundFragmentService;
 import io.smallrye.mutiny.Uni;
@@ -53,39 +51,8 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
         router.route(HttpMethod.GET,    path + "/received").handler(this::getReceived);
         router.route(HttpMethod.GET,    path + "/received/:id").handler(this::getReceivedDoc);
         router.route(HttpMethod.DELETE, path + "/received/:id").handler(this::rejectShareByReceiver);
-        //only for administrator app
-        router.route(HttpMethod.GET,    path + "/shared").handler(this::getSharedFragments);
         router.route(HttpMethod.GET,    path + "/received/:id/access").handler(this::getDocumentAccess);
         router.route(HttpMethod.DELETE, path + "/received/:id").handler(this::delete);
-    }
-
-    @Deprecated
-    private void getSharedFragments(RoutingContext rc) {
-        int page = Integer.parseInt(rc.request().getParam("page", "1"));
-        int size = Integer.parseInt(rc.request().getParam("size", "10"));
-
-        getContextUser(rc, false, true)
-                .chain(user -> Uni.combine().all().unis(
-                        sharedSoundFragmentService.getSharedCount(user),
-                        sharedSoundFragmentService.getShared(size, (page - 1) * size, user)
-                ).asTuple().map(tuple -> {
-                    ViewPage viewPage = new ViewPage();
-                    View<SharedSoundDTO> dtoEntries = new View<>(tuple.getItem2(),
-                            tuple.getItem1(), page,
-                            RuntimeUtil.countMaxPage(tuple.getItem1(), size),
-                            size);
-                    viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-                    ActionBox actions = SoundFragmentActionsFactory.getViewActions();
-                    viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, actions);
-                    return viewPage;
-                }))
-                .subscribe().with(
-                        viewPage -> rc.response()
-                                .setStatusCode(200)
-                                .putHeader("Content-Type", "application/json")
-                                .end(io.vertx.core.json.Json.encode(viewPage)),
-                        t -> handleFailure(rc, t)
-                );
     }
 
     private void getReceived(RoutingContext rc) {
