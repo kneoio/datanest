@@ -88,7 +88,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         String selectSql = "SELECT id FROM " + entityData.getTableName() +
                 " WHERE id = $1 AND id IN (SELECT entity_id FROM " + entityData.getRlsName() + " WHERE reader = $2)";
         String deleteRlsSql = "DELETE FROM " + entityData.getRlsName() + " WHERE entity_id = $1";
-        String updateStatusSql = "UPDATE " + entityData.getTableName() + " SET status = 501 WHERE id = $1";
+        String updateStatusSql = "UPDATE " + entityData.getTableName() + " SET status = 501, last_mod_date = NOW() WHERE id = $1";
         return client.withTransaction(tx ->
                 tx.preparedQuery(selectSql)
                         .execute(Tuple.of(shareId, userId))
@@ -105,7 +105,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     }
 
     public Uni<Integer> archive(UUID shareId) {
-        String sql = "UPDATE " + entityData.getTableName() + " SET archived = 1 WHERE id = $1";
+        String sql = "UPDATE " + entityData.getTableName() + " SET archived = 1, last_mod_date = NOW() WHERE id = $1";
         return client.preparedQuery(sql)
                 .execute(Tuple.of(shareId))
                 .onItem().transform(SqlResult::rowCount);
@@ -113,8 +113,8 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
 
     private Uni<Void> insertInTx(SqlClient tx, SharedSoundFragment entity) {
         String insertSql = "INSERT INTO " + entityData.getTableName() + " " +
-                "(source_user_id, target_brand_id, sound_fragment_id, expires_at, played_count, rated_count, status, archived, source_user_name, source_user_email) " +
-                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) " +
+                "(source_user_id, target_brand_id, sound_fragment_id, expires_at, played_count, rated_count, status, archived, source_user_name, source_user_email, reg_date, last_mod_date) " +
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()) " +
                 "ON CONFLICT ON CONSTRAINT unique_brand_shared_fragment DO NOTHING RETURNING id";
         return tx.preparedQuery(insertSql)
                 .execute(buildInsertTuple(entity))
@@ -157,7 +157,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 "JOIN " + entityData.getTableName() + " ssf ON ssf.sound_fragment_id = sf.id " +
                 "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = ssf.id " +
                 "LEFT JOIN " + BRANDS_TABLE + " b ON b.id = ssf.target_brand_id " +
-                "WHERE rls.reader = $1 AND sf.archived = 0 " +
+                "WHERE rls.reader = $1 AND sf.archived = 0 AND ssf.archived = 0 " +
                 "ORDER BY sf.reg_date DESC LIMIT $2 OFFSET $3";
         return client.preparedQuery(sql)
                 .execute(Tuple.of(userId, limit, offset))
@@ -171,7 +171,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         String sql = "SELECT COUNT(DISTINCT sf.id) FROM " + SF_TABLE + " sf " +
                 "JOIN " + entityData.getTableName() + " ssf ON ssf.sound_fragment_id = sf.id " +
                 "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = ssf.id " +
-                "WHERE rls.reader = $1 AND sf.archived = 0";
+                "WHERE rls.reader = $1 AND sf.archived = 0 AND ssf.archived = 0";
         return client.preparedQuery(sql)
                 .execute(Tuple.of(userId))
                 .onItem().transform(rows -> rows.iterator().next().getInteger(0));
@@ -184,7 +184,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 "JOIN " + entityData.getTableName() + " ssf ON ssf.sound_fragment_id = sf.id " +
                 "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = ssf.id " +
                 "LEFT JOIN " + BRANDS_TABLE + " b ON b.id = ssf.target_brand_id " +
-                "WHERE ssf.id = $1 AND rls.reader = $2 AND sf.archived = 0 LIMIT 1";
+                "WHERE ssf.id = $1 AND rls.reader = $2 AND sf.archived = 0 AND ssf.archived = 0 LIMIT 1";
         return client.preparedQuery(sql)
                 .execute(Tuple.of(id, userId))
                 .onItem().transformToUni(rows -> {
@@ -297,6 +297,8 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         e.setRatedCount(row.getInteger("rated_count"));
         e.setStatus(row.getInteger("status"));
         e.setArchived(row.getInteger("archived"));
+        e.setRegDate(row.getOffsetDateTime("reg_date"));
+        e.setLastModDate(row.getOffsetDateTime("last_mod_date"));
         return e;
     }
 }

@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
@@ -14,6 +15,8 @@ import java.util.UUID;
 @Setter
 public class SharedSoundFragment {
     private UUID id;
+    private OffsetDateTime regDate;
+    private OffsetDateTime lastModDate;
     private Long sourceUserId;
     private String sourceUserName;
     private String sourceUserEmail;
