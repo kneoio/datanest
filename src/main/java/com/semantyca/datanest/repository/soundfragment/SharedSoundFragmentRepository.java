@@ -67,11 +67,13 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
 
     public Uni<List<UUID>> hasActiveShares(List<UUID> fragmentIds) {
         if (fragmentIds.isEmpty()) return Uni.createFrom().item(List.of());
+        String inClause = fragmentIds.stream()
+                .map(id -> "'" + id + "'")
+                .collect(java.util.stream.Collectors.joining(", "));
         String sql = "SELECT DISTINCT sound_fragment_id FROM " + entityData.getTableName() +
-                " WHERE sound_fragment_id = ANY($1) AND archived = 0";
-        UUID[] arr = fragmentIds.toArray(new UUID[0]);
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(arr))
+                " WHERE sound_fragment_id IN (" + inClause + ") AND archived = 0";
+        return client.query(sql)
+                .execute()
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
                 .onItem().transform(row -> row.getUUID("sound_fragment_id"))
                 .collect().asList();
