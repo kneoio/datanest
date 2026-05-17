@@ -47,7 +47,7 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
         String path = "/datanest/shared-sound-fragments";
         BodyHandler jsonBodyHandler = BodyHandler.create().setHandleFileUploads(false);
         // sharer adds or removes target brands for a shared fragment
-        router.route(HttpMethod.PATCH,  path + "/shared/:fragmentId").handler(jsonBodyHandler).handler(this::patchToShare);
+        router.route(HttpMethod.PATCH,  path + "/shared/:brandSlug/:fragmentId").handler(jsonBodyHandler).handler(this::patchToShare);
         // receiver: list all shares sent to the current user
         router.route(HttpMethod.GET,    path + "/received").handler(this::getReceived);
         // receiver: get a single received share by id
@@ -114,12 +114,13 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
         try {
             if (!validateJsonBody(rc)) return;
 
+            String brandSlug = rc.pathParam("brandSlug");
             UUID fragmentId = UUID.fromString(rc.pathParam("fragmentId"));
             SharePatchDTO patch = rc.body().asJsonObject().mapTo(SharePatchDTO.class);
             if (!validateDTO(rc, patch, validator)) return;
 
             getContextUser(rc, false, true)
-                    .chain(user -> sharedSoundFragmentService.patchShares(fragmentId, patch, user)
+                    .chain(user -> sharedSoundFragmentService.patchShares(fragmentId, brandSlug, patch, user)
                             .chain(() -> sharedSoundFragmentService.listShareDTO(fragmentId)))
                     .subscribe().with(
                             shares -> rc.response()

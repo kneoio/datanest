@@ -11,7 +11,6 @@ import com.semantyca.datanest.dto.SharePatchDTO;
 import com.semantyca.datanest.dto.sharing.SharingPreviewDTO;
 import com.semantyca.datanest.model.soundfragment.SharedSoundFragment;
 import com.semantyca.datanest.repository.soundfragment.SharedSoundFragmentRepository;
-import com.semantyca.datanest.repository.soundfragment.SoundFragmentRepository;
 import com.semantyca.datanest.service.BrandService;
 import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
@@ -27,17 +26,14 @@ import java.util.stream.Collectors;
 public class SharedSoundFragmentService extends AbstractService<SharedSoundFragment, ShareDTO> {
 
     private final SharedSoundFragmentRepository repository;
-    private final SoundFragmentRepository soundFragmentRepository;
     private final BrandService brandService;
 
     @Inject
     public SharedSoundFragmentService(UserService userService,
                                       SharedSoundFragmentRepository repository,
-                                      SoundFragmentRepository soundFragmentRepository,
                                       BrandService brandService) {
         super(userService);
         this.repository = repository;
-        this.soundFragmentRepository = soundFragmentRepository;
         this.brandService = brandService;
     }
 
@@ -62,7 +58,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return repository.findById(id, user.getId()).map(this::toSharingPreviewDTO);
     }
 
-    public Uni<Void> patchShares(UUID fragmentId, SharePatchDTO patch, IUser user) {
+    public Uni<Void> patchShares(UUID fragmentId, String brandSlug, SharePatchDTO patch, IUser user) {
         List<UUID> remove = patch.getRemoveTargetBrandIds() != null ? patch.getRemoveTargetBrandIds() : List.of();
         List<UUID> add = patch.getAddTargetBrandIds() != null ? patch.getAddTargetBrandIds() : List.of();
         boolean incognito = patch.isStayIncognito();
@@ -71,14 +67,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
             return repository.applyPatch(fragmentId, remove, List.of());
         }
 
-        return soundFragmentRepository.getBrandsForSoundFragment(fragmentId, user)
-                .chain(brandIds -> {
-                    if (brandIds.isEmpty()) {
-                        return Uni.createFrom().failure(new IllegalArgumentException(
-                                "Sound fragment has no associated brand: " + fragmentId));
-                    }
-                    return brandService.getById(brandIds.getFirst(), SuperUser.build());
-                })
+        return brandService.getBySlugName(brandSlug)
                 .chain(sourceBrand -> validateAndBuildEntities(fragmentId, add, sourceBrand, incognito))
                 .chain(entities -> repository.applyPatch(fragmentId, remove, entities));
     }
