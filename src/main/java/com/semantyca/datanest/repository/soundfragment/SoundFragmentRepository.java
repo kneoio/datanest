@@ -14,7 +14,7 @@ import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.rls.RlsActionUtil;
 import com.semantyca.core.repository.table.EntityData;
 import com.semantyca.core.service.external.hetzner.HetznerStorageService;
-import com.semantyca.core.util.WebHelper;
+import com.semantyca.datanest.util.SlugHelper;
 import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
 import com.semantyca.mixpla.model.soundfragment.SoundFragment;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static com.semantyca.mixpla.repository.MixplaNameResolver.RADIO_STATION;
 import static com.semantyca.mixpla.repository.MixplaNameResolver.SOUND_FRAGMENT;
 
 
@@ -44,6 +45,8 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
 
     private static final Logger LOGGER = Logger.getLogger(SoundFragmentRepository.class);
     private static final EntityData entityData = MixplaNameResolver.create().getEntityNames(SOUND_FRAGMENT);
+    private static final EntityData brandEntityData = MixplaNameResolver.create().getEntityNames(RADIO_STATION);
+    private static final String STORAGE_BRAND_SLUG_FALLBACK = "unknown";
 
     private final IFileStorage fileStorage;
     private final SoundFragmentFileHandler fileHandler;
@@ -234,41 +237,42 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                 ? List.of(originalFiles.getFirst())
                 : null;
 
-        if (filesToProcess != null) {
-            FileMetadata meta = filesToProcess.getFirst();
-            Path filePath = meta.getFilePath();
-            if (filePath == null) {
-                throw new IllegalArgumentException("File metadata contains an entry with a null file path.");
-            }
-            if (!Files.exists(filePath)) {
-                throw new UploadAbsenceException("Upload file not found at path: " + filePath);
-            }
-            meta.setFileOriginalName(filePath.getFileName().toString());
-            meta.setSlugName(WebHelper.generateSlug(doc.getArtist(), doc.getTitle()));
-            String doKey = WebHelper.generateSlugPath("music", doc.getArtist(), String.valueOf(UUID.randomUUID()));
-            meta.setFileKey(doKey);
-            meta.setMimeType(detectMimeType(filePath.toString()));
-            doc.setFileMetadataList(filesToProcess);
+        if (filesToProcess == null) {
+            return executeInsertTransaction(doc, user, nowTime, Uni.createFrom().voidItem(), representedInBrands, rlsActions);
         }
 
-        return executeInsertTransaction(doc, user, nowTime, Uni.createFrom().voidItem(), representedInBrands, rlsActions)
-                .onItem().transformToUni(insertedDoc -> {
-                    if (filesToProcess != null) {
-                        FileMetadata meta = filesToProcess.getFirst();
-                        assert fileStorage != null;
-                        return fileStorage.uploadFile(
-                                        meta.getFileKey(),
-                                        meta.getFilePath().toString(),
-                                        meta.getMimeType()
-                                )
-                                .onItem().invoke(storedKey -> LOGGER.debugf("File stored with key: %s for doc ID: %s", storedKey, insertedDoc.getId()))
-                                .onItem().transform(ignored -> insertedDoc)
-                                .onFailure().recoverWithUni(ex -> {
-                                    LOGGER.error("File failed to store for doc ID: %s. DB record was created.", insertedDoc.getId(), ex);
-                                    return Uni.createFrom().failure(new RuntimeException("File storage failed after sound fragment creation", ex));
-                                });
-                    }
-                    return Uni.createFrom().item(insertedDoc);
+        FileMetadata meta = filesToProcess.getFirst();
+        Path filePath = meta.getFilePath();
+        if (filePath == null) {
+            throw new IllegalArgumentException("File metadata contains an entry with a null file path.");
+        }
+        if (!Files.exists(filePath)) {
+            throw new UploadAbsenceException("Upload file not found at path: " + filePath);
+        }
+
+        return resolveBrandSlugForStorage(representedInBrands, null)
+                .chain(brandSlug -> {
+                    meta.setFileOriginalName(filePath.getFileName().toString());
+                    meta.setSlugName(SlugHelper.generateSlug(doc.getArtist(), doc.getTitle()));
+                    meta.setFileKey(buildStorageFileKey(brandSlug, doc.getArtist()));
+                    meta.setMimeType(detectMimeType(filePath.toString()));
+                    doc.setFileMetadataList(filesToProcess);
+
+                    return executeInsertTransaction(doc, user, nowTime, Uni.createFrom().voidItem(), representedInBrands, rlsActions)
+                            .onItem().transformToUni(insertedDoc -> {
+                                assert fileStorage != null;
+                                return fileStorage.uploadFile(
+                                                meta.getFileKey(),
+                                                meta.getFilePath().toString(),
+                                                meta.getMimeType()
+                                        )
+                                        .onItem().invoke(storedKey -> LOGGER.debugf("File stored with key: %s for doc ID: %s", storedKey, insertedDoc.getId()))
+                                        .onItem().transform(ignored -> insertedDoc)
+                                        .onFailure().recoverWithUni(ex -> {
+                                            LOGGER.error("File failed to store for doc ID: %s. DB record was created.", insertedDoc.getId(), ex);
+                                            return Uni.createFrom().failure(new RuntimeException("File storage failed after sound fragment creation", ex));
+                                        });
+                            });
                 });
     }
 
@@ -524,7 +528,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                                         ? List.of(originalFiles.getFirst())
                                         : null;
 
-                                Uni<Void> fileStoredUni = handleFileUpdate(id, doc, newFiles);
+                                Uni<Void> fileStoredUni = handleFileUpdate(id, doc, newFiles, representedInBrands);
 
                                 return fileStoredUni.onItem().transformToUni(ignored -> {
                                     LocalDateTime nowTime = ZonedDateTime.now(ZoneOffset.UTC).toLocalDateTime();
@@ -555,7 +559,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                 });
     }
 
-    private Uni<Void> handleFileUpdate(UUID id, SoundFragment doc, List<FileMetadata> newFiles) {
+    private Uni<Void> handleFileUpdate(UUID id, SoundFragment doc, List<FileMetadata> newFiles, List<UUID> representedInBrands) {
         if (newFiles == null) {
             return Uni.createFrom().voidItem();
         }
@@ -571,17 +575,63 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
             return Uni.createFrom().failure(new UploadAbsenceException("Upload file not found at path: " + localPath));
         }
 
-        String doKey = WebHelper.generateSlugPath("music", doc.getArtist(), String.valueOf(UUID.randomUUID()));
-        meta.setFileKey(doKey);
-        meta.setMimeType(detectMimeType(localPath));
-        meta.setFileOriginalName(path.getFileName().toString());
-        meta.setSlugName(WebHelper.generateSlug(doc.getArtist(), doc.getTitle()));
+        return resolveBrandSlugForStorage(representedInBrands, id)
+                .chain(brandSlug -> {
+                    String doKey = buildStorageFileKey(brandSlug, doc.getArtist());
+                    meta.setFileKey(doKey);
+                    meta.setMimeType(detectMimeType(localPath));
+                    meta.setFileOriginalName(path.getFileName().toString());
+                    meta.setSlugName(SlugHelper.generateSlug(doc.getArtist(), doc.getTitle()));
 
-        assert fileStorage != null;
-        return fileStorage.uploadFile(doKey, localPath, meta.getMimeType())
-                .onItem().invoke(storedKey -> LOGGER.debugf("File stored with key: %s for doc ID: %s", storedKey, id))
-                .onFailure().invoke(ex -> LOGGER.error("Failed to store file with key: %s", doKey, ex))
-                .onItem().ignore().andContinueWithNull();
+                    assert fileStorage != null;
+                    return fileStorage.uploadFile(doKey, localPath, meta.getMimeType())
+                            .onItem().invoke(storedKey -> LOGGER.debugf("File stored with key: %s for doc ID: %s", storedKey, id))
+                            .onFailure().invoke(ex -> LOGGER.error("Failed to store file with key: %s", doKey, ex))
+                            .onItem().ignore().andContinueWithNull();
+                });
+    }
+
+    private static String buildStorageFileKey(String brandSlug, String artist) {
+        return SlugHelper.generateSlugPath("music", brandSlug, artist, String.valueOf(UUID.randomUUID()));
+    }
+
+    private Uni<String> resolveBrandSlugForStorage(List<UUID> representedInBrands, UUID soundFragmentId) {
+        if (representedInBrands != null && !representedInBrands.isEmpty()) {
+            return loadBrandSlug(representedInBrands.getFirst());
+        }
+        if (soundFragmentId != null) {
+            String sql = "SELECT b.slug_name FROM mixpla__brand_sound_fragments bsf " +
+                    "JOIN " + brandEntityData.getTableName() + " b ON b.id = bsf.brand_id " +
+                    "WHERE bsf.sound_fragment_id = $1 ORDER BY bsf.brand_id LIMIT 1";
+            return client.preparedQuery(sql)
+                    .execute(Tuple.of(soundFragmentId))
+                    .onItem().transform(rows -> {
+                        if (rows.iterator().hasNext()) {
+                            return normalizeBrandSlug(rows.iterator().next().getString("slug_name"));
+                        }
+                        return STORAGE_BRAND_SLUG_FALLBACK;
+                    });
+        }
+        return Uni.createFrom().item(STORAGE_BRAND_SLUG_FALLBACK);
+    }
+
+    private Uni<String> loadBrandSlug(UUID brandId) {
+        String sql = "SELECT slug_name FROM " + brandEntityData.getTableName() + " WHERE id = $1";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(brandId))
+                .onItem().transform(rows -> {
+                    if (rows.iterator().hasNext()) {
+                        return normalizeBrandSlug(rows.iterator().next().getString("slug_name"));
+                    }
+                    return STORAGE_BRAND_SLUG_FALLBACK;
+                });
+    }
+
+    private static String normalizeBrandSlug(String slugName) {
+        if (slugName == null || slugName.isBlank()) {
+            return STORAGE_BRAND_SLUG_FALLBACK;
+        }
+        return slugName;
     }
 
     private Uni<Void> deleteExistingFiles(SqlClient tx, UUID id) {
