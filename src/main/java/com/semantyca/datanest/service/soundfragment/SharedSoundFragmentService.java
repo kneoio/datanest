@@ -11,6 +11,7 @@ import com.semantyca.datanest.dto.SharePatchDTO;
 import com.semantyca.datanest.dto.sharing.SharingPreviewDTO;
 import com.semantyca.datanest.model.soundfragment.SharedSoundFragment;
 import com.semantyca.datanest.repository.soundfragment.SharedSoundFragmentRepository;
+import com.semantyca.datanest.repository.soundfragment.SoundFragmentRepository;
 import com.semantyca.datanest.service.BrandService;
 import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
@@ -26,18 +27,18 @@ import java.util.stream.Collectors;
 public class SharedSoundFragmentService extends AbstractService<SharedSoundFragment, ShareDTO> {
 
     private final SharedSoundFragmentRepository repository;
+    private final SoundFragmentRepository soundFragmentRepository;
     private final BrandService brandService;
-    private final SoundFragmentService soundFragmentService;
 
     @Inject
     public SharedSoundFragmentService(UserService userService,
                                       SharedSoundFragmentRepository repository,
-                                      BrandService brandService,
-                                      SoundFragmentService soundFragmentService) {
+                                      SoundFragmentRepository soundFragmentRepository,
+                                      BrandService brandService) {
         super(userService);
         this.repository = repository;
+        this.soundFragmentRepository = soundFragmentRepository;
         this.brandService = brandService;
-        this.soundFragmentService = soundFragmentService;
     }
 
     public Uni<Integer> rejectShareByReceiver(UUID shareId, IUser user) {
@@ -70,7 +71,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
             return repository.applyPatch(fragmentId, remove, List.of());
         }
 
-        return soundFragmentService.getById(fragmentId, user)
+        return soundFragmentRepository.findById(fragmentId, user.getId(), false, false, false)
                 .chain(ignored -> brandService.getBySlugNameForUser(slug, user))
                 .chain(sourceBrand -> validateAndBuildEntities(fragmentId, add, sourceBrand, incognito))
                 .chain(entities -> repository.applyPatch(fragmentId, remove, entities));
