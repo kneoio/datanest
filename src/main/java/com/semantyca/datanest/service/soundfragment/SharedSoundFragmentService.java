@@ -27,14 +27,17 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
 
     private final SharedSoundFragmentRepository repository;
     private final BrandService brandService;
+    private final SoundFragmentService soundFragmentService;
 
     @Inject
     public SharedSoundFragmentService(UserService userService,
                                       SharedSoundFragmentRepository repository,
-                                      BrandService brandService) {
+                                      BrandService brandService,
+                                      SoundFragmentService soundFragmentService) {
         super(userService);
         this.repository = repository;
         this.brandService = brandService;
+        this.soundFragmentService = soundFragmentService;
     }
 
     public Uni<Integer> rejectShareByReceiver(UUID shareId, IUser user) {
@@ -58,7 +61,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return repository.findById(id, user.getId()).map(this::toSharingPreviewDTO);
     }
 
-    public Uni<Void> patchShares(UUID fragmentId, String brandSlug, SharePatchDTO patch, IUser user) {
+    public Uni<Void> patchShares(UUID fragmentId, String slug, SharePatchDTO patch, IUser user) {
         List<UUID> remove = patch.getRemoveTargetBrandIds() != null ? patch.getRemoveTargetBrandIds() : List.of();
         List<UUID> add = patch.getAddTargetBrandIds() != null ? patch.getAddTargetBrandIds() : List.of();
         boolean incognito = patch.isStayIncognito();
@@ -67,7 +70,8 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
             return repository.applyPatch(fragmentId, remove, List.of());
         }
 
-        return brandService.getBySlugName(brandSlug)
+        return soundFragmentService.getById(fragmentId, user)
+                .chain(ignored -> brandService.getBySlugNameForUser(slug, user))
                 .chain(sourceBrand -> validateAndBuildEntities(fragmentId, add, sourceBrand, incognito))
                 .chain(entities -> repository.applyPatch(fragmentId, remove, entities));
     }

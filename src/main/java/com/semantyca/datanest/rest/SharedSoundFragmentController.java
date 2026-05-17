@@ -114,13 +114,13 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
         try {
             if (!validateJsonBody(rc)) return;
 
-            String brandSlug = rc.pathParam("brandSlug");
+            String slug = rc.pathParam("brandSlug");
             UUID fragmentId = UUID.fromString(rc.pathParam("fragmentId"));
             SharePatchDTO patch = rc.body().asJsonObject().mapTo(SharePatchDTO.class);
             if (!validateDTO(rc, patch, validator)) return;
 
             getContextUser(rc, false, true)
-                    .chain(user -> sharedSoundFragmentService.patchShares(fragmentId, brandSlug, patch, user)
+                    .chain(user -> sharedSoundFragmentService.patchShares(fragmentId, slug, patch, user)
                             .chain(() -> sharedSoundFragmentService.listShareDTO(fragmentId)))
                     .subscribe().with(
                             shares -> rc.response()
