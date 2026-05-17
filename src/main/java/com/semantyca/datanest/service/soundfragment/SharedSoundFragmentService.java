@@ -15,20 +15,19 @@ import com.semantyca.datanest.repository.soundfragment.SoundFragmentRepository;
 import com.semantyca.datanest.service.BrandService;
 import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
+import com.semantyca.mixpla.model.soundfragment.SoundFragment;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class SharedSoundFragmentService extends AbstractService<SharedSoundFragment, ShareDTO> {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(SharedSoundFragmentService.class);
 
     private final SharedSoundFragmentRepository repository;
     private final SoundFragmentRepository soundFragmentRepository;
@@ -70,29 +69,21 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         List<UUID> remove = patch.getRemoveTargetBrandIds() != null ? patch.getRemoveTargetBrandIds() : List.of();
         List<UUID> add = patch.getAddTargetBrandIds() != null ? patch.getAddTargetBrandIds() : List.of();
         boolean incognito = patch.isStayIncognito();
-        LOGGER.info("patchShares: fragmentId={}, slug={}, userId={}, add={}, remove={}", fragmentId, slug, user.getId(), add, remove);
-
         if (add.isEmpty()) {
-            LOGGER.info("patchShares: add is empty, applying remove-only patch");
             return repository.applyPatch(fragmentId, remove, List.of());
         }
 
-        return soundFragmentRepository.findById(fragmentId, user.getId(), false, false, false)
-                .invoke(sf -> LOGGER.info("patchShares: RLS check passed for fragmentId={}", fragmentId))
-                .chain(ignored -> brandService.getBySlugNameForUser(slug, user))
-                .invoke(brand -> LOGGER.info("patchShares: source brand resolved: id={}, slug={}", brand.getId(), slug))
-                .chain(sourceBrand -> validateAndBuildEntities(fragmentId, add, sourceBrand, incognito))
-                .invoke(entities -> LOGGER.info("patchShares: built {} entities to insert", entities.size()))
-                .chain(entities -> repository.applyPatch(fragmentId, remove, entities))
-                .invoke(() -> LOGGER.info("patchShares: applyPatch completed for fragmentId={}", fragmentId));
+        return soundFragmentRepository.findById(fragmentId, user.getId(), false, true, false)
+                .chain(fragment -> brandService.getBySlugNameForUser(slug, user)
+                        .chain(sourceBrand -> validateAndBuildEntities(fragment, add, sourceBrand, incognito)))
+                .chain(entities -> repository.applyPatch(fragmentId, remove, entities));
     }
 
-    private Uni<List<SharedSoundFragment>> validateAndBuildEntities(UUID fragmentId, List<UUID> targetBrandIds,
+    private Uni<List<SharedSoundFragment>> validateAndBuildEntities(SoundFragment fragment, List<UUID> targetBrandIds,
                                                                      Brand sourceBrand, boolean stayIncognito) {
         List<Uni<SharedSoundFragment>> unis = targetBrandIds.stream()
                 .map(targetBrandId -> brandService.getById(targetBrandId, SuperUser.build())
                         .onItem().transformToUni(targetBrand -> {
-                            LOGGER.info("validateAndBuildEntities: targetBrand={}, policy={}", targetBrandId, targetBrand.getSubmissionPolicy());
                             if (targetBrand.getSubmissionPolicy() != SubmissionPolicy.NO_RESTRICTIONS) {
                                 return Uni.createFrom().failure(new IllegalArgumentException(
                                         "Brand does not accept contributions without restrictions: " + targetBrandId));
@@ -104,12 +95,19 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
                                 entity.setSourceUserEmail(sourceBrand.getOwner().getEmail());
                             }
                             entity.setTargetBrandId(targetBrandId);
-                            entity.setSoundFragmentId(fragmentId);
-                            entity.setStatus(500);
+                            entity.setSoundFragmentId(fragment.getId());
+                            entity.setStatus(genresMatch(fragment.getGenres(), targetBrand.getGenres()) ? 500 : 502);
                             return Uni.createFrom().item(entity);
                         }))
                 .collect(Collectors.toList());
         return Uni.join().all(unis).andFailFast();
+    }
+
+    private boolean genresMatch(List<UUID> fragmentGenres, List<UUID> brandGenres) {
+        if (brandGenres == null || brandGenres.isEmpty()) return true;
+        if (fragmentGenres == null || fragmentGenres.isEmpty()) return true;
+        Set<UUID> brandSet = new HashSet<>(brandGenres);
+        return fragmentGenres.stream().anyMatch(brandSet::contains);
     }
 
     public Uni<List<ShareDTO>> listShareDTO(UUID soundFragmentId) {
