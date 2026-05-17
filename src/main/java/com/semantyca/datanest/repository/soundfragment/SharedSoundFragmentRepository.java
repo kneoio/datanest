@@ -137,15 +137,16 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .execute(buildInsertTuple(entity))
                 .onItem().transformToUni(rows -> {
                     if (!rows.iterator().hasNext()) {
-                        String selectSql = "SELECT id FROM " + entityData.getTableName() +
-                                " WHERE sound_fragment_id = $1 AND target_brand_id = $2";
-                        return tx.preparedQuery(selectSql)
-                                .execute(Tuple.of(entity.getSoundFragmentId(), entity.getTargetBrandId()))
-                                .onItem().transformToUni(selectRows -> {
-                                    if (!selectRows.iterator().hasNext()) {
+                        String restoreSql = "UPDATE " + entityData.getTableName() +
+                                " SET archived = 0, status = $1, last_mod_date = NOW()" +
+                                " WHERE sound_fragment_id = $2 AND target_brand_id = $3 RETURNING id";
+                        return tx.preparedQuery(restoreSql)
+                                .execute(Tuple.of(entity.getStatus(), entity.getSoundFragmentId(), entity.getTargetBrandId()))
+                                .onItem().transformToUni(restoreRows -> {
+                                    if (!restoreRows.iterator().hasNext()) {
                                         return Uni.createFrom().voidItem();
                                     }
-                                    UUID existingId = selectRows.iterator().next().getUUID("id");
+                                    UUID existingId = restoreRows.iterator().next().getUUID("id");
                                     return insertRlsForReceivers(tx, existingId, entity.getSourceUserId(), entity.getTargetBrandId());
                                 });
                     }
