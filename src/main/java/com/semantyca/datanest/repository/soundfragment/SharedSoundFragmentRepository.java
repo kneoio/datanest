@@ -129,29 +129,21 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     }
 
     private Uni<Void> insertInTx(SqlClient tx, SharedSoundFragment entity) {
-        String insertSql = "INSERT INTO " + entityData.getTableName() + " " +
+        String upsertSql = "INSERT INTO " + entityData.getTableName() + " " +
                 "(source_user_id, target_brand_id, sound_fragment_id, expires_at, played_count, rated_count, status, archived, source_user_name, source_user_email, reg_date, last_mod_date) " +
                 "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()) " +
-                "ON CONFLICT ON CONSTRAINT unique_brand_shared_fragment DO NOTHING RETURNING id";
-        return tx.preparedQuery(insertSql)
+                "ON CONFLICT ON CONSTRAINT unique_brand_shared_fragment " +
+                "DO UPDATE SET archived = 0, status = EXCLUDED.status, source_user_id = EXCLUDED.source_user_id, " +
+                "source_user_name = EXCLUDED.source_user_name, source_user_email = EXCLUDED.source_user_email, last_mod_date = NOW() " +
+                "RETURNING id";
+        return tx.preparedQuery(upsertSql)
                 .execute(buildInsertTuple(entity))
                 .onItem().transformToUni(rows -> {
                     if (!rows.iterator().hasNext()) {
-                        String restoreSql = "UPDATE " + entityData.getTableName() +
-                                " SET archived = 0, status = $1, last_mod_date = NOW()" +
-                                " WHERE sound_fragment_id = $2 AND target_brand_id = $3 RETURNING id";
-                        return tx.preparedQuery(restoreSql)
-                                .execute(Tuple.of(entity.getStatus(), entity.getSoundFragmentId(), entity.getTargetBrandId()))
-                                .onItem().transformToUni(restoreRows -> {
-                                    if (!restoreRows.iterator().hasNext()) {
-                                        return Uni.createFrom().voidItem();
-                                    }
-                                    UUID existingId = restoreRows.iterator().next().getUUID("id");
-                                    return insertRlsForReceivers(tx, existingId, entity.getSourceUserId(), entity.getTargetBrandId());
-                                });
+                        return Uni.createFrom().voidItem();
                     }
-                    UUID newId = rows.iterator().next().getUUID("id");
-                    return insertRlsForReceivers(tx, newId, entity.getSourceUserId(), entity.getTargetBrandId());
+                    UUID id = rows.iterator().next().getUUID("id");
+                    return insertRlsForReceivers(tx, id, entity.getSourceUserId(), entity.getTargetBrandId());
                 });
     }
 
