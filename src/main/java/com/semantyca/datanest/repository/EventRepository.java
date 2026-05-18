@@ -267,7 +267,7 @@ public class EventRepository extends AsyncRepository implements SchedulableRepos
                     }
 
                     return client.withTransaction(tx -> {
-                        String deleteActionsSql = "DELETE FROM mixpla__event_actions WHERE event_id = $1";
+                        String deleteActionsSql = "DELETE FROM mixpla__event_prompts WHERE event_id = $1";
                         String deleteRlsSql = String.format("DELETE FROM %s WHERE entity_id = $1", entityData.getRlsName());
                         String deleteEntitySql = String.format("DELETE FROM %s WHERE id = $1", entityData.getTableName());
 
@@ -341,7 +341,7 @@ public class EventRepository extends AsyncRepository implements SchedulableRepos
     }
 
     public Uni<List<ScenePrompt>> getActionsForEvent(UUID eventId) {
-        String sql = "SELECT prompt_id, action_type, rank, weight, active FROM mixpla__event_actions WHERE event_id = $1 ORDER BY rank ASC";
+        String sql = "SELECT prompt_id, action_type, rank, weight, active FROM mixpla__event_prompts WHERE event_id = $1 ORDER BY rank ASC";
         return client.preparedQuery(sql)
                 .execute(Tuple.of(eventId))
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
@@ -361,7 +361,7 @@ public class EventRepository extends AsyncRepository implements SchedulableRepos
     }
 
     public Uni<Void> updateActionsForEvent(io.vertx.mutiny.sqlclient.SqlClient tx, UUID eventId, List<ScenePrompt> scenePrompts) {
-        String deleteSql = "DELETE FROM mixpla__event_actions WHERE event_id = $1";
+        String deleteSql = "DELETE FROM mixpla__event_prompts WHERE event_id = $1";
         if (scenePrompts == null || scenePrompts.isEmpty()) {
             return tx.preparedQuery(deleteSql)
                     .execute(Tuple.of(eventId))
@@ -378,7 +378,7 @@ public class EventRepository extends AsyncRepository implements SchedulableRepos
                     .replaceWithVoid();
         }
 
-        String insertSql = "INSERT INTO mixpla__event_actions (event_id, prompt_id, action_type, rank, weight, active) VALUES ($1, $2, $3, $4, $5, $6)";
+        String insertSql = "INSERT INTO mixpla__event_prompts (event_id, prompt_id, action_type, rank, weight, active) VALUES ($1, $2, $3, $4, $5, $6)";
         return tx.preparedQuery(deleteSql)
                 .execute(Tuple.of(eventId))
                 .chain(() -> {
