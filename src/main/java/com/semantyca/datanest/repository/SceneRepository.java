@@ -79,7 +79,7 @@ public class SceneRepository extends AsyncRepository {
     }
 
     public Uni<Integer> getAllCount(IUser user, boolean includeArchived, SceneFilter filter) {
-        String sql = "SELECT COUNT(*) FROM " + entityData.getTableName() + " t, " + entityData.getRlsName() + " rls, mixpla_scripts s " +
+        String sql = "SELECT COUNT(*) FROM " + entityData.getTableName() + " t, " + entityData.getRlsName() + " rls, mixpla__scripts s " +
                 "WHERE t.id = rls.entity_id AND t.script_id = s.id AND rls.reader = $1";
         if (!includeArchived) {
             sql += " AND t.archived = 0";

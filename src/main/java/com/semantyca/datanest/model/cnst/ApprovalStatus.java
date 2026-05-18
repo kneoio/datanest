@@ -1,7 +1,5 @@
 package com.semantyca.datanest.model.cnst;
 
-import com.semantyca.mixpla.model.cnst.QueuePriority;
-
 public enum ApprovalStatus {
     OPEN(500),
     CANCELLED(501),

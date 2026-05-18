@@ -49,7 +49,7 @@ public class ScriptRepository extends AsyncRepository {
 
     public Uni<List<Script>> getAll(int limit, int offset, boolean includeArchived, final IUser user, final ScriptFilter filter) {
         String sql = """
-                    SELECT t.*, rls.*, ARRAY(SELECT label_id FROM mixpla_script_labels sl WHERE sl.script_id = t.id) AS labels
+                    SELECT t.*, rls.*, ARRAY(SELECT label_id FROM mixpla__script_labels sl WHERE sl.script_id = t.id) AS labels
                     FROM %s t
                     JOIN %s rls ON t.id = rls.entity_id
                     WHERE rls.reader = %s
@@ -122,7 +122,7 @@ public class ScriptRepository extends AsyncRepository {
         }
 
         if (filter.getLabels() != null && !filter.getLabels().isEmpty()) {
-            conditions.append(" AND EXISTS (SELECT 1 FROM mixpla_script_labels sl2 WHERE sl2.script_id = t.id AND sl2.label_id IN (");
+            conditions.append(" AND EXISTS (SELECT 1 FROM mixpla__script_labels sl2 WHERE sl2.script_id = t.id AND sl2.label_id IN (");
             for (int i = 0; i < filter.getLabels().size(); i++) {
                 if (i > 0) {
                     conditions.append(", ");
@@ -145,7 +145,7 @@ public class ScriptRepository extends AsyncRepository {
 
     public Uni<List<Script>> getAllShared(int limit, int offset, final IUser user, final ScriptFilter filter) {
         String sql = """
-                    SELECT t.*, ARRAY(SELECT label_id FROM mixpla_script_labels sl WHERE sl.script_id = t.id) AS labels
+                    SELECT t.*, ARRAY(SELECT label_id FROM mixpla__script_labels sl WHERE sl.script_id = t.id) AS labels
                     FROM %s t
                     WHERE (t.access_level = 1 OR EXISTS (
                         SELECT 1 FROM %s rls WHERE rls.entity_id = t.id AND rls.reader = %s
@@ -203,7 +203,7 @@ public class ScriptRepository extends AsyncRepository {
 
     public Uni<Script> findById(UUID id, IUser user, boolean includeArchived) {
         String sql = """
-                    SELECT theTable.*, rls.*, ARRAY(SELECT label_id FROM mixpla_script_labels sl WHERE sl.script_id = theTable.id) AS labels
+                    SELECT theTable.*, rls.*, ARRAY(SELECT label_id FROM mixpla__script_labels sl WHERE sl.script_id = theTable.id) AS labels
                     FROM %s theTable
                     JOIN %s rls ON theTable.id = rls.entity_id
                     WHERE rls.reader = $1 AND theTable.id = $2
