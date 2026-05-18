@@ -28,7 +28,7 @@ import org.jboss.logging.Logger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -230,7 +230,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
     }
 
     public Uni<SoundFragment> insert(SoundFragment doc, List<UUID> representedInBrands, List<RlsActionDTO> rlsActions, IUser user) {
-        LocalDateTime nowTime = ZonedDateTime.now(ZoneOffset.UTC).toLocalDateTime();
+        OffsetDateTime nowTime = ZonedDateTime.now(ZoneOffset.UTC).toOffsetDateTime();
         final List<FileMetadata> originalFiles = doc.getFileMetadataList();
 
         final List<FileMetadata> filesToProcess = (originalFiles != null && !originalFiles.isEmpty())
@@ -361,7 +361,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                 });
     }
 
-    private Uni<SoundFragment> executeInsertTransaction(SoundFragment doc, IUser user, LocalDateTime regDate,
+    private Uni<SoundFragment> executeInsertTransaction(SoundFragment doc, IUser user, OffsetDateTime regDate,
                                                         Uni<Void> fileUploadCompletionUni, List<UUID> representedInBrands,
                                                         List<RlsActionDTO> rlsActions) {
         return fileUploadCompletionUni.onItem().transformToUni(v -> {
@@ -385,7 +385,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                     .addInteger(doc.getBoost())
                     .addString(doc.getDescription())
                     .addString(doc.getSlugName())
-                    .addLocalDateTime(doc.getExpiresAt());
+                    .addOffsetDateTime(doc.getExpiresAt() != null ? doc.getExpiresAt().atOffset(ZoneOffset.UTC) : null);
 
             return client.withTransaction(tx -> tx.preparedQuery(sql)
                     .execute(params)
@@ -531,7 +531,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                                 Uni<Void> fileStoredUni = handleFileUpdate(id, doc, newFiles, representedInBrands);
 
                                 return fileStoredUni.onItem().transformToUni(ignored -> {
-                                    LocalDateTime nowTime = ZonedDateTime.now(ZoneOffset.UTC).toLocalDateTime();
+                                    OffsetDateTime nowTime = ZonedDateTime.now(ZoneOffset.UTC).toOffsetDateTime();
 
                                     return client.withTransaction(tx -> {
                                         Uni<Void> chain = Uni.createFrom().voidItem();
@@ -662,7 +662,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
         return tx.preparedQuery(filesSql).execute(fileParams).onItem().ignore().andContinueWithNull();
     }
 
-    private Uni<RowSet<Row>> updateSoundFragmentRecord(SqlClient tx, UUID id, SoundFragment doc, IUser user, LocalDateTime nowTime) {
+    private Uni<RowSet<Row>> updateSoundFragmentRecord(SqlClient tx, UUID id, SoundFragment doc, IUser user, OffsetDateTime nowTime) {
         String updateSql = String.format("UPDATE %s SET last_mod_user=$1, last_mod_date=$2, " +
                         "status=$3, type=$4, title=$5, " +
                         "artist=$6, album=$7, length=$8, boost=$9, description=$10, slug_name=$11, expires_at=$12 WHERE id=$13;",
@@ -678,7 +678,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                 .addInteger(doc.getBoost())
                 .addString(doc.getDescription())
                 .addString(doc.getSlugName())
-                .addLocalDateTime(doc.getExpiresAt())
+                .addOffsetDateTime(doc.getExpiresAt() != null ? doc.getExpiresAt().atOffset(ZoneOffset.UTC) : null)
                 .addUUID(id);
 
         return tx.preparedQuery(updateSql).execute(params);

@@ -26,7 +26,7 @@ import io.vertx.mutiny.sqlclient.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -149,7 +149,7 @@ public class EventRepository extends AsyncRepository implements SchedulableRepos
     public Uni<Event> insert(Event event, List<RlsActionDTO> rlsActions, IUser user) {
         return Uni.createFrom().deferred(() -> {
             try {
-                LocalDateTime nowTime = ZonedDateTime.now(ZoneOffset.UTC).toLocalDateTime();
+                OffsetDateTime nowTime = ZonedDateTime.now(ZoneOffset.UTC).toOffsetDateTime();
 
                 String sql = "INSERT INTO " + entityData.getTableName() +
                         " (author, reg_date, last_mod_user, last_mod_date, brand_id, type, description, priority, archived, scheduler, stage_playlist) " +
@@ -157,9 +157,9 @@ public class EventRepository extends AsyncRepository implements SchedulableRepos
 
                 Tuple params = Tuple.tuple()
                         .addLong(user.getId())
-                        .addLocalDateTime(nowTime)
+                        .addOffsetDateTime(nowTime)
                         .addLong(user.getId())
-                        .addLocalDateTime(nowTime)
+                        .addOffsetDateTime(nowTime)
                         .addUUID(event.getBrandId())
                         .addString(event.getType().toString())
                         .addString(event.getDescription())
@@ -202,7 +202,7 @@ public class EventRepository extends AsyncRepository implements SchedulableRepos
                                         "User does not have edit permission", user.getUserName(), id));
                             }
 
-                            LocalDateTime nowTime = ZonedDateTime.now(ZoneOffset.UTC).toLocalDateTime();
+                            OffsetDateTime nowTime = ZonedDateTime.now(ZoneOffset.UTC).toOffsetDateTime();
 
                             String sql = "UPDATE " + entityData.getTableName() +
                                     " SET brand_id=$1, type=$2, description=$3, priority=$4, scheduler=$5, stage_playlist=$6, last_mod_user=$7, last_mod_date=$8 " +
@@ -216,7 +216,7 @@ public class EventRepository extends AsyncRepository implements SchedulableRepos
                                     .addJsonObject(JsonObject.of("scheduler", JsonObject.mapFrom(event.getScheduler())))
                                     .addJsonObject(event.getPlaylistRequest() != null ? JsonObject.mapFrom(event.getPlaylistRequest()) : null)
                                     .addLong(user.getId())
-                                    .addLocalDateTime(nowTime)
+                                    .addOffsetDateTime(nowTime)
                                     .addUUID(id);
 
                             return client.withTransaction(tx ->

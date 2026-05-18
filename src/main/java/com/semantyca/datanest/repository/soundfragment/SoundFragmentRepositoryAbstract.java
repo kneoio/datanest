@@ -21,6 +21,7 @@ import io.vertx.mutiny.sqlclient.SqlResult;
 import io.vertx.mutiny.sqlclient.Tuple;
 
 import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -153,7 +154,7 @@ public abstract class SoundFragmentRepositoryAbstract extends AsyncRepository {
                     String sql = String.format("UPDATE %s SET archived = -1, last_mod_date = $1, last_mod_user = $2 WHERE id = $3",
                             entityData.getTableName());
                     return client.preparedQuery(sql)
-                            .execute(Tuple.of(ZonedDateTime.now(ZoneOffset.UTC).toLocalDateTime(), user.getId(), uuid))
+                            .execute(Tuple.of(ZonedDateTime.now(ZoneOffset.UTC).toOffsetDateTime(), user.getId(), uuid))
                             .onItem().transform(SqlResult::rowCount);
                 });
     }

@@ -18,7 +18,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import com.semantyca.core.repository.rls.RlsActionUtil;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -97,7 +97,7 @@ public class ProfileRepository extends AsyncRepository {
     }
 
     public Uni<Profile> insert(Profile profile, List<RlsActionDTO> rlsActions, IUser user) {
-        LocalDateTime nowTime = ZonedDateTime.now(ZoneOffset.UTC).toLocalDateTime();
+        OffsetDateTime nowTime = ZonedDateTime.now(ZoneOffset.UTC).toOffsetDateTime();
 
         String sql = "INSERT INTO " + entityData.getTableName() +
                 " (author, reg_date, last_mod_user, last_mod_date, name, description, explicit_content, archived) " +
@@ -105,9 +105,9 @@ public class ProfileRepository extends AsyncRepository {
 
         Tuple params = Tuple.tuple()
                 .addLong(user.getId())
-                .addLocalDateTime(nowTime)
+                .addOffsetDateTime(nowTime)
                 .addLong(user.getId())
-                .addLocalDateTime(nowTime)
+                .addOffsetDateTime(nowTime)
                 .addString(profile.getName())
                 .addString(profile.getDescription())
                 .addBoolean(profile.isExplicitContent())
@@ -140,7 +140,7 @@ public class ProfileRepository extends AsyncRepository {
                                         "User does not have edit permission", user.getUserName(), id));
                             }
 
-                            LocalDateTime nowTime = ZonedDateTime.now(ZoneOffset.UTC).toLocalDateTime();
+                            OffsetDateTime nowTime = ZonedDateTime.now(ZoneOffset.UTC).toOffsetDateTime();
 
                             String sql = "UPDATE " + entityData.getTableName() +
                                     " SET name=$1, description=$2, " +
@@ -152,7 +152,7 @@ public class ProfileRepository extends AsyncRepository {
                                     .addString(profile.getDescription())
                                     .addBoolean(profile.isExplicitContent())
                                     .addLong(user.getId())
-                                    .addLocalDateTime(nowTime)
+                                    .addOffsetDateTime(nowTime)
                                     .addUUID(id);
 
                             return client.preparedQuery(sql)

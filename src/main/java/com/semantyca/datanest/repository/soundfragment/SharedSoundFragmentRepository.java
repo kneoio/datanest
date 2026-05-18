@@ -19,6 +19,8 @@ import io.vertx.mutiny.sqlclient.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
@@ -285,7 +287,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .addValue(entity.getSourceUserId())
                 .addUUID(entity.getTargetBrandId())
                 .addUUID(entity.getSoundFragmentId())
-                .addLocalDateTime(entity.getExpiresAt())
+                .addOffsetDateTime(entity.getExpiresAt() != null ? entity.getExpiresAt().atOffset(ZoneOffset.UTC) : null)
                 .addInteger(0)
                 .addInteger(100)
                 .addInteger(entity.getStatus())
