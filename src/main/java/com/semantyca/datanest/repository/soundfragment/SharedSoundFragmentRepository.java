@@ -9,6 +9,7 @@ import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.rls.RlsActionUtil;
 import com.semantyca.core.repository.table.EntityData;
+import com.semantyca.datanest.model.cnst.ApprovalStatus;
 import com.semantyca.datanest.model.soundfragment.SharedSoundFragment;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import io.smallrye.mutiny.Multi;
@@ -105,7 +106,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         String selectSql = "SELECT id FROM " + entityData.getTableName() +
                 " WHERE id = $1 AND id IN (SELECT entity_id FROM " + entityData.getRlsName() + " WHERE reader = $2)";
         String deleteRlsSql = "DELETE FROM " + entityData.getRlsName() + " WHERE entity_id = $1";
-        String updateStatusSql = "UPDATE " + entityData.getTableName() + " SET status = 501, last_mod_date = NOW() WHERE id = $1";
+        String updateStatusSql = "UPDATE " + entityData.getTableName() + " SET status = " + ApprovalStatus.CANCELLED.value() + ", last_mod_date = NOW() WHERE id = $1";
         return client.withTransaction(tx ->
                 tx.preparedQuery(selectSql)
                         .execute(Tuple.of(shareId, userId))

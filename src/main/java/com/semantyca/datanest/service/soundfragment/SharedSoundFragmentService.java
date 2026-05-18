@@ -13,6 +13,7 @@ import com.semantyca.datanest.model.soundfragment.SharedSoundFragment;
 import com.semantyca.datanest.repository.soundfragment.SharedSoundFragmentRepository;
 import com.semantyca.datanest.repository.soundfragment.SoundFragmentRepository;
 import com.semantyca.datanest.service.BrandService;
+import com.semantyca.datanest.model.cnst.ApprovalStatus;
 import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
 import com.semantyca.mixpla.model.soundfragment.SoundFragment;
@@ -96,14 +97,16 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
                             }
                             entity.setTargetBrandId(targetBrandId);
                             entity.setSoundFragmentId(fragment.getId());
-                            entity.setStatus(genresMatch(fragment.getGenres(), targetBrand.getGenres()) ? 500 : 502);
+                            entity.setStatus(genresMatch(fragment.getGenres(), targetBrand.getGenres())
+                                    ? ApprovalStatus.OPEN.value()
+                                    : ApprovalStatus.REJECTED_NOT_MEET_GENRE.value());
                             return Uni.createFrom().item(entity);
                         }))
                 .collect(Collectors.toList());
         return Uni.join().all(unis).andFailFast();
     }
 
-    private boolean genresMatch(List<UUID> fragmentGenres, List<UUID> brandGenres) {
+    boolean genresMatch(List<UUID> fragmentGenres, List<UUID> brandGenres) {
         if (brandGenres == null || brandGenres.isEmpty()) return true;
         if (fragmentGenres == null || fragmentGenres.isEmpty()) return true;
         Set<UUID> brandSet = new HashSet<>(brandGenres);
@@ -151,7 +154,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
     private ShareDTO toDTO(SharedSoundFragment e) {
         ShareDTO dto = new ShareDTO();
         dto.setStatus(e.getStatus());
-        dto.setShared(e.getStatus() == null || e.getStatus() != 501);
+        dto.setShared(e.getStatus() == null || e.getStatus() != ApprovalStatus.CANCELLED.value());
         String brandName = null;
         if (e.getTargetBrandName() != null && !e.getTargetBrandName().isEmpty()) {
             brandName = e.getTargetBrandName().get(LanguageCode.en);
