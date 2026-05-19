@@ -5,7 +5,6 @@ import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.EnumMap;
 import java.util.List;
@@ -22,7 +21,7 @@ public class SharedSoundFragment {
     private String sourceUserEmail;
     private UUID targetBrandId;
     private UUID soundFragmentId;
-    private LocalDateTime expiresAt;
+    private OffsetDateTime expiresAt;
     private Integer playedCount;
     private Integer ratedCount;
     private Integer status;

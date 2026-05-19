@@ -7,7 +7,7 @@ import com.semantyca.officeframe.dto.LabelDTO;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,7 +18,7 @@ public class BrandSoundFragmentFlatDTO {
     private UUID id;
     private UUID defaultBrandId;
     private int playedByBrandCount;
-    private LocalDateTime lastTimePlayedByBrand;
+    private OffsetDateTime lastTimePlayedByBrand;
     private String title;
     private String artist;
     private String album;

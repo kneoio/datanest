@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.net.URL;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -30,8 +30,8 @@ public class OneTimeStreamDTO {
     private long bitRate;
     private StreamStatus status = StreamStatus.OFF_LINE;
     private UUID baseBrandId;
-    private LocalDateTime createdAt;
-    private LocalDateTime expiresAt;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime expiresAt;
     private StreamScheduleDTO streamSchedule;
     private Map<String, Object> userVariables;
     private URL hlsUrl;

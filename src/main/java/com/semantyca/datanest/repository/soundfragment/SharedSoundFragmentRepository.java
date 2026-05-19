@@ -317,7 +317,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         e.setSourceUserEmail(row.getString("source_user_email"));
         e.setTargetBrandId(row.getUUID("target_brand_id"));
         e.setSoundFragmentId(row.getUUID("sound_fragment_id"));
-        e.setExpiresAt(row.getLocalDateTime("expires_at"));
+        e.setExpiresAt(row.getOffsetDateTime("expires_at"));
         e.setPlayedCount(row.getInteger("played_count"));
         e.setRatedCount(row.getInteger("rated_count"));
         e.setStatus(row.getInteger("status"));

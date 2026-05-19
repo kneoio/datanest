@@ -17,7 +17,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -50,7 +50,7 @@ public class SoundFragmentDTO extends AbstractDTO {
     private List<String> newlyUploaded;
     private List<UploadFileDTO> uploadedFiles;
     private List<UUID> representedInBrands;
-    private LocalDateTime expiresAt;
+    private OffsetDateTime expiresAt;
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private boolean shared;
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)

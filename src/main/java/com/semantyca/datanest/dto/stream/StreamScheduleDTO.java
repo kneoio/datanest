@@ -4,15 +4,15 @@ import com.semantyca.mixpla.model.ScenePrompt;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.LocalTime;
 import java.util.List;
 
 @Setter
 @Getter
 public class StreamScheduleDTO {
-    private LocalDateTime createdAt;
-    private LocalDateTime estimatedEndTime;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime estimatedEndTime;
     private int totalScenes;
     private int totalSongs;
     private List<SceneScheduleDTO> scenes;
@@ -22,8 +22,8 @@ public class StreamScheduleDTO {
     public static class SceneScheduleDTO {
         private String sceneId;
         private String sceneTitle;
-        private LocalDateTime scheduledStartTime;
-        private LocalDateTime scheduledEndTime;
+        private OffsetDateTime scheduledStartTime;
+        private OffsetDateTime scheduledEndTime;
         private int durationSeconds;
         private double dayPercentage;
         private List<ScheduledSongDTO> songs;
@@ -56,7 +56,7 @@ public class StreamScheduleDTO {
         private String songId;
         private String title;
         private String artist;
-        private LocalDateTime scheduledStartTime;
+        private OffsetDateTime scheduledStartTime;
         private int estimatedDurationSeconds;
     }
 }

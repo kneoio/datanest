@@ -101,9 +101,9 @@ public class ChatSummaryRepository extends AsyncRepository {
         }
         chatSummary.setSummary(row.getString("summary"));
         chatSummary.setMessageCount(row.getInteger("message_count"));
-        chatSummary.setPeriodStart(row.getLocalDateTime("period_start"));
-        chatSummary.setPeriodEnd(row.getLocalDateTime("period_end"));
-        chatSummary.setCreatedAt(row.getLocalDateTime("created_at"));
+        chatSummary.setPeriodStart(row.getOffsetDateTime("period_start"));
+        chatSummary.setPeriodEnd(row.getOffsetDateTime("period_end"));
+        chatSummary.setCreatedAt(row.getOffsetDateTime("created_at"));
         return chatSummary;
     }
 }

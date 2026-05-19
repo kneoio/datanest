@@ -7,7 +7,7 @@ import com.semantyca.core.model.cnst.SummaryType;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Getter
 @Setter
@@ -19,7 +19,7 @@ public class ChatSummaryDTO extends AbstractDTO {
     private ChatType chatType;
     private String summary;
     private Integer messageCount;
-    private LocalDateTime periodStart;
-    private LocalDateTime periodEnd;
-    private LocalDateTime createdAt;
+    private OffsetDateTime periodStart;
+    private OffsetDateTime periodEnd;
+    private OffsetDateTime createdAt;
 }
