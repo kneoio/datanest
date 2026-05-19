@@ -287,7 +287,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .addValue(entity.getSourceUserId())
                 .addUUID(entity.getTargetBrandId())
                 .addUUID(entity.getSoundFragmentId())
-                .addOffsetDateTime(entity.getExpiresAt() != null ? entity.getExpiresAt().atOffset(ZoneOffset.UTC) : null)
+                .addOffsetDateTime(entity.getExpiresAt())
                 .addInteger(0)
                 .addInteger(100)
                 .addInteger(entity.getStatus())

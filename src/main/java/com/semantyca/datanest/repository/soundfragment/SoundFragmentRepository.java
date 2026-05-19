@@ -385,7 +385,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                     .addInteger(doc.getBoost())
                     .addString(doc.getDescription())
                     .addString(doc.getSlugName())
-                    .addOffsetDateTime(doc.getExpiresAt() != null ? doc.getExpiresAt().atOffset(ZoneOffset.UTC) : null);
+                    .addOffsetDateTime(doc.getExpiresAt());
 
             return client.withTransaction(tx -> tx.preparedQuery(sql)
                     .execute(params)
@@ -683,7 +683,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                 .addInteger(doc.getBoost())
                 .addString(doc.getDescription())
                 .addString(doc.getSlugName())
-                .addOffsetDateTime(doc.getExpiresAt() != null ? doc.getExpiresAt().atOffset(ZoneOffset.UTC) : null)
+                .addOffsetDateTime(doc.getExpiresAt())
                 .addUUID(id);
 
         return tx.preparedQuery(updateSql).execute(params);
