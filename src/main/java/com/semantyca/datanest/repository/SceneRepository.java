@@ -56,7 +56,7 @@ public class SceneRepository extends AsyncRepository {
     }
 
     public Uni<List<Scene>> getAll(int limit, int offset, boolean includeArchived, IUser user, SceneFilter filter) {
-        String sql = "SELECT t.*, s.name as script_title FROM " + entityData.getTableName() + " t, " + entityData.getRlsName() + " rls, mixpla_scripts s " +
+        String sql = "SELECT t.*, s.name as script_title FROM " + entityData.getTableName() + " t, " + entityData.getRlsName() + " rls, mixpla__scripts s " +
                 "WHERE t.id = rls.entity_id AND t.script_id = s.id AND rls.reader = $1";
         if (!includeArchived) {
             sql += " AND t.archived = 0";
