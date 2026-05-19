@@ -169,7 +169,6 @@ public class PromptService extends AbstractService<DjPrompt, PromptDTO> {
             dto.setLocked(doc.isLocked());
             dto.setTitle(doc.getTitle());
             dto.setBackup(doc.getBackup());
-            dto.setPodcast(doc.isPodcast());
             dto.setDraftId(doc.getDraftId());
             dto.setMasterId(doc.getMasterId());
             dto.setVersion(doc.getVersion());
@@ -189,7 +188,6 @@ public class PromptService extends AbstractService<DjPrompt, PromptDTO> {
         doc.setLocked(dto.isLocked());
         doc.setTitle(dto.getTitle());
         doc.setBackup(dto.getBackup());
-        doc.setPodcast(dto.isPodcast());
         doc.setDraftId(dto.getDraftId());
         if (dto.isMaster()) {
             doc.setMasterId(null);
