@@ -460,7 +460,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
         if (doc.getFileMetadataList() == null || doc.getFileMetadataList().isEmpty()) {
             return Uni.createFrom().voidItem();
         }
-
+        OffsetDateTime nowTime = ZonedDateTime.now(ZoneOffset.UTC).toOffsetDateTime();
         String filesSql = "INSERT INTO _files (parent_table, parent_id, storage_type, " +
                 "mime_type, file_original_name, file_key, file_bin, slug_name, reg_date, last_mod_date) " +
                 "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)";
