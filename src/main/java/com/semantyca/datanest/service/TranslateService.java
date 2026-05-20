@@ -160,7 +160,6 @@ public class TranslateService {
                                             if (existing != null && existing.isLocked()) {
                                                 existing.setPrompt(StringEscapeUtils.unescapeHtml4(translatedContent));
                                                 existing.setVersion(master.getVersion());
-                                                existing.setPodcast(master.isPodcast());
                                                 existing.setDraftId(master.getDraftId());
                                                 existing.setPromptType(master.getPromptType());
                                                 return promptService.update(existing.getId(), existing, user);
@@ -174,7 +173,6 @@ public class TranslateService {
                                                 doc.setTitle(updateTitleWithLanguage(master.getTitle(), targetTranslation));
                                                 doc.setMasterId(master.getId());
                                                 doc.setVersion(master.getVersion());
-                                                doc.setPodcast(master.isPodcast());
                                                 doc.setDraftId(master.getDraftId());
                                                 doc.setPromptType(master.getPromptType());
                                                 return promptService.insert(doc, user);

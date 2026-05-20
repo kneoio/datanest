@@ -833,7 +833,6 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
             clonedPrompt.setMaster(originalPrompt.isMaster());
             clonedPrompt.setLocked(originalPrompt.isLocked());
             clonedPrompt.setBackup(originalPrompt.getBackup());
-            clonedPrompt.setPodcast(originalPrompt.isPodcast());
             clonedPrompt.setMasterId(originalPrompt.getMasterId());
             clonedPrompt.setVersion(originalPrompt.getVersion());
 
@@ -853,7 +852,6 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                     clonedPrompt.setMaster(originalPrompt.isMaster());
                     clonedPrompt.setLocked(originalPrompt.isLocked());
                     clonedPrompt.setBackup(originalPrompt.getBackup());
-                    clonedPrompt.setPodcast(originalPrompt.isPodcast());
                     clonedPrompt.setDraftId(clonedDraft.getId());
                     clonedPrompt.setMasterId(originalPrompt.getMasterId());
                     clonedPrompt.setVersion(originalPrompt.getVersion());
@@ -871,7 +869,6 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                     clonedPrompt.setMaster(originalPrompt.isMaster());
                     clonedPrompt.setLocked(originalPrompt.isLocked());
                     clonedPrompt.setBackup(originalPrompt.getBackup());
-                    clonedPrompt.setPodcast(originalPrompt.isPodcast());
                     clonedPrompt.setMasterId(originalPrompt.getMasterId());
                     clonedPrompt.setVersion(originalPrompt.getVersion());
 
