@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
 import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.mixpla.model.cnst.PromptType;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import lombok.Getter;
 import lombok.Setter;
@@ -27,6 +28,9 @@ public class PromptDTO extends AbstractDTO {
     private UUID draftId;
     private UUID masterId;
     private double version;
+    private int allowAsOption;
+    private JsonObject optionLocName;
+    private JsonArray exposedVariables;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<RlsActionDTO> rlsActions = new ArrayList<>();
     @JsonInclude(JsonInclude.Include.NON_EMPTY)

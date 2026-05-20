@@ -228,8 +228,8 @@ public class PromptRepository extends AsyncRepository {
         return Uni.createFrom().deferred(() -> {
             try {
                 String sql = "INSERT INTO " + entityData.getTableName() +
-                        " (author, reg_date, last_mod_user, last_mod_date, enabled, prompt, description, prompt_type, language_tag, is_master, locked, title, backup, draft_id, master_id, version) " +
-                        "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id";
+                        " (author, reg_date, last_mod_user, last_mod_date, enabled, prompt, description, prompt_type, language_tag, is_master, locked, title, backup, draft_id, master_id, version, allow_as_option, option_loc_name, exposed_variables) " +
+                        "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING id";
 
                 OffsetDateTime now = OffsetDateTime.now();
 
@@ -249,7 +249,10 @@ public class PromptRepository extends AsyncRepository {
                         .addJsonObject(JsonObject.of("backup", prompt.getBackup()))
                         .addUUID(prompt.getDraftId())
                         .addUUID(prompt.getMasterId())
-                        .addDouble(prompt.getVersion());
+                        .addDouble(prompt.getVersion())
+                        .addInteger(prompt.getAllowAsOption())
+                        .addJsonObject(prompt.getOptionLocName())
+                        .addValue(prompt.getExposedVariables() != null ? prompt.getExposedVariables() : new io.vertx.core.json.JsonArray());
 
                 return client.withTransaction(tx ->
                                 tx.preparedQuery(sql)
@@ -282,8 +285,8 @@ public class PromptRepository extends AsyncRepository {
                             }
 
                             String sql = "UPDATE " + entityData.getTableName() +
-                                    " SET enabled=$1, prompt=$2, description=$3, prompt_type=$4, language_tag=$5, is_master=$6, locked=$7, title=$8, backup=$9, draft_id=$10, master_id=$11, version=$12, last_mod_user=$13, last_mod_date=$14 " +
-                                    "WHERE id=$15";
+                                    " SET enabled=$1, prompt=$2, description=$3, prompt_type=$4, language_tag=$5, is_master=$6, locked=$7, title=$8, backup=$9, draft_id=$10, master_id=$11, version=$12, allow_as_option=$13, option_loc_name=$14, exposed_variables=$15, last_mod_user=$16, last_mod_date=$17 " +
+                                    "WHERE id=$18";
 
                             OffsetDateTime now = OffsetDateTime.now();
 
@@ -300,6 +303,9 @@ public class PromptRepository extends AsyncRepository {
                                     .addUUID(prompt.getDraftId())
                                     .addUUID(prompt.getMasterId())
                                     .addDouble(prompt.getVersion())
+                                    .addInteger(prompt.getAllowAsOption())
+                                    .addJsonObject(prompt.getOptionLocName())
+                                    .addValue(prompt.getExposedVariables() != null ? prompt.getExposedVariables() : new io.vertx.core.json.JsonArray())
                                     .addLong(user.getId())
                                     .addOffsetDateTime(now)
                                     .addUUID(id);
@@ -351,6 +357,9 @@ public class PromptRepository extends AsyncRepository {
         doc.setMasterId(row.getUUID("master_id"));
         doc.setArchived(row.getInteger("archived"));
         doc.setVersion(row.getDouble("version"));
+        doc.setAllowAsOption(row.getInteger("allow_as_option") != null ? row.getInteger("allow_as_option") : 0);
+        doc.setOptionLocName(row.getJsonObject("option_loc_name"));
+        doc.setExposedVariables(row.getJsonArray("exposed_variables") != null ? row.getJsonArray("exposed_variables") : new io.vertx.core.json.JsonArray());
         return doc;
     }
 
