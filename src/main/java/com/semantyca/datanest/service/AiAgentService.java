@@ -21,8 +21,7 @@ import com.semantyca.officeframe.service.LabelService;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,7 +30,7 @@ import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(AiAgentService.class);
+    private static final Logger LOGGER = Logger.getLogger(AiAgentService.class);
 
     private final AiAgentRepository repository;
     private final LabelService labelService;

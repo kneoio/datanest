@@ -1,15 +1,15 @@
 package com.semantyca.datanest.repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.model.embedded.DocumentAccessInfo;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.repository.AsyncRepository;
 import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.exception.DocumentModificationAccessException;
 import com.semantyca.core.repository.rls.RLSRepository;
-import com.semantyca.core.repository.table.EntityData;
-import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.repository.rls.RlsActionUtil;
+import com.semantyca.core.repository.table.EntityData;
 import com.semantyca.datanest.repository.prompt.PromptRepository;
 import com.semantyca.mixpla.model.PlaylistRequest;
 import com.semantyca.mixpla.model.Scene;
@@ -19,7 +19,6 @@ import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.mutiny.pgclient.PgPool;
 import io.vertx.mutiny.sqlclient.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
