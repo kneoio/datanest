@@ -13,6 +13,7 @@ import com.semantyca.datanest.dto.radiostation.*;
 import com.semantyca.datanest.messaging.CommandPublisher;
 import com.semantyca.datanest.messaging.MetricPublisher;
 import com.semantyca.datanest.repository.BrandRepository;
+import com.semantyca.mixpla.dto.queue.command.CommandType;
 import com.semantyca.mixpla.dto.queue.metric.MetricEventType;
 import com.semantyca.mixpla.dto.queue.metric.ProcessType;
 import com.semantyca.mixpla.model.brand.*;
@@ -150,9 +151,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
         return saveOperation
                 .invoke(saved -> commandPublisher.publishCommand(
-                        saved.getSlugName(),
-                        MetricEventType.COMMAND,
-                        ProcessType.INDEPENDENT,
+                        CommandType.FLOW_RESTART,
                         "brand_saved",
                         Map.of("brandId", saved.getId().toString(), "savedBy", user.getUserName())
                 ))

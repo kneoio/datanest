@@ -3,9 +3,8 @@ package com.semantyca.datanest.messaging;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.semantyca.datanest.EnvConst;
-import com.semantyca.mixpla.dto.queue.metric.MetricEventDTO;
-import com.semantyca.mixpla.dto.queue.metric.MetricEventType;
-import com.semantyca.mixpla.dto.queue.metric.ProcessType;
+import com.semantyca.mixpla.dto.queue.command.CommandDTO;
+import com.semantyca.mixpla.dto.queue.command.CommandType;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -26,33 +25,25 @@ public class CommandPublisher {
     @Channel("commands")
     Emitter<byte[]> commandsEmitter;
 
-    public void publishCommand(String brandName, MetricEventType eventType, ProcessType processType, String code, Map<String, Object> payload) {
-        publishCommand(brandName, eventType, processType, code, payload, UUID.randomUUID());
+    public void publishCommand(CommandType type, String command, Map<String, Object> payload) {
+        publishCommand(type, command, payload, UUID.randomUUID());
     }
 
-    public void publishCommand(String brandName, MetricEventType eventType, ProcessType processType, String code, Map<String, Object> payload, UUID traceId) {
+    public void publishCommand(CommandType type, String command, Map<String, Object> payload, UUID traceId) {
         try {
-            MetricEventDTO event = MetricEventDTO.of(
-                    EnvConst.APP_ID,
-                    brandName,
-                    eventType,
-                    processType,
-                    traceId,
-                    code,
-                    payload
-            );
+            CommandDTO event = CommandDTO.of(EnvConst.APP_ID, type, traceId, command, payload);
             publish(event)
                     .subscribe()
                     .with(
-                            v -> LOGGER.debugf("Published command for {}: {}", brandName, code),
-                            e -> LOGGER.errorf("Failed to publish command for {}: {}", brandName, e.getMessage())
+                            v -> LOGGER.debugf("Published command {}: {}", type, command),
+                            e -> LOGGER.errorf("Failed to publish command {}: {}", command, e.getMessage())
                     );
         } catch (Exception e) {
-            LOGGER.errorf("Error publishing command for {}: {}", brandName, e.getMessage());
+            LOGGER.errorf("Error publishing command {}: {}", command, e.getMessage());
         }
     }
 
-    private Uni<Void> publish(MetricEventDTO event) {
+    private Uni<Void> publish(CommandDTO event) {
         return Uni.createFrom().item(() -> {
                     try {
                         return objectMapper.writeValueAsBytes(event);
