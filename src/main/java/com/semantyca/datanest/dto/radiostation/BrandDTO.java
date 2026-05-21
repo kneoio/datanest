@@ -6,6 +6,7 @@ import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.dto.validation.ValidCountry;
 import com.semantyca.core.dto.validation.ValidLocalizedName;
 import com.semantyca.core.model.cnst.LanguageCode;
+import com.semantyca.datanest.model.cnst.ScriptMode;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -67,6 +68,8 @@ public class BrandDTO extends AbstractDTO {
     @NotNull
     @NotEmpty
     private List<BrandScriptEntryDTO> scripts;
+    private ScriptMode scriptMode = ScriptMode.PREDEFINED;
+    private CustomScriptDTO customScript;
     private OwnerDTO owner;
     private List<UUID> labels;
     private List<UUID> genres;
