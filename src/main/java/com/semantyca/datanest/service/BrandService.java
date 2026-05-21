@@ -10,6 +10,7 @@ import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.datanest.dto.radiostation.*;
+import com.semantyca.datanest.messaging.CommandPublisher;
 import com.semantyca.datanest.messaging.MetricPublisher;
 import com.semantyca.datanest.repository.BrandRepository;
 import com.semantyca.mixpla.dto.queue.metric.MetricEventType;
@@ -44,19 +45,23 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
     MetricPublisher metricPublisher;
 
+    CommandPublisher commandPublisher;
+
     @Inject
     public BrandService(
             UserService userService,
             ScriptService scriptService,
             BrandRepository repository,
             DatanestConfig datanestConfig,
-            MetricPublisher metricPublisher
+            MetricPublisher metricPublisher,
+            CommandPublisher commandPublisher
     ) {
         super(userService);
         this.scriptService = scriptService;
         this.repository = repository;
         this.datanestConfig = datanestConfig;
         this.metricPublisher = metricPublisher;
+        this.commandPublisher = commandPublisher;
     }
 
     public Uni<List<BrandDTO>> getAllDTO(final int limit, final int offset, final IUser user, final BrandFilter filter) {
@@ -143,7 +148,15 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             saveOperation = repository.update(UUID.fromString(id), entity, rlsActions, user);
         }
 
-        return saveOperation.chain(this::mapToDTO);
+        return saveOperation
+                .invoke(saved -> commandPublisher.publishCommand(
+                        saved.getSlugName(),
+                        MetricEventType.COMMAND,
+                        ProcessType.INDEPENDENT,
+                        "brand_saved",
+                        Map.of("brandId", saved.getId().toString(), "savedBy", user.getUserName())
+                ))
+                .chain(this::mapToDTO);
     }
 
     public Uni<List<BrandDTO>> getAllOpenForSubmissionDTO(int limit, int offset, IUser user) {
