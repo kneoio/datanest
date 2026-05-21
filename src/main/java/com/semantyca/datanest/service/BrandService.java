@@ -166,15 +166,10 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
 
         return repository.getBySlugName(slug)
-                .onFailure(DocumentHasNotFoundException.class).recoverWithNull()
-                .chain(existing -> {
-                    if (existing == null) {
-                        entity.setPopularityRate(5);
-                        return repository.insert(entity, rlsActions, user);
-                    }
-                    return repository.update(existing.getId(), entity, rlsActions, user)
-                            .onFailure(DocumentHasNotFoundException.class)
-                            .recoverWithUni(() -> repository.getBySlugName(slug));
+                .chain(existing -> repository.update(existing.getId(), entity, rlsActions, user))
+                .onFailure(DocumentHasNotFoundException.class).recoverWithUni(() -> {
+                    entity.setPopularityRate(5);
+                    return repository.insert(entity, rlsActions, user);
                 })
                 .invoke(saved -> commandPublisher.publishCommand(
                         CommandType.FLOW_RESTART,
