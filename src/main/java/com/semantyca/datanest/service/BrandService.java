@@ -153,7 +153,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 .invoke(saved -> commandPublisher.publishCommand(
                         CommandType.FLOW_RESTART,
                         "brand_saved",
-                        Map.of("brandId", saved.getId().toString(), "savedBy", user.getUserName())
+                        Map.of("brandId", saved.getId().toString(), "slug", saved.getSlugName(), "savedBy", user.getUserName())
                 ))
                 .chain(this::mapToDTO);
     }
