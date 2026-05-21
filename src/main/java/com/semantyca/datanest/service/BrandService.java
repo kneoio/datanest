@@ -2,6 +2,7 @@ package com.semantyca.datanest.service;
 
 import com.semantyca.core.dto.DocumentAccessDTO;
 import com.semantyca.core.model.cnst.LanguageCode;
+import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
@@ -150,6 +151,26 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         }
 
         return saveOperation
+                .invoke(saved -> commandPublisher.publishCommand(
+                        CommandType.FLOW_RESTART,
+                        "brand_saved",
+                        Map.of("brandId", saved.getId().toString(), "slug", saved.getSlugName(), "savedBy", user.getUserName())
+                ))
+                .chain(this::mapToDTO);
+    }
+
+    public Uni<BrandDTO> upsertBySlug(String slug, BrandDTO dto, IUser user, LanguageCode code) {
+        assert repository != null;
+        Brand entity = buildEntity(dto, user);
+        entity.setSlugName(slug);
+        List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
+
+        return repository.getBySlugName(slug)
+                .chain(existing -> repository.update(existing.getId(), entity, rlsActions, user))
+                .onFailure(DocumentHasNotFoundException.class).recoverWithUni(() -> {
+                    entity.setPopularityRate(5);
+                    return repository.insert(entity, rlsActions, user);
+                })
                 .invoke(saved -> commandPublisher.publishCommand(
                         CommandType.FLOW_RESTART,
                         "brand_saved",

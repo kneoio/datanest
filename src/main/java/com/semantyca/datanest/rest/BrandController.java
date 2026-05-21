@@ -59,6 +59,10 @@
             router.get(path + "/discover").handler(this::getOpenForSubmission);
             router.get(path + "/:id").handler(this::getById);
             router.post(path + "/:id?").handler(this::upsert);
+
+            String pubPath = "/datanest/pub/brands";
+            router.route(pubPath + "*").handler(BodyHandler.create());
+            router.post(pubPath + "/:slug").handler(this::upsertBySlug);
             router.delete(path + "/:id").handler(this::delete);
             router.post(path + "/:id/close").handler(this::closeBrand);
             router.get(path + "/:id/access").handler(this::getDocumentAccess);
@@ -191,6 +195,49 @@
                                 doc -> rc.response().setStatusCode("new".equalsIgnoreCase(id) || id == null || id.isBlank() ? 201 : 200).putHeader("Content-Type", "application/json").end(io.vertx.core.json.Json.encode(doc)),
                                 throwable -> {
                                     LOGGER.error("Failed to upsert radio station with id: {}", id, throwable);
+                                    rc.fail(throwable);
+                                }
+                        );
+            } catch (Exception e) {
+                if (e instanceof IllegalArgumentException) {
+                    rc.fail(400, e);
+                } else {
+                    rc.fail(400, new IllegalArgumentException("Invalid JSON payload"));
+                }
+            }
+        }
+
+        private void upsertBySlug(RoutingContext rc) {
+            try {
+                if (!validateJsonBody(rc)) {
+                    return;
+                }
+
+                String slug = rc.pathParam("slug");
+                BrandDTO dto = rc.body().asJsonObject().mapTo(BrandDTO.class);
+
+                Set<jakarta.validation.ConstraintViolation<BrandDTO>> violations = validator.validate(dto);
+                if (violations != null && !violations.isEmpty()) {
+                    Map<String, List<String>> fieldErrors = new HashMap<>();
+                    for (jakarta.validation.ConstraintViolation<BrandDTO> v : violations) {
+                        String field = v.getPropertyPath().toString();
+                        fieldErrors.computeIfAbsent(field, k -> new ArrayList<>()).add(v.getMessage());
+                    }
+
+                    String detail = fieldErrors.entrySet().stream()
+                            .flatMap(e -> e.getValue().stream().map(msg -> e.getKey() + ": " + msg))
+                            .collect(Collectors.joining(", "));
+
+                    ProblemDetailsUtil.respondValidationError(rc, detail, fieldErrors);
+                    return;
+                }
+
+                getContextUser(rc, false, true)
+                        .chain(user -> service.upsertBySlug(slug, dto, user, LanguageCode.en))
+                        .subscribe().with(
+                                doc -> rc.response().setStatusCode(200).putHeader("Content-Type", "application/json").end(io.vertx.core.json.Json.encode(doc)),
+                                throwable -> {
+                                    LOGGER.error("Failed to upsert brand with slug: {}", slug, throwable);
                                     rc.fail(throwable);
                                 }
                         );
