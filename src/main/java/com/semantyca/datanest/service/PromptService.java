@@ -12,6 +12,7 @@ import com.semantyca.datanest.repository.prompt.PromptRepository;
 import com.semantyca.mixpla.model.DjPrompt;
 import com.semantyca.mixpla.model.filter.PromptFilter;
 import io.smallrye.mutiny.Uni;
+import io.vertx.core.json.JsonObject;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -134,6 +135,17 @@ public class PromptService extends AbstractService<DjPrompt, PromptDTO> {
 
     public Uni<DjPrompt> update(UUID id, DjPrompt entity, IUser user) {
         return repository.update(id, entity, user);
+    }
+
+    public Uni<List<JsonObject>> getOptions() {
+        return repository.getAllOptions()
+                .map(list -> list.stream()
+                        .map(p -> new JsonObject()
+                                .put("id", p.getId().toString())
+                                .put("optionLocName", p.getOptionLocName() != null
+                                        ? p.getOptionLocName().getString("en", "")
+                                        : ""))
+                        .collect(Collectors.toList()));
     }
 
     public Uni<Integer> archive(String id, IUser user) {

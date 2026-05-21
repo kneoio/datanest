@@ -74,6 +74,7 @@ public class PromptController extends AbstractSecuredController<DjPrompt, Prompt
         router.route(path + "*").handler(BodyHandler.create());
         router.post(path + "/translate/start").handler(this::translateStart);
         router.get(path + "/translate/stream").handler(this::translateStream);
+        router.get("/datanest/pub/prompts/options").handler(this::getOptions);
         router.get(path).handler(this::getAll);
         router.get(path + "/grouped").handler(this::getAllGrouped);
         router.post(path + "/test").handler(this::test);
@@ -82,6 +83,20 @@ public class PromptController extends AbstractSecuredController<DjPrompt, Prompt
         router.post(path + "/:id").handler(this::upsert);
         router.delete(path + "/:id").handler(this::delete);
         router.get(path + "/:id/access").handler(this::getDocumentAccess);
+    }
+
+    private void getOptions(RoutingContext rc) {
+        service.getOptions()
+                .subscribe().with(
+                        list -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(io.vertx.core.json.Json.encode(list)),
+                        throwable -> {
+                            LOGGER.error("Failed to get prompt options", throwable);
+                            rc.fail(throwable);
+                        }
+                );
     }
 
     private void getAll(RoutingContext rc) {

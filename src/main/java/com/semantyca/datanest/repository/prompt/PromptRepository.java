@@ -326,6 +326,21 @@ public class PromptRepository extends AsyncRepository {
         });
     }
 
+    public Uni<List<DjPrompt>> getAllOptions() {
+        String sql = "SELECT id, option_loc_name FROM " + entityData.getTableName() +
+                " WHERE allow_as_option = 1 AND archived = 0";
+        return client.query(sql)
+                .execute()
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transform(row -> {
+                    DjPrompt p = new DjPrompt();
+                    p.setId(row.getUUID("id"));
+                    p.setOptionLocName(row.getJsonObject("option_loc_name"));
+                    return p;
+                })
+                .collect().asList();
+    }
+
     public Uni<Void> bulkUpdateACL(UUID entityId, List<RlsActionDTO> actions, IUser user) {
         return rlsRepository.findById(entityData.getRlsName(), user.getId(), entityId)
                 .onItem().transformToUni(permissions -> {
