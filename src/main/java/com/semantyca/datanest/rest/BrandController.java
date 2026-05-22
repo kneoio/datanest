@@ -66,6 +66,7 @@
 
             String pubPath = "/datanest/pub/brands";
             router.route(pubPath + "*").handler(BodyHandler.create());
+            router.get(pubPath + "/:id").handler(this::getPubById);
             router.post(pubPath + "/:id").handler(this::upsertBySlug);
             router.delete(path + "/:id").handler(this::delete);
             router.post(path + "/:id/close").handler(this::closeBrand);
@@ -209,6 +210,19 @@
                     rc.fail(400, new IllegalArgumentException("Invalid JSON payload"));
                 }
             }
+        }
+
+        private void getPubById(RoutingContext rc) {
+            String id = rc.pathParam("id");
+            getContextUser(rc, false, true)
+                    .chain(user -> pubService.getDTO(UUID.fromString(id), user, LanguageCode.en))
+                    .subscribe().with(
+                            doc -> rc.response().setStatusCode(200).putHeader("Content-Type", "application/json").end(io.vertx.core.json.Json.encode(doc)),
+                            throwable -> {
+                                LOGGER.error("Failed to get pub brand by id: {}", id, throwable);
+                                rc.fail(throwable);
+                            }
+                    );
         }
 
         private void upsertBySlug(RoutingContext rc) {
