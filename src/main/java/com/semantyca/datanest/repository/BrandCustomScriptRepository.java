@@ -7,17 +7,12 @@ import com.semantyca.core.repository.AsyncRepository;
 import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.rls.RlsActionUtil;
 import com.semantyca.core.repository.table.EntityData;
-import com.semantyca.core.util.WebHelper;
-import com.semantyca.datanest.dto.SceneDTO;
-import com.semantyca.datanest.dto.ScenePromptDTO;
-import com.semantyca.datanest.dto.ScriptDTO;
-import com.semantyca.datanest.dto.StagePlaylistDTO;
 import com.semantyca.mixpla.model.PlaylistRequest;
+import com.semantyca.mixpla.model.Scene;
+import com.semantyca.mixpla.model.ScenePrompt;
+import com.semantyca.mixpla.model.Script;
 import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.brand.BrandScriptEntry;
-import com.semantyca.mixpla.model.cnst.PlaylistItemType;
-import com.semantyca.mixpla.model.cnst.SourceType;
-import com.semantyca.mixpla.model.cnst.WayOfSourcing;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonArray;
@@ -51,10 +46,10 @@ public class BrandCustomScriptRepository extends AsyncRepository {
         super(client, mapper, rlsRepository);
     }
 
-    public Uni<UUID> insertBrandWithScript(Brand brand, ScriptDTO scriptDTO, List<RlsActionDTO> rlsActions, IUser user) {
+    public Uni<UUID> insertBrandWithScript(Brand brand, Script script, List<Scene> scenes, List<RlsActionDTO> rlsActions, IUser user) {
         return client.withTransaction(tx ->
-                insertScript(tx, scriptDTO, user)
-                        .chain(scriptId -> insertScenes(tx, scriptId, scriptDTO.getScenes(), user).replaceWith(scriptId))
+                insertScript(tx, script, user)
+                        .chain(scriptId -> insertScenes(tx, scriptId, scenes, user).replaceWith(scriptId))
                         .chain(scriptId -> {
                             brand.setScripts(List.of(new BrandScriptEntry(scriptId, Map.of())));
                             return insertBrand(tx, brand, rlsActions, user);
@@ -62,10 +57,10 @@ public class BrandCustomScriptRepository extends AsyncRepository {
         );
     }
 
-    public Uni<UUID> updateBrandWithScript(UUID brandId, UUID scriptId, Brand brand, ScriptDTO scriptDTO, List<RlsActionDTO> rlsActions, IUser user) {
+    public Uni<UUID> updateBrandWithScript(UUID brandId, UUID scriptId, Brand brand, Script script, List<Scene> scenes, List<RlsActionDTO> rlsActions, IUser user) {
         return client.withTransaction(tx ->
-                updateScript(tx, scriptId, scriptDTO, user)
-                        .chain(v -> replaceScenes(tx, scriptId, scriptDTO.getScenes(), user))
+                updateScript(tx, scriptId, script, user)
+                        .chain(v -> replaceScenes(tx, scriptId, scenes, user))
                         .chain(v -> {
                             brand.setScripts(List.of(new BrandScriptEntry(scriptId, Map.of())));
                             return updateBrand(tx, brandId, brand, rlsActions, user);
@@ -73,10 +68,10 @@ public class BrandCustomScriptRepository extends AsyncRepository {
         );
     }
 
-    public Uni<UUID> insertScriptAndUpdateBrand(UUID brandId, Brand brand, ScriptDTO scriptDTO, List<RlsActionDTO> rlsActions, IUser user) {
+    public Uni<UUID> insertScriptAndUpdateBrand(UUID brandId, Brand brand, Script script, List<Scene> scenes, List<RlsActionDTO> rlsActions, IUser user) {
         return client.withTransaction(tx ->
-                insertScript(tx, scriptDTO, user)
-                        .chain(scriptId -> insertScenes(tx, scriptId, scriptDTO.getScenes(), user).replaceWith(scriptId))
+                insertScript(tx, script, user)
+                        .chain(scriptId -> insertScenes(tx, scriptId, scenes, user).replaceWith(scriptId))
                         .chain(scriptId -> {
                             brand.setScripts(List.of(new BrandScriptEntry(scriptId, Map.of())));
                             return updateBrand(tx, brandId, brand, rlsActions, user);
@@ -91,7 +86,7 @@ public class BrandCustomScriptRepository extends AsyncRepository {
         );
     }
 
-    private Uni<UUID> insertScript(SqlClient tx, ScriptDTO dto, IUser user) {
+    private Uni<UUID> insertScript(SqlClient tx, Script script, IUser user) {
         OffsetDateTime now = OffsetDateTime.now();
         String sql = "INSERT INTO mixpla__scripts (author, reg_date, last_mod_user, last_mod_date, name, slug_name, description, access_level, language_tag, timing_mode, custom) " +
                 "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id";
@@ -100,72 +95,68 @@ public class BrandCustomScriptRepository extends AsyncRepository {
                 .addOffsetDateTime(now)
                 .addLong(user.getId())
                 .addOffsetDateTime(now)
-                .addString(dto.getName())
-                .addString(WebHelper.generateSlug(dto.getName()))
-                .addString(dto.getDescription())
+                .addString(script.getName())
+                .addString(script.getSlugName())
+                .addString(script.getDescription())
                 .addInteger(0)
-                .addString(dto.getLanguageTag())
-                .addString(dto.getTimingMode())
-                .addBoolean(dto.isCustom());
+                .addString(script.getLanguageTag().tag())
+                .addString(script.getTimingMode().name())
+                .addBoolean(script.isCustom());
         return tx.preparedQuery(sql)
                 .execute(params)
                 .map(result -> result.iterator().next().getUUID("id"))
                 .chain(scriptId -> insertRLSPermissions(tx, scriptId, scriptEntityData, user).replaceWith(scriptId));
     }
 
-    private Uni<Void> updateScript(SqlClient tx, UUID scriptId, ScriptDTO dto, IUser user) {
+    private Uni<Void> updateScript(SqlClient tx, UUID scriptId, Script script, IUser user) {
         OffsetDateTime now = OffsetDateTime.now();
         String sql = "UPDATE mixpla__scripts SET name=$1, slug_name=$2, description=$3, language_tag=$4, timing_mode=$5, custom=$6, last_mod_user=$7, last_mod_date=$8 WHERE id=$9";
         Tuple params = Tuple.tuple()
-                .addString(dto.getName())
-                .addString(WebHelper.generateSlug(dto.getName()))
-                .addString(dto.getDescription())
-                .addString(dto.getLanguageTag())
-                .addString(dto.getTimingMode())
-                .addBoolean(dto.isCustom())
+                .addString(script.getName())
+                .addString(script.getSlugName())
+                .addString(script.getDescription())
+                .addString(script.getLanguageTag().tag())
+                .addString(script.getTimingMode().name())
+                .addBoolean(script.isCustom())
                 .addLong(user.getId())
                 .addOffsetDateTime(now)
                 .addUUID(scriptId);
         return tx.preparedQuery(sql).execute(params).replaceWithVoid();
     }
 
-    private Uni<Void> insertScenes(SqlClient tx, UUID scriptId, List<SceneDTO> scenes, IUser user) {
+    private Uni<Void> insertScenes(SqlClient tx, UUID scriptId, List<Scene> scenes, IUser user) {
         if (scenes == null || scenes.isEmpty()) {
             return Uni.createFrom().voidItem();
         }
-        List<Uni<Void>> sceneUnis = scenes.stream()
-                .map(sceneDTO -> insertScene(tx, scriptId, sceneDTO, user))
-                .toList();
-        return Uni.join().all(sceneUnis).andFailFast().replaceWithVoid();
+        return Uni.join().all(scenes.stream().map(scene -> insertScene(tx, scriptId, scene, user)).toList()).andFailFast().replaceWithVoid();
     }
 
-    private Uni<Void> insertScene(SqlClient tx, UUID scriptId, SceneDTO dto, IUser user) {
+    private Uni<Void> insertScene(SqlClient tx, UUID scriptId, Scene scene, IUser user) {
         OffsetDateTime now = OffsetDateTime.now();
         String sql = "INSERT INTO mixpla__script_scenes (author, reg_date, last_mod_user, last_mod_date, script_id, title, start_time, duration_seconds, seq_num, one_time_run, talkativity, weekdays, stage_playlist) " +
                 "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id";
-        PlaylistRequest playlist = mapToPlaylistRequest(dto.getStagePlaylist());
         Tuple params = Tuple.tuple()
                 .addLong(user.getId())
                 .addOffsetDateTime(now)
                 .addLong(user.getId())
                 .addOffsetDateTime(now)
                 .addUUID(scriptId)
-                .addString(dto.getTitle())
-                .addJsonArray(dto.getStartTime() != null ? new JsonArray(dto.getStartTime()) : new JsonArray())
-                .addInteger(dto.getDurationSeconds())
-                .addInteger(dto.getSeqNum())
-                .addBoolean(false)
-                .addDouble(dto.getTalkativity())
-                .addArrayOfInteger(null)
-                .addJsonObject(playlist != null ? JsonObject.mapFrom(playlist) : null);
+                .addString(scene.getTitle())
+                .addJsonArray(scene.getStartTime() != null ? new JsonArray(scene.getStartTime()) : new JsonArray())
+                .addInteger(scene.getDurationSeconds())
+                .addInteger(scene.getSeqNum())
+                .addBoolean(scene.isOneTimeRun())
+                .addDouble(scene.getTalkativity())
+                .addArrayOfInteger(scene.getWeekdays() != null ? scene.getWeekdays().toArray(new Integer[0]) : null)
+                .addJsonObject(scene.getPlaylistRequest() != null ? JsonObject.mapFrom(scene.getPlaylistRequest()) : null);
         return tx.preparedQuery(sql)
                 .execute(params)
                 .map(result -> result.iterator().next().getUUID("id"))
                 .chain(sceneId -> insertRLSPermissions(tx, sceneId, sceneEntityData, user)
-                        .chain(v -> insertScenePrompts(tx, sceneId, dto.getPrompts())));
+                        .chain(v -> insertScenePrompts(tx, sceneId, scene.getIntroPrompts())));
     }
 
-    private Uni<Void> replaceScenes(SqlClient tx, UUID scriptId, List<SceneDTO> scenes, IUser user) {
+    private Uni<Void> replaceScenes(SqlClient tx, UUID scriptId, List<Scene> scenes, IUser user) {
         String deletePromptsSql = "DELETE FROM mixpla__script_scene_prompts WHERE script_scene_id IN (SELECT id FROM mixpla__script_scenes WHERE script_id = $1)";
         String deleteReadersSql = "DELETE FROM mixpla__script_scene_readers WHERE entity_id IN (SELECT id FROM mixpla__script_scenes WHERE script_id = $1)";
         String deleteScenesSql = "DELETE FROM mixpla__script_scenes WHERE script_id = $1";
@@ -175,20 +166,18 @@ public class BrandCustomScriptRepository extends AsyncRepository {
                 .chain(v -> insertScenes(tx, scriptId, scenes, user));
     }
 
-    private Uni<Void> insertScenePrompts(SqlClient tx, UUID sceneId, List<ScenePromptDTO> prompts) {
+    private Uni<Void> insertScenePrompts(SqlClient tx, UUID sceneId, List<ScenePrompt> prompts) {
         if (prompts == null || prompts.isEmpty()) {
             return Uni.createFrom().voidItem();
         }
-        List<ScenePromptDTO> validPrompts = prompts.stream()
-                .filter(p -> p != null && p.getPromptId() != null)
-                .toList();
+        List<ScenePrompt> validPrompts = prompts.stream().filter(p -> p != null && p.getPromptId() != null).toList();
         if (validPrompts.isEmpty()) {
             return Uni.createFrom().voidItem();
         }
         String insertSql = "INSERT INTO mixpla__script_scene_prompts (script_scene_id, prompt_id, rank, weight, active, mandatory) VALUES ($1, $2, $3, $4, $5, $6)";
         List<Uni<Void>> insertUnis = new ArrayList<>();
         for (int i = 0; i < validPrompts.size(); i++) {
-            ScenePromptDTO p = validPrompts.get(i);
+            ScenePrompt p = validPrompts.get(i);
             Tuple params = Tuple.of(sceneId, p.getPromptId(), p.getRank() != 0 ? p.getRank() : i,
                     p.getWeight() != null ? p.getWeight() : BigDecimal.valueOf(0.5), p.isActive(), p.isMandatory());
             insertUnis.add(tx.preparedQuery(insertSql).execute(params).replaceWithVoid());
@@ -304,18 +293,4 @@ public class BrandCustomScriptRepository extends AsyncRepository {
                 .addUUID(brandId);
     }
 
-    private PlaylistRequest mapToPlaylistRequest(StagePlaylistDTO dto) {
-        if (dto == null) return null;
-        PlaylistRequest pr = new PlaylistRequest();
-        pr.setSourcing(dto.getSourcing() != null ? WayOfSourcing.valueOf(dto.getSourcing()) : null);
-        pr.setTitle(dto.getTitle());
-        pr.setArtist(dto.getArtist());
-        pr.setGenres(dto.getGenres());
-        pr.setLabels(dto.getLabels());
-        pr.setType(dto.getType() != null ? dto.getType().stream().map(PlaylistItemType::valueOf).toList() : null);
-        pr.setSource(dto.getSource() != null ? dto.getSource().stream().map(SourceType::valueOf).toList() : null);
-        pr.setSearchTerm(dto.getSearchTerm());
-        pr.setSoundFragments(dto.getSoundFragments());
-        return pr;
-    }
 }

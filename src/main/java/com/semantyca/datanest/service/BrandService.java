@@ -16,7 +16,14 @@ import com.semantyca.datanest.dto.ScriptDTO;
 import com.semantyca.datanest.dto.StagePlaylistDTO;
 import com.semantyca.datanest.dto.radiostation.*;
 import com.semantyca.datanest.model.cnst.ScriptMode;
+import com.semantyca.mixpla.model.PlaylistRequest;
+import com.semantyca.mixpla.model.Scene;
+import com.semantyca.mixpla.model.ScenePrompt;
 import com.semantyca.mixpla.model.Script;
+import com.semantyca.core.model.cnst.LanguageTag;
+import com.semantyca.mixpla.model.cnst.PlaylistItemType;
+import com.semantyca.mixpla.model.cnst.SceneTimingMode;
+import com.semantyca.mixpla.model.cnst.SourceType;
 import com.semantyca.mixpla.model.cnst.WayOfSourcing;
 import com.semantyca.datanest.messaging.CommandPublisher;
 import com.semantyca.datanest.messaging.MetricPublisher;
@@ -178,15 +185,17 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         boolean isCustom = ScriptMode.CUSTOM.equals(dto.getScriptMode());
         Brand brand = buildEntity(dto, user, slug);
         ScriptDTO scriptDTO = isCustom ? buildCustomScriptDTO(slug, dto) : null;
+        Script script = isCustom ? buildScriptEntity(scriptDTO) : null;
+        List<Scene> scenes = isCustom ? buildSceneEntities(scriptDTO.getScenes()) : null;
 
         Uni<UUID> brandIdUni = repository.getBySlugName(slug)
                 .chain(existing -> resolveExistingCustomScriptId(existing)
                         .chain(existingScriptId -> {
                             if (isCustom) {
                                 if (existingScriptId != null) {
-                                    return brandCustomScriptRepository.updateBrandWithScript(existing.getId(), existingScriptId, brand, scriptDTO, rlsActions, user);
+                                    return brandCustomScriptRepository.updateBrandWithScript(existing.getId(), existingScriptId, brand, script, scenes, rlsActions, user);
                                 } else {
-                                    return brandCustomScriptRepository.insertScriptAndUpdateBrand(existing.getId(), brand, scriptDTO, rlsActions, user);
+                                    return brandCustomScriptRepository.insertScriptAndUpdateBrand(existing.getId(), brand, script, scenes, rlsActions, user);
                                 }
                             } else {
                                 if (existingScriptId != null) {
@@ -200,7 +209,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 .onFailure(DocumentHasNotFoundException.class).recoverWithUni(() -> {
                     brand.setPopularityRate(5);
                     if (isCustom) {
-                        return brandCustomScriptRepository.insertBrandWithScript(brand, scriptDTO, rlsActions, user);
+                        return brandCustomScriptRepository.insertBrandWithScript(brand, script, scenes, rlsActions, user);
                     } else {
                         return repository.insert(brand, rlsActions, user).map(Brand::getId);
                     }
@@ -460,6 +469,62 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         }
         customScene.setActions(actions.isEmpty() ? null : actions);
         return customScene;
+    }
+
+    private Script buildScriptEntity(ScriptDTO dto) {
+        Script script = new Script();
+        script.setName(dto.getName());
+        script.setSlugName(WebHelper.generateSlug(dto.getName()));
+        script.setDescription(dto.getDescription());
+        script.setCustom(dto.isCustom());
+        script.setLanguageTag(LanguageTag.fromTag(dto.getLanguageTag()));
+        script.setTimingMode(SceneTimingMode.valueOf(dto.getTimingMode()));
+        script.setLabels(dto.getLabels());
+        return script;
+    }
+
+    private List<Scene> buildSceneEntities(List<SceneDTO> dtos) {
+        if (dtos == null) return List.of();
+        return dtos.stream().map(this::buildSceneEntity).collect(Collectors.toList());
+    }
+
+    private Scene buildSceneEntity(SceneDTO dto) {
+        Scene scene = new Scene();
+        scene.setTitle(dto.getTitle());
+        scene.setStartTime(dto.getStartTime());
+        scene.setDurationSeconds(dto.getDurationSeconds());
+        scene.setSeqNum(dto.getSeqNum());
+        scene.setTalkativity(dto.getTalkativity());
+        scene.setWeekdays(dto.getWeekdays());
+        scene.setOneTimeRun(dto.isOneTimeRun());
+        scene.setIntroPrompts(dto.getPrompts() != null
+                ? dto.getPrompts().stream().map(p -> {
+                    ScenePrompt sp = new ScenePrompt();
+                    sp.setPromptId(p.getPromptId());
+                    sp.setRank(p.getRank());
+                    sp.setWeight(p.getWeight());
+                    sp.setActive(p.isActive());
+                    sp.setMandatory(p.isMandatory());
+                    return sp;
+                }).collect(Collectors.toList())
+                : List.of());
+        scene.setPlaylistRequest(mapToPlaylistRequest(dto.getStagePlaylist()));
+        return scene;
+    }
+
+    private PlaylistRequest mapToPlaylistRequest(StagePlaylistDTO dto) {
+        if (dto == null) return null;
+        PlaylistRequest pr = new PlaylistRequest();
+        pr.setSourcing(dto.getSourcing() != null ? WayOfSourcing.valueOf(dto.getSourcing()) : null);
+        pr.setTitle(dto.getTitle());
+        pr.setArtist(dto.getArtist());
+        pr.setGenres(dto.getGenres());
+        pr.setLabels(dto.getLabels());
+        pr.setType(dto.getType() != null ? dto.getType().stream().map(PlaylistItemType::valueOf).toList() : null);
+        pr.setSource(dto.getSource() != null ? dto.getSource().stream().map(SourceType::valueOf).toList() : null);
+        pr.setSearchTerm(dto.getSearchTerm());
+        pr.setSoundFragments(dto.getSoundFragments());
+        return pr;
     }
 
     private Brand buildEntity(BrandDTO dto, IUser user, String slug) {
