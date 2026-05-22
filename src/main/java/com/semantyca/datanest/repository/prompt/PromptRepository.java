@@ -12,6 +12,7 @@ import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.table.EntityData;
 import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.repository.rls.RlsActionUtil;
+import com.semantyca.datanest.util.SlugHelper;
 import com.semantyca.mixpla.model.DjPrompt;
 import com.semantyca.mixpla.model.ScenePrompt;
 import com.semantyca.mixpla.model.cnst.PromptType;
@@ -230,8 +231,8 @@ public class PromptRepository extends AsyncRepository {
         return Uni.createFrom().deferred(() -> {
             try {
                 String sql = "INSERT INTO " + entityData.getTableName() +
-                        " (author, reg_date, last_mod_user, last_mod_date, enabled, prompt, description, prompt_type, language_tag, is_master, locked, title, backup, draft_id, master_id, version, allow_as_option, option_loc_name, exposed_variables) " +
-                        "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING id";
+                        " (author, reg_date, last_mod_user, last_mod_date, enabled, prompt, description, prompt_type, language_tag, is_master, locked, title, backup, draft_id, master_id, version, allow_as_option, option_loc_name, exposed_variables, slug_name) " +
+                        "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING id";
 
                 OffsetDateTime now = OffsetDateTime.now();
 
@@ -255,7 +256,8 @@ public class PromptRepository extends AsyncRepository {
                         .addInteger(prompt.getAllowAsOption())
                         .addJsonObject(prompt.getLocalizedOptionName() != null && !prompt.getLocalizedOptionName().isEmpty()
                                 ? JsonObject.mapFrom(prompt.getLocalizedOptionName()) : null)
-                        .addValue(prompt.getExposedVariables() != null ? prompt.getExposedVariables() : new io.vertx.core.json.JsonArray());
+                        .addValue(prompt.getExposedVariables() != null ? prompt.getExposedVariables() : new io.vertx.core.json.JsonArray())
+                        .addString(SlugHelper.generateSlug(prompt.getTitle()));
 
                 return client.withTransaction(tx ->
                                 tx.preparedQuery(sql)
@@ -288,8 +290,8 @@ public class PromptRepository extends AsyncRepository {
                             }
 
                             String sql = "UPDATE " + entityData.getTableName() +
-                                    " SET enabled=$1, prompt=$2, description=$3, prompt_type=$4, language_tag=$5, is_master=$6, locked=$7, title=$8, backup=$9, draft_id=$10, master_id=$11, version=$12, allow_as_option=$13, option_loc_name=$14, exposed_variables=$15, last_mod_user=$16, last_mod_date=$17 " +
-                                    "WHERE id=$18";
+                                    " SET enabled=$1, prompt=$2, description=$3, prompt_type=$4, language_tag=$5, is_master=$6, locked=$7, title=$8, backup=$9, draft_id=$10, master_id=$11, version=$12, allow_as_option=$13, option_loc_name=$14, exposed_variables=$15, slug_name=$16, last_mod_user=$17, last_mod_date=$18 " +
+                                    "WHERE id=$19";
 
                             OffsetDateTime now = OffsetDateTime.now();
 
@@ -310,6 +312,7 @@ public class PromptRepository extends AsyncRepository {
                                     .addJsonObject(prompt.getLocalizedOptionName() != null && !prompt.getLocalizedOptionName().isEmpty()
                                             ? JsonObject.mapFrom(prompt.getLocalizedOptionName()) : null)
                                     .addValue(prompt.getExposedVariables() != null ? prompt.getExposedVariables() : new io.vertx.core.json.JsonArray())
+                                    .addString(SlugHelper.generateSlug(prompt.getTitle()))
                                     .addLong(user.getId())
                                     .addOffsetDateTime(now)
                                     .addUUID(id);
@@ -369,6 +372,7 @@ public class PromptRepository extends AsyncRepository {
     private DjPrompt from(Row row) {
         DjPrompt doc = new DjPrompt();
         setDefaultFields(doc, row);
+        doc.setSlugName(row.getString("slug_name"));
         doc.setEnabled(row.getBoolean("enabled"));
         doc.setPrompt(row.getString("prompt"));
         doc.setDescription(row.getString("description"));
@@ -386,8 +390,10 @@ public class PromptRepository extends AsyncRepository {
         JsonObject localizedOptionNameJson = row.getJsonObject("option_loc_name");
         if (localizedOptionNameJson != null) {
             EnumMap<LanguageCode, String> localizedOptionName = new EnumMap<>(LanguageCode.class);
-            localizedOptionNameJson.getMap().forEach((key, value) ->
-                    localizedOptionName.put(LanguageCode.valueOf(key), (String) value));
+            localizedOptionNameJson.getMap().forEach((key, value) -> {
+                LanguageCode code = parseLanguageCode(key);
+                if (code != LanguageCode.unknown) localizedOptionName.put(code, (String) value);
+            });
             doc.setLocalizedOptionName(localizedOptionName);
         }
         doc.setExposedVariables(row.getJsonArray("exposed_variables") != null ? row.getJsonArray("exposed_variables") : new io.vertx.core.json.JsonArray());
