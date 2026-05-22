@@ -4,7 +4,6 @@ import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
-import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.ColorUtil;
 import com.semantyca.core.util.WebHelper;
@@ -63,8 +62,13 @@ public class BrandPubService extends BrandService {
     }
 
     public Uni<BrandDTO> upsertBySlug(String slug, BrandDTO dto, IUser user, LanguageCode code) {
-        Brand brand = super.buildEntity(dto, user, slug);
-        return upsert(slug, brand, dto.getScriptMode(), dto.getCustomScript(), user)
+        boolean isNew = "new".equalsIgnoreCase(slug) || slug == null || slug.isBlank();
+        boolean isCustom = ScriptMode.CUSTOM.equals(dto.getScriptMode());
+        Uni<String> slugUni = isNew
+                ? Uni.createFrom().item(WebHelper.generateSlug(dto.getLocalizedName()))
+                : Uni.createFrom().item(slug);
+        return slugUni
+                .chain(resolvedSlug -> upsert(resolvedSlug, dto, isNew, isCustom, user))
                 .invoke(saved -> commandPublisher.publishCommand(
                         CommandType.FLOW_RESTART,
                         "brand_saved",
@@ -73,43 +77,41 @@ public class BrandPubService extends BrandService {
                 .chain(this::mapToDTO);
     }
 
-    public Uni<Brand> upsert(String slug, Brand brand, ScriptMode scriptMode, CustomScriptDTO customScriptDTO, IUser user) {
-        boolean isCustom = ScriptMode.CUSTOM.equals(scriptMode);
-        customScriptDTO.setColor(ColorUtil.generateContrastColorPair()[0]);
-        Uni<UUID> brandIdUni = repository.getBySlugName(slug)
-                .chain(existing -> resolveExistingCustomScriptId(existing)
-                        .chain(existingScriptId -> {
-                            if (isCustom) {
-                                Script script = buildScript(slug);
-                                List<Scene> scenes = buildScenes(customScriptDTO);
-                                script.setColor(customScriptDTO.getColor());
-                                if (existingScriptId != null) {
-                                    return brandPubRepository.updateBrandWithScript(existing.getId(), existingScriptId, brand, script, scenes, List.of(), user);
+    private Uni<Brand> upsert(String slug, BrandDTO dto, boolean isNew, boolean isCustom, IUser user) {
+        Brand brand = super.buildEntity(dto, user, slug);
+        if (isNew) {
+            brand.setPopularityRate(5);
+            if (isCustom) {
+                String color = ColorUtil.generateContrastColorPair()[0];
+                Script script = buildScript(slug);
+                script.setColor(color);
+                return brandPubRepository.insertBrandWithScript(brand, script, buildScenes(dto.getCustomScript()), List.of(), user)
+                        .chain(id -> repository.findById(id, user, true));
+            } else {
+                return repository.insert(brand, List.of(), user);
+            }
+        } else {
+            return repository.getBySlugName(slug)
+                    .chain(existing -> resolveExistingCustomScriptId(existing)
+                            .chain(existingScriptId -> {
+                                Uni<UUID> idUni;
+                                if (isCustom) {
+                                    String color = ColorUtil.generateContrastColorPair()[0];
+                                    Script script = buildScript(slug);
+                                    script.setColor(color);
+                                    List<Scene> scenes = buildScenes(dto.getCustomScript());
+                                    idUni = existingScriptId != null
+                                            ? brandPubRepository.updateBrandWithScript(existing.getId(), existingScriptId, brand, script, scenes, List.of(), user)
+                                            : brandPubRepository.insertScriptAndUpdateBrand(existing.getId(), brand, script, scenes, List.of(), user);
                                 } else {
-                                    return brandPubRepository.insertScriptAndUpdateBrand(existing.getId(), brand, script, scenes, List.of(), user);
+                                    idUni = existingScriptId != null
+                                            ? brandPubRepository.archiveScriptAndUpdateBrand(existing.getId(), existingScriptId, brand, List.of(), user)
+                                            : repository.update(existing.getId(), brand, List.of(), user).map(Brand::getId);
                                 }
-                            } else {
-                                if (existingScriptId != null) {
-                                    return brandPubRepository.archiveScriptAndUpdateBrand(existing.getId(), existingScriptId, brand, List.of(), user);
-                                } else {
-                                    return repository.update(existing.getId(), brand, List.of(), user).map(Brand::getId);
-                                }
-                            }
-                        })
-                )
-                .onFailure(DocumentHasNotFoundException.class).recoverWithUni(() -> {
-                    brand.setPopularityRate(5);
-                    if (isCustom) {
-                        Script script = buildScript(slug);
-                        script.setColor(customScriptDTO.getColor());
-                        List<Scene> scenes = buildScenes(customScriptDTO);
-                        return brandPubRepository.insertBrandWithScript(brand, script, scenes, List.of(), user);
-                    } else {
-                        return repository.insert(brand, List.of(), user).map(Brand::getId);
-                    }
-                });
-
-        return brandIdUni.chain(brandId -> repository.findById(brandId, user, true));
+                                return idUni.chain(id -> repository.findById(id, user, true));
+                            })
+                    );
+        }
     }
 
     private Uni<UUID> resolveExistingCustomScriptId(Brand existing) {
