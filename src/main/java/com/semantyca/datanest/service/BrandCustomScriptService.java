@@ -126,8 +126,7 @@ public class BrandCustomScriptService {
         sceneDTO.setTalkativity(customScene.getTalkActivity());
         if (customScene.getActions() != null) {
             List<ScenePromptDTO> prompts = customScene.getActions().stream()
-                    .filter(a -> a.isPredefined() && a.getPromptId() != null)
-                    .map(a -> new ScenePromptDTO(a.getPromptId(), true, false, 0, BigDecimal.valueOf(0.5)))
+                    .map(a -> new ScenePromptDTO())
                     .collect(Collectors.toList());
             sceneDTO.setPrompts(prompts);
             if (customScene.getSongsMode() != null) {

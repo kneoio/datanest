@@ -1,6 +1,8 @@
 package com.semantyca.datanest.dto.radiostation;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.semantyca.datanest.dto.ScenePromptDTO;
+import com.semantyca.mixpla.model.ScenePrompt;
 import com.semantyca.mixpla.model.cnst.WayOfSourcing;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -20,5 +22,6 @@ public class CustomSceneDTO {
     private int talkActivity;
     private WayOfSourcing songsMode;
     private List<String> songsLabels;
-    private List<SceneActionDTO> actions;
+    private List<ScenePromptDTO> introPrompts;
+    private List<CustomSceneActionDTO> actions;
 }

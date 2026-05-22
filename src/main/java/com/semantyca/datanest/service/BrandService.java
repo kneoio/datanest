@@ -344,14 +344,12 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             customScene.setStartTime(scene.getStartTime().get(0));
         }
         customScene.setTalkActivity((int) scene.getTalkativity());
-        List<SceneActionDTO> actions = new ArrayList<>();
+        List<CustomSceneActionDTO> actions = new ArrayList<>();
         if (scene.getPrompts() != null) {
             scene.getPrompts().stream()
                     .filter(p -> p.getPromptId() != null)
                     .map(p -> {
-                        SceneActionDTO action = new SceneActionDTO();
-                        action.setPredefined(true);
-                        action.setPromptId(p.getPromptId());
+                        CustomSceneActionDTO action = new CustomSceneActionDTO();
                         return action;
                     })
                     .forEach(actions::add);

@@ -12,10 +12,8 @@ import java.util.UUID;
 @Getter
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class SceneActionDTO {
+public class CustomSceneActionDTO {
     private String name;
-    private boolean predefined;
-    private UUID promptId;
     private String instruction;
     private List<String> contextVars;
 }
