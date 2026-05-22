@@ -87,7 +87,7 @@ public class BrandPubService extends BrandService {
             brand.setPopularityRate(5);
             if (isCustom) {
                 String color = ColorUtil.generateContrastColorPair()[0];
-                Script script = buildScript(slug);
+                Script script = buildScript(slug, dto.getCustomScript() != null ? dto.getCustomScript().getTitle() : null);
                 script.setColor(color);
                 return brandPubRepository.insertBrandWithScript(brand, script, buildScenes(dto.getCustomScript()), List.of(), user)
                         .chain(brandId -> repository.findById(brandId, user, true));
@@ -104,7 +104,7 @@ public class BrandPubService extends BrandService {
                                     Uni<UUID> idUni;
                                     if (isCustom) {
                                         String color = ColorUtil.generateContrastColorPair()[0];
-                                        Script script = buildScript(slug);
+                                        Script script = buildScript(slug, dto.getCustomScript() != null ? dto.getCustomScript().getTitle() : null);
                                         script.setColor(color);
                                         List<Scene> scenes = buildScenes(dto.getCustomScript());
                                         idUni = existingScriptId != null
@@ -129,8 +129,8 @@ public class BrandPubService extends BrandService {
                 .map(script -> script.isCustom() ? script.getId() : null);
     }
 
-    private Script buildScript(String slug) {
-        String name = slug + "'s script";
+    private Script buildScript(String slug, String title) {
+        String name = title != null ? title : slug + "'s script";
         Script script = new Script();
         script.setName(name);
         script.setSlugName(WebHelper.generateSlug(name));
