@@ -66,7 +66,7 @@
 
             String pubPath = "/datanest/pub/brands";
             router.route(pubPath + "*").handler(BodyHandler.create());
-            router.post(pubPath + "/:slug").handler(this::upsertBySlug);
+            router.post(pubPath + "/:id").handler(this::upsertBySlug);
             router.delete(path + "/:id").handler(this::delete);
             router.post(path + "/:id/close").handler(this::closeBrand);
             router.get(path + "/:id/access").handler(this::getDocumentAccess);
@@ -217,7 +217,7 @@
                     return;
                 }
 
-                String slug = rc.pathParam("slug");
+                String id = rc.pathParam("id");
                 BrandDTO dto = rc.body().asJsonObject().mapTo(BrandDTO.class);
 
                 Set<ConstraintViolation<BrandDTO>> violations = validator.validate(dto);
@@ -237,11 +237,11 @@
                 }
 
                 getContextUser(rc, false, true)
-                        .chain(user -> pubService.upsert(slug, dto, user, LanguageCode.en))
+                        .chain(user -> pubService.upsert(id, dto, user, LanguageCode.en))
                         .subscribe().with(
                                 doc -> rc.response().setStatusCode(200).putHeader("Content-Type", "application/json").end(io.vertx.core.json.Json.encode(doc)),
                                 throwable -> {
-                                    LOGGER.error("Failed to upsert brand with slug: {}", slug, throwable);
+                                    LOGGER.error("Failed to upsert pub brand with id: {}", id, throwable);
                                     rc.fail(throwable);
                                 }
                         );

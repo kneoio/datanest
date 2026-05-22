@@ -68,14 +68,10 @@ public class BrandPubService extends BrandService {
         this.brandPubRepository = brandPubRepository;
     }
 
-    public Uni<BrandDTO> upsert(String slug, BrandDTO dto, IUser user, LanguageCode code) {
-        boolean isNew = "new".equalsIgnoreCase(slug) || slug == null || slug.isBlank();
+    public Uni<BrandDTO> upsert(String id, BrandDTO dto, IUser user, LanguageCode code) {
+        boolean isNew = "new".equalsIgnoreCase(id) || id == null || id.isBlank();
         boolean isCustom = ScriptMode.CUSTOM.equals(dto.getScriptMode());
-        Uni<String> slugUni = isNew
-                ? Uni.createFrom().item(WebHelper.generateSlug(dto.getLocalizedName()))
-                : Uni.createFrom().item(slug);
-        return slugUni
-                .chain(resolvedSlug -> doUpsert(resolvedSlug, dto, isNew, isCustom, user))
+        return doUpsert(id, dto, isNew, isCustom, user)
                 .invoke(saved -> commandPublisher.publishCommand(
                         CommandType.FLOW_RESTART,
                         "brand_saved",
@@ -84,40 +80,44 @@ public class BrandPubService extends BrandService {
                 .chain(this::mapToDTO);
     }
 
-    private Uni<Brand> doUpsert(String slug, BrandDTO dto, boolean isNew, boolean isCustom, IUser user) {
-        Brand brand = super.buildEntity(dto, user, slug);
+    private Uni<Brand> doUpsert(String id, BrandDTO dto, boolean isNew, boolean isCustom, IUser user) {
         if (isNew) {
+            String slug = WebHelper.generateSlug(dto.getLocalizedName());
+            Brand brand = super.buildEntity(dto, user, slug);
             brand.setPopularityRate(5);
             if (isCustom) {
                 String color = ColorUtil.generateContrastColorPair()[0];
                 Script script = buildScript(slug);
                 script.setColor(color);
                 return brandPubRepository.insertBrandWithScript(brand, script, buildScenes(dto.getCustomScript()), List.of(), user)
-                        .chain(id -> repository.findById(id, user, true));
+                        .chain(brandId -> repository.findById(brandId, user, true));
             } else {
                 return repository.insert(brand, List.of(), user);
             }
         } else {
-            return repository.getBySlugName(slug)
-                    .chain(existing -> resolveExistingCustomScriptId(existing)
-                            .chain(existingScriptId -> {
-                                Uni<UUID> idUni;
-                                if (isCustom) {
-                                    String color = ColorUtil.generateContrastColorPair()[0];
-                                    Script script = buildScript(slug);
-                                    script.setColor(color);
-                                    List<Scene> scenes = buildScenes(dto.getCustomScript());
-                                    idUni = existingScriptId != null
-                                            ? brandPubRepository.updateBrandWithScript(existing.getId(), existingScriptId, brand, script, scenes, List.of(), user)
-                                            : brandPubRepository.insertScriptAndUpdateBrand(existing.getId(), brand, script, scenes, List.of(), user);
-                                } else {
-                                    idUni = existingScriptId != null
-                                            ? brandPubRepository.archiveScriptAndUpdateBrand(existing.getId(), existingScriptId, brand, List.of(), user)
-                                            : repository.update(existing.getId(), brand, List.of(), user).map(Brand::getId);
-                                }
-                                return idUni.chain(id -> repository.findById(id, user, true));
-                            })
-                    );
+            return repository.findById(UUID.fromString(id), user, false)
+                    .chain(existing -> {
+                        String slug = existing.getSlugName();
+                        Brand brand = super.buildEntity(dto, user, slug);
+                        return resolveExistingCustomScriptId(existing)
+                                .chain(existingScriptId -> {
+                                    Uni<UUID> idUni;
+                                    if (isCustom) {
+                                        String color = ColorUtil.generateContrastColorPair()[0];
+                                        Script script = buildScript(slug);
+                                        script.setColor(color);
+                                        List<Scene> scenes = buildScenes(dto.getCustomScript());
+                                        idUni = existingScriptId != null
+                                                ? brandPubRepository.updateBrandWithScript(existing.getId(), existingScriptId, brand, script, scenes, List.of(), user)
+                                                : brandPubRepository.insertScriptAndUpdateBrand(existing.getId(), brand, script, scenes, List.of(), user);
+                                    } else {
+                                        idUni = existingScriptId != null
+                                                ? brandPubRepository.archiveScriptAndUpdateBrand(existing.getId(), existingScriptId, brand, List.of(), user)
+                                                : repository.update(existing.getId(), brand, List.of(), user).map(Brand::getId);
+                                    }
+                                    return idUni.chain(brandId -> repository.findById(brandId, user, true));
+                                });
+                    });
         }
     }
 
