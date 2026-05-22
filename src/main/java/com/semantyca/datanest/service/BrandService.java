@@ -201,22 +201,16 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     private Uni<Brand> upsertWithCustomScript(String slug, BrandDTO dto, Brand entity, List<RlsActionDTO> rlsActions, IUser user) {
         ScriptDTO scriptDTO = buildCustomScriptDTO(slug, dto);
         return repository.getBySlugName(slug)
-                .chain(existing ->
-                        scriptService.getAllScriptsForBrandWithScenes(existing.getId(), user)
-                                .chain(brandScripts -> {
-                                    UUID existingCustomScriptId = brandScripts.stream()
-                                            .filter(bs -> bs.getScript().isCustom())
-                                            .map(bs -> bs.getScript().getId())
-                                            .findFirst()
-                                            .orElse(null);
-                                    String scriptId = existingCustomScriptId != null ? existingCustomScriptId.toString() : "new";
-                                    return scriptService.upsert(scriptId, scriptDTO, user)
-                                            .chain(script -> {
-                                                entity.setScripts(List.of(new BrandScriptEntry(script.getId(), Map.of())));
-                                                return repository.update(existing.getId(), entity, rlsActions, user);
-                                            });
-                                })
-                )
+                .chain(existing -> {
+                    String scriptId = existing.getScripts() != null && !existing.getScripts().isEmpty()
+                            ? existing.getScripts().get(0).getScriptId().toString()
+                            : "new";
+                    return scriptService.upsert(scriptId, scriptDTO, user)
+                            .chain(script -> {
+                                entity.setScripts(List.of(new BrandScriptEntry(script.getId(), Map.of())));
+                                return repository.update(existing.getId(), entity, rlsActions, user);
+                            });
+                })
                 .onFailure(DocumentHasNotFoundException.class).recoverWithUni(() -> {
                     entity.setPopularityRate(5);
                     return scriptService.upsert("new", scriptDTO, user)
