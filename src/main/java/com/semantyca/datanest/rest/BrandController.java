@@ -13,6 +13,7 @@
     import com.semantyca.core.util.WebHelper;
     import com.semantyca.datanest.dto.actionbars.SoundFragmentActionsFactory;
     import com.semantyca.datanest.dto.brand.BrandDTO;
+    import com.semantyca.datanest.service.BrandPubService;
     import com.semantyca.datanest.service.BrandService;
     import com.semantyca.mixpla.model.brand.Brand;
     import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
@@ -40,6 +41,7 @@
         private static final Logger LOGGER = LoggerFactory.getLogger(BrandController.class);
 
         private BrandService service;
+        private BrandPubService pubService;
         private Validator validator;
 
         public BrandController() {
@@ -47,9 +49,10 @@
         }
 
         @Inject
-        public BrandController(UserService userService, BrandService service, Validator validator) {
+        public BrandController(UserService userService, BrandService service, BrandPubService pubService, Validator validator) {
             super(userService);
             this.service = service;
+            this.pubService = pubService;
             this.validator = validator;
         }
 
@@ -234,7 +237,7 @@
                 }
 
                 getContextUser(rc, false, true)
-                        .chain(user -> service.upsertBySlug(slug, dto, user, LanguageCode.en))
+                        .chain(user -> pubService.upsertBySlug(slug, dto, user, LanguageCode.en))
                         .subscribe().with(
                                 doc -> rc.response().setStatusCode(200).putHeader("Content-Type", "application/json").end(io.vertx.core.json.Json.encode(doc)),
                                 throwable -> {

@@ -42,14 +42,13 @@ import java.util.stream.Collectors;
 public class BrandService extends AbstractService<Brand, BrandDTO> {
     private static final Logger LOGGER = Logger.getLogger(BrandService.class);
 
-    private final BrandRepository repository;
-    private final BrandPubService brandPubService;
-    private final DatanestConfig datanestConfig;
+    protected final ScriptService scriptService;
+    protected final CommandPublisher commandPublisher;
+    protected final BrandRepository repository;
 
-    ScriptService scriptService;
-    SceneService sceneService;
-    MetricPublisher metricPublisher;
-    CommandPublisher commandPublisher;
+    private final SceneService sceneService;
+    private final MetricPublisher metricPublisher;
+    private final DatanestConfig datanestConfig;
 
     @Inject
     public BrandService(
@@ -57,7 +56,6 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             ScriptService scriptService,
             SceneService sceneService,
             BrandRepository repository,
-            BrandPubService brandPubService,
             DatanestConfig datanestConfig,
             MetricPublisher metricPublisher,
             CommandPublisher commandPublisher
@@ -66,7 +64,6 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         this.scriptService = scriptService;
         this.sceneService = sceneService;
         this.repository = repository;
-        this.brandPubService = brandPubService;
         this.datanestConfig = datanestConfig;
         this.metricPublisher = metricPublisher;
         this.commandPublisher = commandPublisher;
@@ -166,16 +163,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 .chain(this::mapToDTO);
     }
 
-    public Uni<BrandDTO> upsertBySlug(String slug, BrandDTO dto, IUser user, LanguageCode code) {
-        Brand brand = buildEntity(dto, user, slug);
-        return brandPubService.upsert(slug, brand, dto.getScriptMode(), dto.getCustomScript(), user)
-                .invoke(saved -> commandPublisher.publishCommand(
-                        CommandType.FLOW_RESTART,
-                        "brand_saved",
-                        Map.of("brandId", saved.getId().toString(), "slug", saved.getSlugName(), "savedBy", user.getUserName())
-                ))
-                .chain(this::mapToDTO);
-    }
+
 
     public Uni<List<BrandDTO>> getAllOpenForSubmissionDTO(int limit, int offset, IUser user) {
         return repository.getAllOpenForSubmission(limit, offset, user.getId())
@@ -226,7 +214,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 );
     }
 
-    private Uni<BrandDTO> mapToDTO(Brand doc) {
+    Uni<BrandDTO> mapToDTO(Brand doc) {
         return Uni.combine().all().unis(
                 userService.getUserName(doc.getAuthor()),
                 userService.getUserName(doc.getLastModifier()),
@@ -364,7 +352,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         return customScene;
     }
 
-    private Brand buildEntity(BrandDTO dto, IUser user, String slug) {
+    Brand buildEntity(BrandDTO dto, IUser user, String slug) {
         Brand doc = new Brand();
         doc.setLocalizedName(dto.getLocalizedName());
         doc.setCountry(CountryCode.fromString(dto.getCountry()));

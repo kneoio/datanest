@@ -1,18 +1,25 @@
 package com.semantyca.datanest.service;
 
+import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
+import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.WebHelper;
+import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.StagePlaylistDTO;
+import com.semantyca.datanest.dto.brand.BrandDTO;
 import com.semantyca.datanest.dto.script.CustomActionDTO;
 import com.semantyca.datanest.dto.script.CustomSceneDTO;
 import com.semantyca.datanest.dto.script.CustomScriptDTO;
 import com.semantyca.datanest.dto.script.ScenePromptDTO;
+import com.semantyca.datanest.messaging.CommandPublisher;
+import com.semantyca.datanest.messaging.MetricPublisher;
 import com.semantyca.datanest.model.cnst.ScriptMode;
 import com.semantyca.datanest.repository.BrandPubRepository;
 import com.semantyca.datanest.repository.BrandRepository;
+import com.semantyca.mixpla.dto.queue.command.CommandType;
 import com.semantyca.mixpla.model.CustomAction;
 import com.semantyca.mixpla.model.PlaylistRequest;
 import com.semantyca.mixpla.model.Scene;
@@ -30,39 +37,50 @@ import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
-public class BrandPubService {
-
+public class BrandPubService extends BrandService {
     private static final Logger LOGGER = Logger.getLogger(BrandPubService.class);
-
-    private final BrandRepository repository;
     private final BrandPubRepository brandPubRepository;
-    private final ScriptService scriptService;
 
     @Inject
     public BrandPubService(
+            UserService userService,
+            ScriptService scriptService,
+            SceneService sceneService,
             BrandRepository repository,
-            BrandPubRepository brandPubRepository,
-            ScriptService scriptService
+            DatanestConfig datanestConfig,
+            MetricPublisher metricPublisher,
+            CommandPublisher commandPublisher,
+            BrandPubRepository brandPubRepository
     ) {
-        this.repository = repository;
+        super(userService, scriptService, sceneService, repository, datanestConfig, metricPublisher, commandPublisher);
         this.brandPubRepository = brandPubRepository;
-        this.scriptService = scriptService;
+    }
+
+    public Uni<BrandDTO> upsertBySlug(String slug, BrandDTO dto, IUser user, LanguageCode code) {
+        Brand brand = super.buildEntity(dto, user, slug);
+        return upsert(slug, brand, dto.getScriptMode(), dto.getCustomScript(), user)
+                .invoke(saved -> commandPublisher.publishCommand(
+                        CommandType.FLOW_RESTART,
+                        "brand_saved",
+                        Map.of("brandId", saved.getId().toString(), "slug", saved.getSlugName(), "savedBy", user.getUserName())
+                ))
+                .chain(this::mapToDTO);
     }
 
     public Uni<Brand> upsert(String slug, Brand brand, ScriptMode scriptMode, CustomScriptDTO customScriptDTO, IUser user) {
         boolean isCustom = ScriptMode.CUSTOM.equals(scriptMode);
-        Script script = isCustom ? buildScript(slug) : null;
-        List<Scene> scenes = isCustom ? buildScenes(customScriptDTO) : null;
-        assert script != null;
-        script.setColor("#47C53FFF");
         Uni<UUID> brandIdUni = repository.getBySlugName(slug)
                 .chain(existing -> resolveExistingCustomScriptId(existing)
                         .chain(existingScriptId -> {
                             if (isCustom) {
+                                Script script = buildScript(slug);
+                                List<Scene> scenes = buildScenes(customScriptDTO);
+                                script.setColor("#47C53FFF");
                                 if (existingScriptId != null) {
                                     return brandPubRepository.updateBrandWithScript(existing.getId(), existingScriptId, brand, script, scenes, List.of(), user);
                                 } else {
@@ -80,6 +98,9 @@ public class BrandPubService {
                 .onFailure(DocumentHasNotFoundException.class).recoverWithUni(() -> {
                     brand.setPopularityRate(5);
                     if (isCustom) {
+                        Script script = buildScript(slug);
+                        List<Scene> scenes = buildScenes(customScriptDTO);
+                        script.setColor("#47C53FFF");
                         return brandPubRepository.insertBrandWithScript(brand, script, scenes, List.of(), user);
                     } else {
                         return repository.insert(brand, List.of(), user).map(Brand::getId);
