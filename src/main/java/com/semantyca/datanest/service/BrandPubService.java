@@ -155,7 +155,7 @@ public class BrandPubService extends BrandService {
 
     private Scene buildScene(CustomSceneDTO customScene, int seqNum) {
         Scene scene = new Scene();
-        scene.setTitle("Scene " + seqNum);
+        scene.setTitle(customScene.getTitle() != null ? customScene.getTitle() : "Scene " + seqNum);
         scene.setSeqNum(seqNum);
         if (customScene.getStartTime() != null) {
             scene.setStartTime(List.of(customScene.getStartTime()));

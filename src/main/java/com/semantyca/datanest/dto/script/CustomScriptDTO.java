@@ -12,6 +12,7 @@ import java.util.List;
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class CustomScriptDTO {
+    private String title;
     private String color;
     private List<CustomSceneDTO> scenes;
 }

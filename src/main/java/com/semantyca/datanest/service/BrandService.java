@@ -21,7 +21,6 @@ import com.semantyca.mixpla.dto.queue.metric.ProcessType;
 import com.semantyca.mixpla.model.Script;
 import com.semantyca.mixpla.model.brand.*;
 import com.semantyca.mixpla.model.cnst.ManagedBy;
-import com.semantyca.mixpla.model.cnst.WayOfSourcing;
 import com.semantyca.mixpla.model.filter.BrandFilter;
 import com.semantyca.officeframe.model.cnst.CountryCode;
 import io.smallrye.mutiny.Uni;
@@ -326,6 +325,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                         return sceneService.getAllByScript(customScript.getId(), 1000, 0, SuperUser.build())
                                 .map(sceneDTOs -> {
                                     CustomScriptDTO customScriptDTO = new CustomScriptDTO();
+                                    customScriptDTO.setTitle(customScript.getName());
                                     customScriptDTO.setScenes(sceneDTOs.stream()
                                             .map(this::toCustomSceneDTO)
                                             .collect(Collectors.toList()));
@@ -338,6 +338,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
     private CustomSceneDTO toCustomSceneDTO(SceneDTO scene) {
         CustomSceneDTO customScene = new CustomSceneDTO();
+        customScene.setTitle(scene.getTitle());
         if (scene.getStartTime() != null && !scene.getStartTime().isEmpty()) {
             customScene.setStartTime(scene.getStartTime().getFirst());
         }
@@ -346,17 +347,8 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         if (scene.getPrompts() != null) {
             scene.getPrompts().stream()
                     .filter(p -> p.getPromptId() != null)
-                    .map(p -> {
-                        CustomActionDTO action = new CustomActionDTO();
-                        return action;
-                    })
+                    .map(p -> new CustomActionDTO())
                     .forEach(actions::add);
-        }
-        if (scene.getStagePlaylist() != null && scene.getStagePlaylist().getSourcing() != null) {
-            try {
-                customScene.setSongsMode(WayOfSourcing.valueOf(scene.getStagePlaylist().getSourcing()));
-            } catch (IllegalArgumentException ignored) {
-            }
         }
         customScene.setActions(actions.isEmpty() ? null : actions);
         return customScene;
