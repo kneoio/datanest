@@ -43,7 +43,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     private static final Logger LOGGER = Logger.getLogger(BrandService.class);
 
     private final BrandRepository repository;
-    private final BrandCustomScriptService brandCustomScriptService;
+    private final BrandPubService brandPubService;
     private final DatanestConfig datanestConfig;
 
     ScriptService scriptService;
@@ -57,7 +57,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             ScriptService scriptService,
             SceneService sceneService,
             BrandRepository repository,
-            BrandCustomScriptService brandCustomScriptService,
+            BrandPubService brandPubService,
             DatanestConfig datanestConfig,
             MetricPublisher metricPublisher,
             CommandPublisher commandPublisher
@@ -66,7 +66,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         this.scriptService = scriptService;
         this.sceneService = sceneService;
         this.repository = repository;
-        this.brandCustomScriptService = brandCustomScriptService;
+        this.brandPubService = brandPubService;
         this.datanestConfig = datanestConfig;
         this.metricPublisher = metricPublisher;
         this.commandPublisher = commandPublisher;
@@ -168,7 +168,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
     public Uni<BrandDTO> upsertBySlug(String slug, BrandDTO dto, IUser user, LanguageCode code) {
         Brand brand = buildEntity(dto, user, slug);
-        return brandCustomScriptService.upsertBySlug(slug, brand, dto.getScriptMode(), dto.getCustomScript(), user)
+        return brandPubService.upsert(slug, brand, dto.getScriptMode(), dto.getCustomScript(), user)
                 .invoke(saved -> commandPublisher.publishCommand(
                         CommandType.FLOW_RESTART,
                         "brand_saved",
@@ -341,7 +341,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     private CustomSceneDTO toCustomSceneDTO(SceneDTO scene) {
         CustomSceneDTO customScene = new CustomSceneDTO();
         if (scene.getStartTime() != null && !scene.getStartTime().isEmpty()) {
-            customScene.setStartTime(scene.getStartTime().get(0));
+            customScene.setStartTime(scene.getStartTime().getFirst());
         }
         customScene.setTalkativity((int) scene.getTalkativity());
         List<CustomActionDTO> actions = new ArrayList<>();

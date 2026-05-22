@@ -12,7 +12,7 @@ import com.semantyca.datanest.dto.StagePlaylistDTO;
 import com.semantyca.datanest.dto.script.CustomSceneDTO;
 import com.semantyca.datanest.dto.script.CustomScriptDTO;
 import com.semantyca.datanest.model.cnst.ScriptMode;
-import com.semantyca.datanest.repository.BrandCustomScriptRepository;
+import com.semantyca.datanest.repository.BrandPubRepository;
 import com.semantyca.datanest.repository.BrandRepository;
 import com.semantyca.mixpla.model.PlaylistRequest;
 import com.semantyca.mixpla.model.Scene;
@@ -34,43 +34,44 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
-public class BrandCustomScriptService {
+public class BrandPubService {
 
-    private static final Logger LOGGER = Logger.getLogger(BrandCustomScriptService.class);
+    private static final Logger LOGGER = Logger.getLogger(BrandPubService.class);
 
     private final BrandRepository repository;
-    private final BrandCustomScriptRepository brandCustomScriptRepository;
+    private final BrandPubRepository brandPubRepository;
     private final ScriptService scriptService;
 
     @Inject
-    public BrandCustomScriptService(
+    public BrandPubService(
             BrandRepository repository,
-            BrandCustomScriptRepository brandCustomScriptRepository,
+            BrandPubRepository brandPubRepository,
             ScriptService scriptService
     ) {
         this.repository = repository;
-        this.brandCustomScriptRepository = brandCustomScriptRepository;
+        this.brandPubRepository = brandPubRepository;
         this.scriptService = scriptService;
     }
 
-    public Uni<Brand> upsertBySlug(String slug, Brand brand, ScriptMode scriptMode, CustomScriptDTO customScriptDTO, IUser user) {
+    public Uni<Brand> upsert(String slug, Brand brand, ScriptMode scriptMode, CustomScriptDTO customScriptDTO, IUser user) {
         boolean isCustom = ScriptMode.CUSTOM.equals(scriptMode);
         ScriptDTO scriptDTO = isCustom ? buildScriptDTO(slug, customScriptDTO) : null;
         Script script = isCustom ? buildScriptEntity(scriptDTO) : null;
         List<Scene> scenes = isCustom ? buildSceneEntities(scriptDTO.getScenes()) : null;
-
+        assert script != null;
+        script.setColor("#47C53FFF");
         Uni<UUID> brandIdUni = repository.getBySlugName(slug)
                 .chain(existing -> resolveExistingCustomScriptId(existing)
                         .chain(existingScriptId -> {
                             if (isCustom) {
                                 if (existingScriptId != null) {
-                                    return brandCustomScriptRepository.updateBrandWithScript(existing.getId(), existingScriptId, brand, script, scenes, List.of(), user);
+                                    return brandPubRepository.updateBrandWithScript(existing.getId(), existingScriptId, brand, script, scenes, List.of(), user);
                                 } else {
-                                    return brandCustomScriptRepository.insertScriptAndUpdateBrand(existing.getId(), brand, script, scenes, List.of(), user);
+                                    return brandPubRepository.insertScriptAndUpdateBrand(existing.getId(), brand, script, scenes, List.of(), user);
                                 }
                             } else {
                                 if (existingScriptId != null) {
-                                    return brandCustomScriptRepository.archiveScriptAndUpdateBrand(existing.getId(), existingScriptId, brand, List.of(), user);
+                                    return brandPubRepository.archiveScriptAndUpdateBrand(existing.getId(), existingScriptId, brand, List.of(), user);
                                 } else {
                                     return repository.update(existing.getId(), brand, List.of(), user).map(Brand::getId);
                                 }
@@ -80,7 +81,7 @@ public class BrandCustomScriptService {
                 .onFailure(DocumentHasNotFoundException.class).recoverWithUni(() -> {
                     brand.setPopularityRate(5);
                     if (isCustom) {
-                        return brandCustomScriptRepository.insertBrandWithScript(brand, script, scenes, List.of(), user);
+                        return brandPubRepository.insertBrandWithScript(brand, script, scenes, List.of(), user);
                     } else {
                         return repository.insert(brand, List.of(), user).map(Brand::getId);
                     }

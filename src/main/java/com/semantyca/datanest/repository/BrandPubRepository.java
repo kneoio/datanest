@@ -7,7 +7,6 @@ import com.semantyca.core.repository.AsyncRepository;
 import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.rls.RlsActionUtil;
 import com.semantyca.core.repository.table.EntityData;
-import com.semantyca.mixpla.model.PlaylistRequest;
 import com.semantyca.mixpla.model.Scene;
 import com.semantyca.mixpla.model.ScenePrompt;
 import com.semantyca.mixpla.model.Script;
@@ -34,15 +33,15 @@ import java.util.UUID;
 import static com.semantyca.mixpla.repository.MixplaNameResolver.*;
 
 @ApplicationScoped
-public class BrandCustomScriptRepository extends AsyncRepository {
+public class BrandPubRepository extends AsyncRepository {
 
-    private static final Logger LOGGER = Logger.getLogger(BrandCustomScriptRepository.class);
+    private static final Logger LOGGER = Logger.getLogger(BrandPubRepository.class);
     private static final EntityData brandEntityData = MixplaNameResolver.create().getEntityNames(RADIO_STATION);
     private static final EntityData scriptEntityData = MixplaNameResolver.create().getEntityNames(SCRIPT);
     private static final EntityData sceneEntityData = MixplaNameResolver.create().getEntityNames(SCRIPT_SCENE);
 
     @Inject
-    public BrandCustomScriptRepository(Pool client, ObjectMapper mapper, RLSRepository rlsRepository) {
+    public BrandPubRepository(Pool client, ObjectMapper mapper, RLSRepository rlsRepository) {
         super(client, mapper, rlsRepository);
     }
 
