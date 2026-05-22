@@ -50,7 +50,15 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     private final MetricPublisher metricPublisher;
     private final DatanestConfig datanestConfig;
 
-    protected BrandService() {}
+    protected BrandService() {
+        super();
+        this.scriptService = null;
+        this.sceneService = null;
+        this.repository = null;
+        this.datanestConfig = null;
+        this.metricPublisher = null;
+        this.commandPublisher = null;
+    }
 
     @Inject
     public BrandService(

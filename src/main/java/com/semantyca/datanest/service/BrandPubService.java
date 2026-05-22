@@ -48,7 +48,10 @@ public class BrandPubService extends BrandService {
     private static final Logger LOGGER = Logger.getLogger(BrandPubService.class);
     private final BrandPubRepository brandPubRepository;
 
-    protected BrandPubService() {}
+    protected BrandPubService () {
+        super();
+        this.brandPubRepository = null;
+    }
 
     @Inject
     public BrandPubService(
