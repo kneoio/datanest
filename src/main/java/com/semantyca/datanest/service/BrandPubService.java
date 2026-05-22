@@ -32,6 +32,7 @@ import com.semantyca.mixpla.model.cnst.SourceType;
 import com.semantyca.mixpla.model.cnst.WayOfSourcing;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Typed;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
@@ -42,6 +43,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
+@Typed(BrandPubService.class)
 public class BrandPubService extends BrandService {
     private static final Logger LOGGER = Logger.getLogger(BrandPubService.class);
     private final BrandPubRepository brandPubRepository;
@@ -61,14 +63,14 @@ public class BrandPubService extends BrandService {
         this.brandPubRepository = brandPubRepository;
     }
 
-    public Uni<BrandDTO> upsertBySlug(String slug, BrandDTO dto, IUser user, LanguageCode code) {
+    public Uni<BrandDTO> upsert(String slug, BrandDTO dto, IUser user, LanguageCode code) {
         boolean isNew = "new".equalsIgnoreCase(slug) || slug == null || slug.isBlank();
         boolean isCustom = ScriptMode.CUSTOM.equals(dto.getScriptMode());
         Uni<String> slugUni = isNew
                 ? Uni.createFrom().item(WebHelper.generateSlug(dto.getLocalizedName()))
                 : Uni.createFrom().item(slug);
         return slugUni
-                .chain(resolvedSlug -> upsert(resolvedSlug, dto, isNew, isCustom, user))
+                .chain(resolvedSlug -> doUpsert(resolvedSlug, dto, isNew, isCustom, user))
                 .invoke(saved -> commandPublisher.publishCommand(
                         CommandType.FLOW_RESTART,
                         "brand_saved",
@@ -77,7 +79,7 @@ public class BrandPubService extends BrandService {
                 .chain(this::mapToDTO);
     }
 
-    private Uni<Brand> upsert(String slug, BrandDTO dto, boolean isNew, boolean isCustom, IUser user) {
+    private Uni<Brand> doUpsert(String slug, BrandDTO dto, boolean isNew, boolean isCustom, IUser user) {
         Brand brand = super.buildEntity(dto, user, slug);
         if (isNew) {
             brand.setPopularityRate(5);

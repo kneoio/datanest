@@ -237,7 +237,7 @@
                 }
 
                 getContextUser(rc, false, true)
-                        .chain(user -> pubService.upsertBySlug(slug, dto, user, LanguageCode.en))
+                        .chain(user -> pubService.upsert(slug, dto, user, LanguageCode.en))
                         .subscribe().with(
                                 doc -> rc.response().setStatusCode(200).putHeader("Content-Type", "application/json").end(io.vertx.core.json.Json.encode(doc)),
                                 throwable -> {
