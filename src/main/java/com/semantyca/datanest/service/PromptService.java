@@ -142,9 +142,8 @@ public class PromptService extends AbstractService<DjPrompt, PromptDTO> {
                 .map(list -> list.stream()
                         .map(p -> new JsonObject()
                                 .put("id", p.getId().toString())
-                                .put("optionLocName", p.getOptionLocName() != null
-                                        ? p.getOptionLocName().getString("en", "")
-                                        : ""))
+                                .put("localizedOptionName", p.getLocalizedOptionName() != null && !p.getLocalizedOptionName().isEmpty()
+                                        ? JsonObject.mapFrom(p.getLocalizedOptionName()) : new JsonObject()))
                         .collect(Collectors.toList()));
     }
 
@@ -185,7 +184,7 @@ public class PromptService extends AbstractService<DjPrompt, PromptDTO> {
             dto.setMasterId(doc.getMasterId());
             dto.setVersion(doc.getVersion());
             dto.setAllowAsOption(doc.getAllowAsOption());
-            dto.setOptionLocName(doc.getOptionLocName());
+            dto.setLocalizedOptionName(doc.getLocalizedOptionName());
             dto.setExposedVariables(doc.getExposedVariables());
             return dto;
         });
@@ -211,7 +210,7 @@ public class PromptService extends AbstractService<DjPrompt, PromptDTO> {
         }
         doc.setVersion(dto.getVersion());
         doc.setAllowAsOption(dto.getAllowAsOption());
-        doc.setOptionLocName(dto.getOptionLocName());
+        doc.setLocalizedOptionName(dto.getLocalizedOptionName());
         doc.setExposedVariables(dto.getExposedVariables() != null ? dto.getExposedVariables() : new io.vertx.core.json.JsonArray());
         return doc;
     }

@@ -1,6 +1,7 @@
 package com.semantyca.datanest.repository.prompt;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.model.embedded.DocumentAccessInfo;
 import com.semantyca.core.model.user.IUser;
@@ -26,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.OffsetDateTime;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
 
@@ -251,7 +253,8 @@ public class PromptRepository extends AsyncRepository {
                         .addUUID(prompt.getMasterId())
                         .addDouble(prompt.getVersion())
                         .addInteger(prompt.getAllowAsOption())
-                        .addJsonObject(prompt.getOptionLocName())
+                        .addJsonObject(prompt.getLocalizedOptionName() != null && !prompt.getLocalizedOptionName().isEmpty()
+                                ? JsonObject.mapFrom(prompt.getLocalizedOptionName()) : null)
                         .addValue(prompt.getExposedVariables() != null ? prompt.getExposedVariables() : new io.vertx.core.json.JsonArray());
 
                 return client.withTransaction(tx ->
@@ -304,7 +307,8 @@ public class PromptRepository extends AsyncRepository {
                                     .addUUID(prompt.getMasterId())
                                     .addDouble(prompt.getVersion())
                                     .addInteger(prompt.getAllowAsOption())
-                                    .addJsonObject(prompt.getOptionLocName())
+                                    .addJsonObject(prompt.getLocalizedOptionName() != null && !prompt.getLocalizedOptionName().isEmpty()
+                                            ? JsonObject.mapFrom(prompt.getLocalizedOptionName()) : null)
                                     .addValue(prompt.getExposedVariables() != null ? prompt.getExposedVariables() : new io.vertx.core.json.JsonArray())
                                     .addLong(user.getId())
                                     .addOffsetDateTime(now)
@@ -335,7 +339,13 @@ public class PromptRepository extends AsyncRepository {
                 .onItem().transform(row -> {
                     DjPrompt p = new DjPrompt();
                     p.setId(row.getUUID("id"));
-                    p.setOptionLocName(row.getJsonObject("option_loc_name"));
+                    JsonObject localizedOptionNameJson = row.getJsonObject("option_loc_name");
+                    if (localizedOptionNameJson != null) {
+                        EnumMap<LanguageCode, String> localizedOptionName = new EnumMap<>(LanguageCode.class);
+                        localizedOptionNameJson.getMap().forEach((key, value) ->
+                                localizedOptionName.put(LanguageCode.valueOf(key), (String) value));
+                        p.setLocalizedOptionName(localizedOptionName);
+                    }
                     return p;
                 })
                 .collect().asList();
@@ -373,7 +383,13 @@ public class PromptRepository extends AsyncRepository {
         doc.setArchived(row.getInteger("archived"));
         doc.setVersion(row.getDouble("version"));
         doc.setAllowAsOption(row.getInteger("allow_as_option") != null ? row.getInteger("allow_as_option") : 0);
-        doc.setOptionLocName(row.getJsonObject("option_loc_name"));
+        JsonObject localizedOptionNameJson = row.getJsonObject("option_loc_name");
+        if (localizedOptionNameJson != null) {
+            EnumMap<LanguageCode, String> localizedOptionName = new EnumMap<>(LanguageCode.class);
+            localizedOptionNameJson.getMap().forEach((key, value) ->
+                    localizedOptionName.put(LanguageCode.valueOf(key), (String) value));
+            doc.setLocalizedOptionName(localizedOptionName);
+        }
         doc.setExposedVariables(row.getJsonArray("exposed_variables") != null ? row.getJsonArray("exposed_variables") : new io.vertx.core.json.JsonArray());
         return doc;
     }
