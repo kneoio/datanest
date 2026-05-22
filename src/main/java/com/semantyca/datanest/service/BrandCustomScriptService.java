@@ -1,6 +1,5 @@
 package com.semantyca.datanest.service;
 
-import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
@@ -55,7 +54,7 @@ public class BrandCustomScriptService {
         this.scriptService = scriptService;
     }
 
-    public Uni<Brand> upsertBySlug(String slug, Brand brand, ScriptMode scriptMode, CustomScriptDTO customScriptDTO, List<RlsActionDTO> rlsActions, IUser user) {
+    public Uni<Brand> upsertBySlug(String slug, Brand brand, ScriptMode scriptMode, CustomScriptDTO customScriptDTO, IUser user) {
         boolean isCustom = ScriptMode.CUSTOM.equals(scriptMode);
         ScriptDTO scriptDTO = isCustom ? buildScriptDTO(slug, customScriptDTO) : null;
         Script script = isCustom ? buildScriptEntity(scriptDTO) : null;
@@ -66,15 +65,15 @@ public class BrandCustomScriptService {
                         .chain(existingScriptId -> {
                             if (isCustom) {
                                 if (existingScriptId != null) {
-                                    return brandCustomScriptRepository.updateBrandWithScript(existing.getId(), existingScriptId, brand, script, scenes, rlsActions, user);
+                                    return brandCustomScriptRepository.updateBrandWithScript(existing.getId(), existingScriptId, brand, script, scenes, List.of(), user);
                                 } else {
-                                    return brandCustomScriptRepository.insertScriptAndUpdateBrand(existing.getId(), brand, script, scenes, rlsActions, user);
+                                    return brandCustomScriptRepository.insertScriptAndUpdateBrand(existing.getId(), brand, script, scenes, List.of(), user);
                                 }
                             } else {
                                 if (existingScriptId != null) {
-                                    return brandCustomScriptRepository.archiveScriptAndUpdateBrand(existing.getId(), existingScriptId, brand, rlsActions, user);
+                                    return brandCustomScriptRepository.archiveScriptAndUpdateBrand(existing.getId(), existingScriptId, brand, List.of(), user);
                                 } else {
-                                    return repository.update(existing.getId(), brand, rlsActions, user).map(Brand::getId);
+                                    return repository.update(existing.getId(), brand, List.of(), user).map(Brand::getId);
                                 }
                             }
                         })
@@ -82,9 +81,9 @@ public class BrandCustomScriptService {
                 .onFailure(DocumentHasNotFoundException.class).recoverWithUni(() -> {
                     brand.setPopularityRate(5);
                     if (isCustom) {
-                        return brandCustomScriptRepository.insertBrandWithScript(brand, script, scenes, rlsActions, user);
+                        return brandCustomScriptRepository.insertBrandWithScript(brand, script, scenes, List.of(), user);
                     } else {
-                        return repository.insert(brand, rlsActions, user).map(Brand::getId);
+                        return repository.insert(brand, List.of(), user).map(Brand::getId);
                     }
                 });
 

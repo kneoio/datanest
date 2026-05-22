@@ -167,9 +167,8 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     }
 
     public Uni<BrandDTO> upsertBySlug(String slug, BrandDTO dto, IUser user, LanguageCode code) {
-        List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
         Brand brand = buildEntity(dto, user, slug);
-        return brandCustomScriptService.upsertBySlug(slug, brand, dto.getScriptMode(), dto.getCustomScript(), rlsActions, user)
+        return brandCustomScriptService.upsertBySlug(slug, brand, dto.getScriptMode(), dto.getCustomScript(), user)
                 .invoke(saved -> commandPublisher.publishCommand(
                         CommandType.FLOW_RESTART,
                         "brand_saved",
