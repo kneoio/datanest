@@ -52,13 +52,10 @@ public class ProfileController extends AbstractSecuredController<Profile, Profil
 
     public void setupRoutes(Router router) {
         String path = "/datanest/profiles";
-        //router.route().handler(BodyHandler.create());
         router.route(path + "*").handler(BodyHandler.create());
-        //router.route(path + "/*").handler(this::addHeaders);
         router.get(path).handler(this::getAll);
         router.get(path + "/:id").handler(this::getById);
-        router.post(path).handler(this::upsert);
-        router.post(path + "/:id").handler(this::upsert);
+        router.post(path + "/:id?").handler(this::upsert);
         router.delete(path + "/:id").handler(this::delete);
         router.get(path + "/:id/access").handler(this::getDocumentAccess);
     }

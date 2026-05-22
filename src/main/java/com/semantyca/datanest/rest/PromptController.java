@@ -79,8 +79,7 @@ public class PromptController extends AbstractSecuredController<DjPrompt, Prompt
         router.get(path + "/grouped").handler(this::getAllGrouped);
         router.post(path + "/test").handler(this::test);
         router.get(path + "/:id").handler(this::getById);
-        router.post(path).handler(this::upsert);
-        router.post(path + "/:id").handler(this::upsert);
+        router.post(path + "/:id?").handler(this::upsert);
         router.delete(path + "/:id").handler(this::delete);
         router.get(path + "/:id/access").handler(this::getDocumentAccess);
     }

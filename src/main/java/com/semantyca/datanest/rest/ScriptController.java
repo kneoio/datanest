@@ -69,8 +69,7 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
         router.post(path + "/import").handler(this::importScript);
         router.get(path + "/:id/export").handler(this::exportScript);
         router.get(path + "/:id").handler(this::getById);
-        router.post(path).handler(this::upsert);
-        router.post(path + "/:id").handler(this::upsert);
+        router.post(path + "/:id?").handler(this::upsert);
         router.post(path + "/:id/clone").handler(this::cloneScript);
         router.patch(path + "/:id/access-level").handler(this::updateAccessLevel);
         router.delete(path + "/:id").handler(this::delete);

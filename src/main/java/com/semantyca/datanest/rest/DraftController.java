@@ -63,8 +63,7 @@ public class DraftController extends AbstractSecuredController<Draft, DraftDTO> 
         router.post(path + "/extract-variables").handler(this::extractVariables);
         router.get(path).handler(this::getAll);
         router.get(path + "/:id").handler(this::getById);
-        router.post(path).handler(this::upsert);
-        router.post(path + "/:id").handler(this::upsert);
+        router.post(path + "/:id?").handler(this::upsert);
         router.delete(path + "/:id").handler(this::delete);
     }
 
