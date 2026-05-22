@@ -205,7 +205,6 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                         scriptService.getAllScriptsForBrandWithScenes(existing.getId(), user)
                                 .chain(brandScripts -> {
                                     UUID existingCustomScriptId = brandScripts.stream()
-                                            .filter(bs -> bs.getScript().isCustom())
                                             .map(bs -> bs.getScript().getId())
                                             .findFirst()
                                             .orElse(null);
