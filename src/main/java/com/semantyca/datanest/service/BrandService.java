@@ -21,6 +21,7 @@ import com.semantyca.mixpla.model.cnst.WayOfSourcing;
 import com.semantyca.datanest.messaging.CommandPublisher;
 import com.semantyca.datanest.messaging.MetricPublisher;
 import com.semantyca.datanest.repository.BrandRepository;
+import com.semantyca.datanest.repository.BrandCustomScriptRepository;
 import com.semantyca.mixpla.dto.queue.command.CommandType;
 import com.semantyca.mixpla.dto.queue.metric.MetricEventType;
 import com.semantyca.mixpla.dto.queue.metric.ProcessType;
@@ -48,15 +49,12 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     private static final Logger LOGGER = Logger.getLogger(BrandService.class);
 
     private final BrandRepository repository;
-
+    private final BrandCustomScriptRepository brandCustomScriptRepository;
     private final DatanestConfig datanestConfig;
 
     ScriptService scriptService;
-
     SceneService sceneService;
-
     MetricPublisher metricPublisher;
-
     CommandPublisher commandPublisher;
 
     @Inject
@@ -65,6 +63,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             ScriptService scriptService,
             SceneService sceneService,
             BrandRepository repository,
+            BrandCustomScriptRepository brandCustomScriptRepository,
             DatanestConfig datanestConfig,
             MetricPublisher metricPublisher,
             CommandPublisher commandPublisher
@@ -73,6 +72,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         this.scriptService = scriptService;
         this.sceneService = sceneService;
         this.repository = repository;
+        this.brandCustomScriptRepository = brandCustomScriptRepository;
         this.datanestConfig = datanestConfig;
         this.metricPublisher = metricPublisher;
         this.commandPublisher = commandPublisher;
@@ -155,7 +155,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 : repository.findById(UUID.fromString(id), user, false).map(Brand::getSlugName);
 
         return slugUni
-                .chain(slug -> buildEntity(dto, user, slug, null))
+                .map(slug -> buildEntity(dto, user, slug))
                 .chain(entity -> {
                     if ("new".equalsIgnoreCase(id) || id == null || id.isBlank()) {
                         entity.setPopularityRate(5);
@@ -175,55 +175,53 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     public Uni<BrandDTO> upsertBySlug(String slug, BrandDTO dto, IUser user, LanguageCode code) {
         assert repository != null;
         List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
+        boolean isCustom = ScriptMode.CUSTOM.equals(dto.getScriptMode());
+        Brand brand = buildEntity(dto, user, slug);
+        ScriptDTO scriptDTO = isCustom ? buildCustomScriptDTO(slug, dto) : null;
 
-        Uni<Brand> saveOperation;
-        if (ScriptMode.CUSTOM.equals(dto.getScriptMode())) {
-            saveOperation = repository.getBySlugName(slug)
-                    .chain(existing -> {
-                        Uni<String> scriptIdUni = existing.getScripts() != null && !existing.getScripts().isEmpty()
-                                ? scriptService.getById(existing.getScripts().getFirst().getScriptId(), SuperUser.build())
-                                        .map(script -> script.isCustom() ? script.getId().toString() : "new")
-                                : Uni.createFrom().item("new");
-                        return scriptIdUni
-                                .chain(existingScriptId -> buildEntity(dto, user, slug, existingScriptId))
-                                .chain(entity -> repository.update(existing.getId(), entity, rlsActions, user));
-                    })
-                    .onFailure(DocumentHasNotFoundException.class).recoverWithUni(() ->
-                            buildEntity(dto, user, slug, "new")
-                                    .chain(entity -> {
-                                        entity.setPopularityRate(5);
-                                        return repository.insert(entity, rlsActions, user);
-                                    })
-                    );
-        } else {
-            saveOperation = repository.getBySlugName(slug)
-                    .chain(existing -> {
-                        Uni<Void> archiveUni = existing.getScripts() != null && !existing.getScripts().isEmpty()
-                                ? scriptService.getById(existing.getScripts().getFirst().getScriptId(), SuperUser.build())
-                                        .chain(script -> script.isCustom()
-                                                ? scriptService.archive(script.getId().toString(), user).replaceWithVoid()
-                                                : Uni.createFrom().voidItem())
-                                : Uni.createFrom().voidItem();
-                        return archiveUni
-                                .chain(() -> buildEntity(dto, user, slug, null))
-                                .chain(entity -> repository.update(existing.getId(), entity, rlsActions, user));
-                    })
-                    .onFailure(DocumentHasNotFoundException.class).recoverWithUni(() ->
-                            buildEntity(dto, user, slug, null)
-                                    .chain(entity -> {
-                                        entity.setPopularityRate(5);
-                                        return repository.insert(entity, rlsActions, user);
-                                    })
-                    );
-        }
+        Uni<UUID> brandIdUni = repository.getBySlugName(slug)
+                .chain(existing -> resolveExistingCustomScriptId(existing)
+                        .chain(existingScriptId -> {
+                            if (isCustom) {
+                                if (existingScriptId != null) {
+                                    return brandCustomScriptRepository.updateBrandWithScript(existing.getId(), existingScriptId, brand, scriptDTO, rlsActions, user);
+                                } else {
+                                    return brandCustomScriptRepository.insertScriptAndUpdateBrand(existing.getId(), brand, scriptDTO, rlsActions, user);
+                                }
+                            } else {
+                                if (existingScriptId != null) {
+                                    return brandCustomScriptRepository.archiveScriptAndUpdateBrand(existing.getId(), existingScriptId, brand, rlsActions, user);
+                                } else {
+                                    return repository.update(existing.getId(), brand, rlsActions, user).map(Brand::getId);
+                                }
+                            }
+                        })
+                )
+                .onFailure(DocumentHasNotFoundException.class).recoverWithUni(() -> {
+                    brand.setPopularityRate(5);
+                    if (isCustom) {
+                        return brandCustomScriptRepository.insertBrandWithScript(brand, scriptDTO, rlsActions, user);
+                    } else {
+                        return repository.insert(brand, rlsActions, user).map(Brand::getId);
+                    }
+                });
 
-        return saveOperation
+        return brandIdUni
+                .chain(brandId -> repository.findById(brandId, user, true))
                 .invoke(saved -> commandPublisher.publishCommand(
                         CommandType.FLOW_RESTART,
                         "brand_saved",
                         Map.of("brandId", saved.getId().toString(), "slug", saved.getSlugName(), "savedBy", user.getUserName())
                 ))
                 .chain(this::mapToDTO);
+    }
+
+    private Uni<UUID> resolveExistingCustomScriptId(Brand existing) {
+        if (existing.getScripts() == null || existing.getScripts().isEmpty()) {
+            return Uni.createFrom().nullItem();
+        }
+        return scriptService.getById(existing.getScripts().getFirst().getScriptId(), SuperUser.build())
+                .map(script -> script.isCustom() ? script.getId() : null);
     }
 
     private ScriptDTO buildCustomScriptDTO(String slug, BrandDTO dto) {
@@ -464,7 +462,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         return customScene;
     }
 
-    private Uni<Brand> buildEntity(BrandDTO dto, IUser user, String slug, String existingCustomScriptId) {
+    private Brand buildEntity(BrandDTO dto, IUser user, String slug) {
         Brand doc = new Brand();
         doc.setLocalizedName(dto.getLocalizedName());
         doc.setCountry(CountryCode.fromString(dto.getCountry()));
@@ -516,21 +514,12 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             doc.setGenres(dto.getGenres());
         }
 
-        if (ScriptMode.CUSTOM.equals(dto.getScriptMode())) {
-            ScriptDTO scriptDTO = buildCustomScriptDTO(slug, dto);
-            String scriptId = existingCustomScriptId != null ? existingCustomScriptId : "new";
-            return scriptService.upsert(scriptId, scriptDTO, user)
-                    .map(script -> {
-                        doc.setScripts(List.of(new BrandScriptEntry(script.getId(), Map.of())));
-                        return doc;
-                    });
-        }
-
-        if (dto.getScripts() != null && !dto.getScripts().isEmpty()) {
+        if (!ScriptMode.CUSTOM.equals(dto.getScriptMode()) && dto.getScripts() != null && !dto.getScripts().isEmpty()) {
             var first = dto.getScripts().getFirst();
             doc.setScripts(List.of(new BrandScriptEntry(first.getScriptId(), first.getUserVariables())));
         }
-        return Uni.createFrom().item(doc);
+
+        return doc;
     }
 
     public Uni<List<DocumentAccessDTO>> getDocumentAccess(UUID documentId, IUser user) {
