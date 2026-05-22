@@ -42,6 +42,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static io.vertx.core.json.Json.encode;
+
 @ApplicationScoped
 public class PromptController extends AbstractSecuredController<DjPrompt, PromptDTO> {
     private static final Logger LOGGER = LoggerFactory.getLogger(PromptController.class);
@@ -107,7 +109,7 @@ public class PromptController extends AbstractSecuredController<DjPrompt, Prompt
                         viewPage -> rc.response()
                                 .setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")
-                                .end(io.vertx.core.json.Json.encode(viewPage)),
+                                .end(encode(viewPage)),
                         throwable -> {
                             LOGGER.error("Failed to get all prompts", throwable);
                             rc.fail(throwable);
@@ -138,7 +140,7 @@ public class PromptController extends AbstractSecuredController<DjPrompt, Prompt
                         viewPage -> rc.response()
                                 .setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")
-                                .end(io.vertx.core.json.Json.encode(viewPage)),
+                                .end(encode(viewPage)),
                         throwable -> {
                             LOGGER.error("Failed to get grouped prompts", throwable);
                             rc.fail(throwable);
@@ -152,7 +154,7 @@ public class PromptController extends AbstractSecuredController<DjPrompt, Prompt
                         list -> rc.response()
                                 .setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")
-                                .end(io.vertx.core.json.Json.encode(list)),
+                                .end(encode(list)),
                         throwable -> {
                             LOGGER.error("Failed to get prompt options", throwable);
                             rc.fail(throwable);
@@ -233,7 +235,7 @@ public class PromptController extends AbstractSecuredController<DjPrompt, Prompt
                             rc.response()
                                     .setStatusCode(200)
                                     .putHeader("Content-Type", "application/json")
-                                    .end(io.vertx.core.json.Json.encode(page));
+                                    .end(encode(page));
                         },
                         rc::fail
                 );
@@ -289,7 +291,7 @@ public class PromptController extends AbstractSecuredController<DjPrompt, Prompt
                             response -> rc.response()
                                     .setStatusCode(200)
                                     .putHeader("Content-Type", "application/json")
-                                    .end(io.vertx.core.json.Json.encode(response)),
+                                    .end(encode(response)),
                             rc::fail
                     );
 
