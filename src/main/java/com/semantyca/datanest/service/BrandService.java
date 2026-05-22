@@ -148,21 +148,22 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
     public Uni<BrandDTO> upsert(String id, BrandDTO dto, IUser user, LanguageCode code) {
         assert repository != null;
-        LOGGER.infof("Upserting radio station with DTO scripts: %s", dto.getScripts());
-        Brand entity = buildEntity(dto, user);
-        LOGGER.infof("Built entity with scripts: %s", entity.getScripts());
-
         List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
 
-        Uni<Brand> saveOperation;
-        if ("new".equalsIgnoreCase(id) || id == null || id.isBlank()) {
-            entity.setPopularityRate(5);
-            saveOperation = repository.insert(entity, rlsActions, user);
-        } else {
-            saveOperation = repository.update(UUID.fromString(id), entity, rlsActions, user);
-        }
+        Uni<String> slugUni = ("new".equalsIgnoreCase(id) || id == null || id.isBlank())
+                ? Uni.createFrom().item(WebHelper.generateSlug(dto.getLocalizedName()))
+                : repository.findById(UUID.fromString(id), user, false).map(Brand::getSlugName);
 
-        return saveOperation
+        return slugUni
+                .chain(slug -> buildEntity(dto, user, slug, null))
+                .chain(entity -> {
+                    if ("new".equalsIgnoreCase(id) || id == null || id.isBlank()) {
+                        entity.setPopularityRate(5);
+                        return repository.insert(entity, rlsActions, user);
+                    } else {
+                        return repository.update(UUID.fromString(id), entity, rlsActions, user);
+                    }
+                })
                 .invoke(saved -> commandPublisher.publishCommand(
                         CommandType.FLOW_RESTART,
                         "brand_saved",
@@ -173,20 +174,47 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
     public Uni<BrandDTO> upsertBySlug(String slug, BrandDTO dto, IUser user, LanguageCode code) {
         assert repository != null;
-        Brand entity = buildEntity(dto, user);
-        entity.setSlugName(slug);
         List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
 
         Uni<Brand> saveOperation;
         if (ScriptMode.CUSTOM.equals(dto.getScriptMode())) {
-            saveOperation = upsertWithCustomScript(slug, dto, entity, rlsActions, user);
+            saveOperation = repository.getBySlugName(slug)
+                    .chain(existing -> {
+                        Uni<String> scriptIdUni = existing.getScripts() != null && !existing.getScripts().isEmpty()
+                                ? scriptService.getById(existing.getScripts().getFirst().getScriptId(), SuperUser.build())
+                                        .map(script -> script.isCustom() ? script.getId().toString() : "new")
+                                : Uni.createFrom().item("new");
+                        return scriptIdUni
+                                .chain(existingScriptId -> buildEntity(dto, user, slug, existingScriptId))
+                                .chain(entity -> repository.update(existing.getId(), entity, rlsActions, user));
+                    })
+                    .onFailure(DocumentHasNotFoundException.class).recoverWithUni(() ->
+                            buildEntity(dto, user, slug, "new")
+                                    .chain(entity -> {
+                                        entity.setPopularityRate(5);
+                                        return repository.insert(entity, rlsActions, user);
+                                    })
+                    );
         } else {
             saveOperation = repository.getBySlugName(slug)
-                    .chain(existing -> repository.update(existing.getId(), entity, rlsActions, user))
-                    .onFailure(DocumentHasNotFoundException.class).recoverWithUni(() -> {
-                        entity.setPopularityRate(5);
-                        return repository.insert(entity, rlsActions, user);
-                    });
+                    .chain(existing -> {
+                        Uni<Void> archiveUni = existing.getScripts() != null && !existing.getScripts().isEmpty()
+                                ? scriptService.getById(existing.getScripts().getFirst().getScriptId(), SuperUser.build())
+                                        .chain(script -> script.isCustom()
+                                                ? scriptService.archive(script.getId().toString(), user).replaceWithVoid()
+                                                : Uni.createFrom().voidItem())
+                                : Uni.createFrom().voidItem();
+                        return archiveUni
+                                .chain(() -> buildEntity(dto, user, slug, null))
+                                .chain(entity -> repository.update(existing.getId(), entity, rlsActions, user));
+                    })
+                    .onFailure(DocumentHasNotFoundException.class).recoverWithUni(() ->
+                            buildEntity(dto, user, slug, null)
+                                    .chain(entity -> {
+                                        entity.setPopularityRate(5);
+                                        return repository.insert(entity, rlsActions, user);
+                                    })
+                    );
         }
 
         return saveOperation
@@ -196,29 +224,6 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                         Map.of("brandId", saved.getId().toString(), "slug", saved.getSlugName(), "savedBy", user.getUserName())
                 ))
                 .chain(this::mapToDTO);
-    }
-
-    private Uni<Brand> upsertWithCustomScript(String slug, BrandDTO dto, Brand entity, List<RlsActionDTO> rlsActions, IUser user) {
-        ScriptDTO scriptDTO = buildCustomScriptDTO(slug, dto);
-        return repository.getBySlugName(slug)
-                .chain(existing -> {
-                    String scriptId = existing.getScripts() != null && !existing.getScripts().isEmpty()
-                            ? existing.getScripts().get(0).getScriptId().toString()
-                            : "new";
-                    return scriptService.upsert(scriptId, scriptDTO, user)
-                            .chain(script -> {
-                                entity.setScripts(List.of(new BrandScriptEntry(script.getId(), Map.of())));
-                                return repository.update(existing.getId(), entity, rlsActions, user);
-                            });
-                })
-                .onFailure(DocumentHasNotFoundException.class).recoverWithUni(() -> {
-                    entity.setPopularityRate(5);
-                    return scriptService.upsert("new", scriptDTO, user)
-                            .chain(script -> {
-                                entity.setScripts(List.of(new BrandScriptEntry(script.getId(), Map.of())));
-                                return repository.insert(entity, rlsActions, user);
-                            });
-                });
     }
 
     private ScriptDTO buildCustomScriptDTO(String slug, BrandDTO dto) {
@@ -459,7 +464,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         return customScene;
     }
 
-    private Brand buildEntity(BrandDTO dto, IUser user) {
+    private Uni<Brand> buildEntity(BrandDTO dto, IUser user, String slug, String existingCustomScriptId) {
         Brand doc = new Brand();
         doc.setLocalizedName(dto.getLocalizedName());
         doc.setCountry(CountryCode.fromString(dto.getCountry()));
@@ -470,7 +475,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         doc.setDescription(dto.getDescription());
         doc.setTitleFont(dto.getTitleFont());
         doc.setTimeZone(ZoneId.of(dto.getTimeZone()));
-        doc.setSlugName(WebHelper.generateSlug(dto.getLocalizedName()));
+        doc.setSlugName(slug);
         doc.setBitRate(dto.getBitRate());
         doc.setAiAgentId(dto.getAiAgentId());
         doc.setProfileId(dto.getProfileId());
@@ -495,13 +500,6 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             doc.setProfileOverriding(profile);
         }
 
-        if (dto.getScripts() != null) {
-            List<BrandScriptEntry> scriptEntries = dto.getScripts().stream()
-                    .map(e -> new BrandScriptEntry(e.getScriptId(), e.getUserVariables()))
-                    .collect(Collectors.toList());
-            doc.setScripts(scriptEntries);
-        }
-
         if (dto.getOwner() != null) {
             Owner owner = new Owner();
             owner.setUserId(dto.getOwner().getUserId() > 0 ? dto.getOwner().getUserId() : user.getId());
@@ -518,7 +516,21 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             doc.setGenres(dto.getGenres());
         }
 
-        return doc;
+        if (ScriptMode.CUSTOM.equals(dto.getScriptMode())) {
+            ScriptDTO scriptDTO = buildCustomScriptDTO(slug, dto);
+            String scriptId = existingCustomScriptId != null ? existingCustomScriptId : "new";
+            return scriptService.upsert(scriptId, scriptDTO, user)
+                    .map(script -> {
+                        doc.setScripts(List.of(new BrandScriptEntry(script.getId(), Map.of())));
+                        return doc;
+                    });
+        }
+
+        if (dto.getScripts() != null && !dto.getScripts().isEmpty()) {
+            var first = dto.getScripts().getFirst();
+            doc.setScripts(List.of(new BrandScriptEntry(first.getScriptId(), first.getUserVariables())));
+        }
+        return Uni.createFrom().item(doc);
     }
 
     public Uni<List<DocumentAccessDTO>> getDocumentAccess(UUID documentId, IUser user) {
