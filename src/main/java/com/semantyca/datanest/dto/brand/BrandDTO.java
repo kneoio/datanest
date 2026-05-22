@@ -10,6 +10,7 @@ import com.semantyca.datanest.dto.script.BrandScriptEntryDTO;
 import com.semantyca.datanest.dto.script.CustomScriptDTO;
 import com.semantyca.datanest.model.cnst.ScriptMode;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -74,5 +75,19 @@ public class BrandDTO extends AbstractDTO {
     private List<UUID> genres;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<RlsActionDTO> rlsActions = new ArrayList<>();
+
+    @AssertTrue(message = "Custom script must have at least one scene, and each scene must have at least one prompt or action")
+    public boolean isCustomScriptValid() {
+        if (!ScriptMode.CUSTOM.equals(scriptMode)) {
+            return true;
+        }
+        if (customScript == null || customScript.getScenes() == null || customScript.getScenes().isEmpty()) {
+            return false;
+        }
+        return customScript.getScenes().stream().anyMatch(scene ->
+                (scene.getIntroPrompts() != null && !scene.getIntroPrompts().isEmpty()) ||
+                (scene.getActions() != null && !scene.getActions().isEmpty())
+        );
+    }
 
 }
