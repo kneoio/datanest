@@ -20,6 +20,7 @@ import com.semantyca.mixpla.model.filter.PromptFilter;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.*;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -389,14 +390,12 @@ public class PromptRepository extends AsyncRepository {
         doc.setAllowAsOption(row.getInteger("allow_as_option") != null ? row.getInteger("allow_as_option") : 0);
         JsonObject localizedOptionNameJson = row.getJsonObject("option_loc_name");
         if (localizedOptionNameJson != null) {
-            EnumMap<LanguageCode, String> localizedOptionName = new EnumMap<>(LanguageCode.class);
-            localizedOptionNameJson.getMap().forEach((key, value) -> {
-                LanguageCode code = parseLanguageCode(key);
-                if (code != LanguageCode.unknown) localizedOptionName.put(code, (String) value);
-            });
-            doc.setLocalizedOptionName(localizedOptionName);
+            EnumMap<LanguageCode, String> localizedName = new EnumMap<>(LanguageCode.class);
+            localizedOptionNameJson.getMap().forEach((key, value) ->
+                    localizedName.put(LanguageCode.valueOf(key), (String) value));
+            doc.setLocalizedOptionName(localizedName);
         }
-        doc.setExposedVariables(row.getJsonArray("exposed_variables") != null ? row.getJsonArray("exposed_variables") : new io.vertx.core.json.JsonArray());
+        doc.setExposedVariables(row.getJsonArray("exposed_variables") != null ? row.getJsonArray("exposed_variables") : new JsonArray());
         return doc;
     }
 
