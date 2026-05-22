@@ -403,7 +403,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         }
 
         if (!ScriptMode.CUSTOM.equals(dto.getScriptMode()) && dto.getScripts() != null && !dto.getScripts().isEmpty()) {
-            var first = dto.getScripts().getFirst();
+            BrandScriptEntryDTO first = dto.getScripts().getFirst();
             doc.setScripts(List.of(new BrandScriptEntry(first.getScriptId(), first.getUserVariables())));
         }
 

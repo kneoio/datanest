@@ -6,6 +6,7 @@ import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.service.UserService;
+import com.semantyca.core.util.ColorUtil;
 import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.StagePlaylistDTO;
@@ -74,13 +75,14 @@ public class BrandPubService extends BrandService {
 
     public Uni<Brand> upsert(String slug, Brand brand, ScriptMode scriptMode, CustomScriptDTO customScriptDTO, IUser user) {
         boolean isCustom = ScriptMode.CUSTOM.equals(scriptMode);
+        customScriptDTO.setColor(ColorUtil.generateContrastColorPair()[0]);
         Uni<UUID> brandIdUni = repository.getBySlugName(slug)
                 .chain(existing -> resolveExistingCustomScriptId(existing)
                         .chain(existingScriptId -> {
                             if (isCustom) {
                                 Script script = buildScript(slug);
                                 List<Scene> scenes = buildScenes(customScriptDTO);
-                                script.setColor("#47C53FFF");
+                                script.setColor(customScriptDTO.getColor());
                                 if (existingScriptId != null) {
                                     return brandPubRepository.updateBrandWithScript(existing.getId(), existingScriptId, brand, script, scenes, List.of(), user);
                                 } else {
@@ -99,8 +101,8 @@ public class BrandPubService extends BrandService {
                     brand.setPopularityRate(5);
                     if (isCustom) {
                         Script script = buildScript(slug);
+                        script.setColor(customScriptDTO.getColor());
                         List<Scene> scenes = buildScenes(customScriptDTO);
-                        script.setColor("#47C53FFF");
                         return brandPubRepository.insertBrandWithScript(brand, script, scenes, List.of(), user);
                     } else {
                         return repository.insert(brand, List.of(), user).map(Brand::getId);
@@ -167,10 +169,6 @@ public class BrandPubService extends BrandService {
     private ScenePrompt mapToScenePrompt(ScenePromptDTO dto) {
         ScenePrompt sp = new ScenePrompt();
         sp.setPromptId(dto.getPromptId());
-        sp.setRank(dto.getRank());
-        sp.setWeight(dto.getWeight());
-        sp.setActive(dto.isActive());
-        sp.setMandatory(dto.isMandatory());
         return sp;
     }
 
