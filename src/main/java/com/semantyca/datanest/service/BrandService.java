@@ -238,8 +238,8 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         ScriptDTO scriptDTO = new ScriptDTO();
         scriptDTO.setName(brandName + "'s script");
         scriptDTO.setDescription("Custom script for " + brandName);
-        scriptDTO.setLanguageTag("en-US");
-        scriptDTO.setTimingMode("ABSOLUTE_TIME");
+        scriptDTO.setLanguageTag(LanguageTag.EN_US.tag());
+        scriptDTO.setTimingMode(SceneTimingMode.ABSOLUTE_TIME.name());
         scriptDTO.setCustom(true);
         if (dto.getCustomScript().getScenes() != null) {
             List<SceneDTO> sceneDTOs = new ArrayList<>();
@@ -265,9 +265,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                     .filter(a -> a.isPredefined() && a.getPromptId() != null)
                     .map(a -> new ScenePromptDTO(a.getPromptId(), true, false, 0, BigDecimal.valueOf(0.5)))
                     .collect(Collectors.toList());
-            if (!prompts.isEmpty()) {
-                sceneDTO.setPrompts(prompts);
-            }
+            sceneDTO.setPrompts(prompts);
             customScene.getActions().stream()
                     .filter(a -> a.getSongsMode() != null)
                     .findFirst()
@@ -484,7 +482,9 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     }
 
     private List<Scene> buildSceneEntities(List<SceneDTO> dtos) {
-        if (dtos == null) return List.of();
+        if (dtos == null) {
+            return List.of();
+        }
         return dtos.stream().map(this::buildSceneEntity).collect(Collectors.toList());
     }
 
@@ -499,21 +499,23 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         scene.setOneTimeRun(dto.isOneTimeRun());
         scene.setIntroPrompts(dto.getPrompts() != null
                 ? dto.getPrompts().stream().map(p -> {
-                    ScenePrompt sp = new ScenePrompt();
-                    sp.setPromptId(p.getPromptId());
-                    sp.setRank(p.getRank());
-                    sp.setWeight(p.getWeight());
-                    sp.setActive(p.isActive());
-                    sp.setMandatory(p.isMandatory());
-                    return sp;
-                }).collect(Collectors.toList())
+            ScenePrompt sp = new ScenePrompt();
+            sp.setPromptId(p.getPromptId());
+            sp.setRank(p.getRank());
+            sp.setWeight(p.getWeight());
+            sp.setActive(p.isActive());
+            sp.setMandatory(p.isMandatory());
+            return sp;
+        }).collect(Collectors.toList())
                 : List.of());
         scene.setPlaylistRequest(mapToPlaylistRequest(dto.getStagePlaylist()));
         return scene;
     }
 
     private PlaylistRequest mapToPlaylistRequest(StagePlaylistDTO dto) {
-        if (dto == null) return null;
+        if (dto == null) {
+            return null;
+        }
         PlaylistRequest pr = new PlaylistRequest();
         pr.setSourcing(dto.getSourcing() != null ? WayOfSourcing.valueOf(dto.getSourcing()) : null);
         pr.setTitle(dto.getTitle());

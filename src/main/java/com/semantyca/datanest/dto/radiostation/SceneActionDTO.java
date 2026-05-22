@@ -19,6 +19,8 @@ public class SceneActionDTO {
     private UUID promptId;
     private String instruction;
     private List<String> contextVars;
+    @Deprecated(forRemoval = true)
     private WayOfSourcing songsMode;
+    @Deprecated(forRemoval = true)
     private List<String> songsLabels;
 }
