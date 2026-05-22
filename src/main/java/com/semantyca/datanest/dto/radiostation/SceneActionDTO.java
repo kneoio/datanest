@@ -1,7 +1,6 @@
 package com.semantyca.datanest.dto.radiostation;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.semantyca.mixpla.model.cnst.WayOfSourcing;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -19,8 +18,4 @@ public class SceneActionDTO {
     private UUID promptId;
     private String instruction;
     private List<String> contextVars;
-    @Deprecated(forRemoval = true)
-    private WayOfSourcing songsMode;
-    @Deprecated(forRemoval = true)
-    private List<String> songsLabels;
 }
