@@ -24,8 +24,7 @@ import com.semantyca.officeframe.model.cnst.CountryCode;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -37,7 +36,7 @@ import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class BrandService extends AbstractService<Brand, BrandDTO> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BrandService.class);
+    private static final Logger LOGGER = Logger.getLogger(BrandService.class);
 
     private final BrandRepository repository;
 
@@ -136,9 +135,9 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
     public Uni<BrandDTO> upsert(String id, BrandDTO dto, IUser user, LanguageCode code) {
         assert repository != null;
-        LOGGER.info("Upserting radio station with DTO scripts: {}", dto.getScripts());
+        LOGGER.infof("Upserting radio station with DTO scripts: %s", dto.getScripts());
         Brand entity = buildEntity(dto, user);
-        LOGGER.info("Built entity with scripts: {}", entity.getScripts());
+        LOGGER.infof("Built entity with scripts: %s", entity.getScripts());
 
         List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
 

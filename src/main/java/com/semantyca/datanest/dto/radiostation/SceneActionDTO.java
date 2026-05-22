@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.List;
+import java.util.UUID;
 
 @Setter
 @Getter
@@ -15,6 +16,7 @@ import java.util.List;
 public class SceneActionDTO {
     private String name;
     private boolean predefined;
+    private UUID promptId;
     private String instruction;
     private List<String> contextVars;
     private WayOfSourcing songsMode;

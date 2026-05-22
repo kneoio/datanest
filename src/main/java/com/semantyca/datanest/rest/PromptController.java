@@ -85,20 +85,6 @@ public class PromptController extends AbstractSecuredController<DjPrompt, Prompt
         router.get(path + "/:id/access").handler(this::getDocumentAccess);
     }
 
-    private void getOptions(RoutingContext rc) {
-        service.getOptions()
-                .subscribe().with(
-                        list -> rc.response()
-                                .setStatusCode(200)
-                                .putHeader("Content-Type", "application/json")
-                                .end(io.vertx.core.json.Json.encode(list)),
-                        throwable -> {
-                            LOGGER.error("Failed to get prompt options", throwable);
-                            rc.fail(throwable);
-                        }
-                );
-    }
-
     private void getAll(RoutingContext rc) {
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
@@ -156,6 +142,20 @@ public class PromptController extends AbstractSecuredController<DjPrompt, Prompt
                                 .end(io.vertx.core.json.Json.encode(viewPage)),
                         throwable -> {
                             LOGGER.error("Failed to get grouped prompts", throwable);
+                            rc.fail(throwable);
+                        }
+                );
+    }
+
+    private void getOptions(RoutingContext rc) {
+        service.getOptions()
+                .subscribe().with(
+                        list -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(io.vertx.core.json.Json.encode(list)),
+                        throwable -> {
+                            LOGGER.error("Failed to get prompt options", throwable);
                             rc.fail(throwable);
                         }
                 );
