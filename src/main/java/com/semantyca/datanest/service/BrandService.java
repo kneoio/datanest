@@ -178,7 +178,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
 
         Uni<Brand> saveOperation;
-        if (ScriptMode.CUSTOM.equals(dto.getScriptMode()) && dto.getCustomScript() != null) {
+        if (ScriptMode.CUSTOM.equals(dto.getScriptMode())) {
             saveOperation = upsertWithCustomScript(slug, dto, entity, rlsActions, user);
         } else {
             saveOperation = repository.getBySlugName(slug)
