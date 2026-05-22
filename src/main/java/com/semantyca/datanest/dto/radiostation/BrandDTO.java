@@ -9,7 +9,6 @@ import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.datanest.model.cnst.ScriptMode;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
@@ -65,8 +64,6 @@ public class BrandDTO extends AbstractDTO {
     private boolean profileOverridingEnabled;
     private AiOverridingDTO aiOverriding;
     private ProfileOverridingDTO profileOverriding;
-    @NotNull
-    @NotEmpty
     private List<BrandScriptEntryDTO> scripts;
     private ScriptMode scriptMode = ScriptMode.PREDEFINED;
     private CustomScriptDTO customScript;

@@ -10,7 +10,14 @@ import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.core.dto.rls.RlsActionDTO;
+import com.semantyca.datanest.dto.SceneDTO;
+import com.semantyca.datanest.dto.ScenePromptDTO;
+import com.semantyca.datanest.dto.ScriptDTO;
+import com.semantyca.datanest.dto.StagePlaylistDTO;
 import com.semantyca.datanest.dto.radiostation.*;
+import com.semantyca.datanest.model.cnst.ScriptMode;
+import com.semantyca.mixpla.model.Script;
+import com.semantyca.mixpla.model.cnst.WayOfSourcing;
 import com.semantyca.datanest.messaging.CommandPublisher;
 import com.semantyca.datanest.messaging.MetricPublisher;
 import com.semantyca.datanest.repository.BrandRepository;
@@ -26,7 +33,9 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
+import java.math.BigDecimal;
 import java.net.MalformedURLException;
+import java.util.ArrayList;
 import java.net.URI;
 import java.time.ZoneId;
 import java.util.List;
@@ -44,6 +53,8 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
     ScriptService scriptService;
 
+    SceneService sceneService;
+
     MetricPublisher metricPublisher;
 
     CommandPublisher commandPublisher;
@@ -52,6 +63,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     public BrandService(
             UserService userService,
             ScriptService scriptService,
+            SceneService sceneService,
             BrandRepository repository,
             DatanestConfig datanestConfig,
             MetricPublisher metricPublisher,
@@ -59,6 +71,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     ) {
         super(userService);
         this.scriptService = scriptService;
+        this.sceneService = sceneService;
         this.repository = repository;
         this.datanestConfig = datanestConfig;
         this.metricPublisher = metricPublisher;
@@ -164,18 +177,101 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         entity.setSlugName(slug);
         List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
 
-        return repository.getBySlugName(slug)
-                .chain(existing -> repository.update(existing.getId(), entity, rlsActions, user))
-                .onFailure(DocumentHasNotFoundException.class).recoverWithUni(() -> {
-                    entity.setPopularityRate(5);
-                    return repository.insert(entity, rlsActions, user);
-                })
+        Uni<Brand> saveOperation;
+        if (ScriptMode.CUSTOM.equals(dto.getScriptMode()) && dto.getCustomScript() != null) {
+            saveOperation = upsertWithCustomScript(slug, dto, entity, rlsActions, user);
+        } else {
+            saveOperation = repository.getBySlugName(slug)
+                    .chain(existing -> repository.update(existing.getId(), entity, rlsActions, user))
+                    .onFailure(DocumentHasNotFoundException.class).recoverWithUni(() -> {
+                        entity.setPopularityRate(5);
+                        return repository.insert(entity, rlsActions, user);
+                    });
+        }
+
+        return saveOperation
                 .invoke(saved -> commandPublisher.publishCommand(
                         CommandType.FLOW_RESTART,
                         "brand_saved",
                         Map.of("brandId", saved.getId().toString(), "slug", saved.getSlugName(), "savedBy", user.getUserName())
                 ))
                 .chain(this::mapToDTO);
+    }
+
+    private Uni<Brand> upsertWithCustomScript(String slug, BrandDTO dto, Brand entity, List<RlsActionDTO> rlsActions, IUser user) {
+        ScriptDTO scriptDTO = buildCustomScriptDTO(slug, dto);
+        return repository.getBySlugName(slug)
+                .chain(existing ->
+                        scriptService.getAllScriptsForBrandWithScenes(existing.getId(), user)
+                                .chain(brandScripts -> {
+                                    UUID existingCustomScriptId = brandScripts.stream()
+                                            .filter(bs -> bs.getScript().isCustom())
+                                            .map(bs -> bs.getScript().getId())
+                                            .findFirst()
+                                            .orElse(null);
+                                    String scriptId = existingCustomScriptId != null ? existingCustomScriptId.toString() : "new";
+                                    return scriptService.upsert(scriptId, scriptDTO, user)
+                                            .chain(script -> {
+                                                entity.setScripts(List.of(new BrandScriptEntry(script.getId(), Map.of())));
+                                                return repository.update(existing.getId(), entity, rlsActions, user);
+                                            });
+                                })
+                )
+                .onFailure(DocumentHasNotFoundException.class).recoverWithUni(() -> {
+                    entity.setPopularityRate(5);
+                    return scriptService.upsert("new", scriptDTO, user)
+                            .chain(script -> {
+                                entity.setScripts(List.of(new BrandScriptEntry(script.getId(), Map.of())));
+                                return repository.insert(entity, rlsActions, user);
+                            });
+                });
+    }
+
+    private ScriptDTO buildCustomScriptDTO(String slug, BrandDTO dto) {
+        String brandName = dto.getLocalizedName().getOrDefault(LanguageCode.en, slug);
+        ScriptDTO scriptDTO = new ScriptDTO();
+        scriptDTO.setName(brandName + "'s script");
+        scriptDTO.setDescription("Custom script for " + brandName);
+        scriptDTO.setLanguageTag("en-US");
+        scriptDTO.setTimingMode("ABSOLUTE_TIME");
+        scriptDTO.setCustom(true);
+        if (dto.getCustomScript().getScenes() != null) {
+            List<SceneDTO> sceneDTOs = new ArrayList<>();
+            List<CustomSceneDTO> customScenes = dto.getCustomScript().getScenes();
+            for (int i = 0; i < customScenes.size(); i++) {
+                sceneDTOs.add(convertCustomScene(customScenes.get(i), i + 1));
+            }
+            scriptDTO.setScenes(sceneDTOs);
+        }
+        return scriptDTO;
+    }
+
+    private SceneDTO convertCustomScene(CustomSceneDTO customScene, int seqNum) {
+        SceneDTO sceneDTO = new SceneDTO();
+        sceneDTO.setTitle("Scene " + seqNum);
+        sceneDTO.setSeqNum(seqNum);
+        if (customScene.getStartTime() != null) {
+            sceneDTO.setStartTime(List.of(customScene.getStartTime()));
+        }
+        sceneDTO.setTalkativity(customScene.getTalkActivity());
+        if (customScene.getActions() != null) {
+            List<ScenePromptDTO> prompts = customScene.getActions().stream()
+                    .filter(a -> a.isPredefined() && a.getPromptId() != null)
+                    .map(a -> new ScenePromptDTO(a.getPromptId(), true, false, 0, BigDecimal.valueOf(0.5)))
+                    .collect(Collectors.toList());
+            if (!prompts.isEmpty()) {
+                sceneDTO.setPrompts(prompts);
+            }
+            customScene.getActions().stream()
+                    .filter(a -> a.getSongsMode() != null)
+                    .findFirst()
+                    .ifPresent(a -> {
+                        StagePlaylistDTO playlist = new StagePlaylistDTO();
+                        playlist.setSourcing(a.getSongsMode().name());
+                        sceneDTO.setStagePlaylist(playlist);
+                    });
+        }
+        return sceneDTO;
     }
 
     public Uni<List<BrandDTO>> getAllOpenForSubmissionDTO(int limit, int offset, IUser user) {
@@ -232,7 +328,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 userService.getUserName(doc.getAuthor()),
                 userService.getUserName(doc.getLastModifier()),
                 repository.getScriptEntriesForBrand(doc.getId())
-        ).asTuple().map(tuple -> {
+        ).asTuple().chain(tuple -> {
             BrandDTO dto = new BrandDTO();
             dto.setId(doc.getId());
             dto.setAuthor(tuple.getItem1());
@@ -302,12 +398,71 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 ownerDTO.setEmail(doc.getOwner().getEmail());
                 dto.setOwner(ownerDTO);
             }
-
             dto.setLabels(doc.getLabels());
             dto.setGenres(doc.getGenres());
 
-            return dto;
+            List<BrandScriptEntry> entries = tuple.getItem3();
+            if (entries.isEmpty()) {
+                dto.setScriptMode(ScriptMode.PREDEFINED);
+                return Uni.createFrom().item(dto);
+            }
+
+            List<Uni<Script>> scriptUnis = entries.stream()
+                    .map(e -> scriptService.getById(e.getScriptId(), SuperUser.build()))
+                    .collect(Collectors.toList());
+
+            return Uni.join().all(scriptUnis).andFailFast()
+                    .chain(scripts -> {
+                        Script customScript = scripts.stream()
+                                .filter(Script::isCustom)
+                                .findFirst()
+                                .orElse(null);
+                        if (customScript == null) {
+                            dto.setScriptMode(ScriptMode.PREDEFINED);
+                            return Uni.createFrom().item(dto);
+                        }
+                        dto.setScriptMode(ScriptMode.CUSTOM);
+                        return sceneService.getAllByScript(customScript.getId(), 1000, 0, SuperUser.build())
+                                .map(sceneDTOs -> {
+                                    CustomScriptDTO customScriptDTO = new CustomScriptDTO();
+                                    customScriptDTO.setScenes(sceneDTOs.stream()
+                                            .map(this::toCustomSceneDTO)
+                                            .collect(Collectors.toList()));
+                                    dto.setCustomScript(customScriptDTO);
+                                    return dto;
+                                });
+                    });
         });
+    }
+
+    private CustomSceneDTO toCustomSceneDTO(SceneDTO scene) {
+        CustomSceneDTO customScene = new CustomSceneDTO();
+        if (scene.getStartTime() != null && !scene.getStartTime().isEmpty()) {
+            customScene.setStartTime(scene.getStartTime().get(0));
+        }
+        customScene.setTalkActivity((int) scene.getTalkativity());
+        List<SceneActionDTO> actions = new ArrayList<>();
+        if (scene.getPrompts() != null) {
+            scene.getPrompts().stream()
+                    .filter(p -> p.getPromptId() != null)
+                    .map(p -> {
+                        SceneActionDTO action = new SceneActionDTO();
+                        action.setPredefined(true);
+                        action.setPromptId(p.getPromptId());
+                        return action;
+                    })
+                    .forEach(actions::add);
+        }
+        if (scene.getStagePlaylist() != null && scene.getStagePlaylist().getSourcing() != null) {
+            SceneActionDTO songAction = new SceneActionDTO();
+            try {
+                songAction.setSongsMode(WayOfSourcing.valueOf(scene.getStagePlaylist().getSourcing()));
+            } catch (IllegalArgumentException ignored) {
+            }
+            actions.add(songAction);
+        }
+        customScene.setActions(actions.isEmpty() ? null : actions);
+        return customScene;
     }
 
     private Brand buildEntity(BrandDTO dto, IUser user) {

@@ -397,6 +397,9 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                     List<Uni<SceneDTO>> upsertUnis = sceneDTOs.stream()
                             .map(sceneDTO -> {
                                 String sceneId = sceneDTO.getId() != null ? sceneDTO.getId().toString() : null;
+                                if (sceneDTO.getScriptId() == null) {
+                                    sceneDTO.setScriptId(scriptId);
+                                }
                                 return scriptSceneService.upsert(sceneId, sceneDTO, user);
                             })
                             .collect(Collectors.toList());
