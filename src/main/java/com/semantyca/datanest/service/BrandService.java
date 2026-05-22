@@ -50,6 +50,8 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     private final MetricPublisher metricPublisher;
     private final DatanestConfig datanestConfig;
 
+    protected BrandService() {}
+
     @Inject
     public BrandService(
             UserService userService,

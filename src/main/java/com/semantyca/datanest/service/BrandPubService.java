@@ -48,6 +48,8 @@ public class BrandPubService extends BrandService {
     private static final Logger LOGGER = Logger.getLogger(BrandPubService.class);
     private final BrandPubRepository brandPubRepository;
 
+    protected BrandPubService() {}
+
     @Inject
     public BrandPubService(
             UserService userService,
