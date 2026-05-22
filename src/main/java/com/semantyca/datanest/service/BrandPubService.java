@@ -5,15 +5,15 @@ import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.util.WebHelper;
-import com.semantyca.datanest.dto.script.SceneDTO;
-import com.semantyca.datanest.dto.script.ScenePromptDTO;
-import com.semantyca.datanest.dto.script.ScriptDTO;
 import com.semantyca.datanest.dto.StagePlaylistDTO;
+import com.semantyca.datanest.dto.script.CustomActionDTO;
 import com.semantyca.datanest.dto.script.CustomSceneDTO;
 import com.semantyca.datanest.dto.script.CustomScriptDTO;
+import com.semantyca.datanest.dto.script.ScenePromptDTO;
 import com.semantyca.datanest.model.cnst.ScriptMode;
 import com.semantyca.datanest.repository.BrandPubRepository;
 import com.semantyca.datanest.repository.BrandRepository;
+import com.semantyca.mixpla.model.CustomAction;
 import com.semantyca.mixpla.model.PlaylistRequest;
 import com.semantyca.mixpla.model.Scene;
 import com.semantyca.mixpla.model.ScenePrompt;
@@ -55,9 +55,8 @@ public class BrandPubService {
 
     public Uni<Brand> upsert(String slug, Brand brand, ScriptMode scriptMode, CustomScriptDTO customScriptDTO, IUser user) {
         boolean isCustom = ScriptMode.CUSTOM.equals(scriptMode);
-        ScriptDTO scriptDTO = isCustom ? buildScriptDTO(slug, customScriptDTO) : null;
-        Script script = isCustom ? buildScriptEntity(scriptDTO) : null;
-        List<Scene> scenes = isCustom ? buildSceneEntities(scriptDTO.getScenes()) : null;
+        Script script = isCustom ? buildScript(slug) : null;
+        List<Scene> scenes = isCustom ? buildScenes(customScriptDTO) : null;
         assert script != null;
         script.setColor("#47C53FFF");
         Uni<UUID> brandIdUni = repository.getBySlugName(slug)
@@ -98,87 +97,68 @@ public class BrandPubService {
                 .map(script -> script.isCustom() ? script.getId() : null);
     }
 
-    private ScriptDTO buildScriptDTO(String slug, CustomScriptDTO customScript) {
-        ScriptDTO scriptDTO = new ScriptDTO();
-        scriptDTO.setName(slug + "'s script");
-        scriptDTO.setDescription("Custom script for " + slug);
-        scriptDTO.setLanguageTag(LanguageTag.EN_US.tag());
-        scriptDTO.setTimingMode(SceneTimingMode.ABSOLUTE_TIME.name());
-        scriptDTO.setCustom(true);
-        if (customScript.getScenes() != null) {
-            List<SceneDTO> sceneDTOs = new ArrayList<>();
-            List<CustomSceneDTO> customScenes = customScript.getScenes();
-            for (int i = 0; i < customScenes.size(); i++) {
-                sceneDTOs.add(convertCustomScene(customScenes.get(i), i + 1));
-            }
-            scriptDTO.setScenes(sceneDTOs);
-        }
-        return scriptDTO;
-    }
-
-    private SceneDTO convertCustomScene(CustomSceneDTO customScene, int seqNum) {
-        SceneDTO sceneDTO = new SceneDTO();
-        sceneDTO.setTitle("Scene " + seqNum);
-        sceneDTO.setSeqNum(seqNum);
-        if (customScene.getStartTime() != null) {
-            sceneDTO.setStartTime(List.of(customScene.getStartTime()));
-        }
-        sceneDTO.setTalkativity(customScene.getTalkativity());
-        if (customScene.getActions() != null) {
-            List<ScenePromptDTO> prompts = customScene.getActions().stream()
-                    .map(a -> new ScenePromptDTO())
-                    .collect(Collectors.toList());
-            sceneDTO.setPrompts(prompts);
-            if (customScene.getSongsMode() != null) {
-            StagePlaylistDTO playlist = new StagePlaylistDTO();
-            playlist.setSourcing(customScene.getSongsMode().name());
-            sceneDTO.setStagePlaylist(playlist);
-        }
-        }
-        return sceneDTO;
-    }
-
-    private Script buildScriptEntity(ScriptDTO dto) {
+    private Script buildScript(String slug) {
+        String name = slug + "'s script";
         Script script = new Script();
-        script.setName(dto.getName());
-        script.setSlugName(WebHelper.generateSlug(dto.getName()));
-        script.setDescription(dto.getDescription());
-        script.setCustom(dto.isCustom());
-        script.setLanguageTag(LanguageTag.fromTag(dto.getLanguageTag()));
-        script.setTimingMode(SceneTimingMode.valueOf(dto.getTimingMode()));
-        script.setLabels(dto.getLabels());
+        script.setName(name);
+        script.setSlugName(WebHelper.generateSlug(name));
+        script.setDescription("Custom script for " + slug);
+        script.setCustom(true);
+        script.setLanguageTag(LanguageTag.EN_US);
+        script.setTimingMode(SceneTimingMode.ABSOLUTE_TIME);
         return script;
     }
 
-    private List<Scene> buildSceneEntities(List<SceneDTO> dtos) {
-        if (dtos == null) {
+    private List<Scene> buildScenes(CustomScriptDTO customScript) {
+        if (customScript.getScenes() == null) {
             return List.of();
         }
-        return dtos.stream().map(this::buildSceneEntity).collect(Collectors.toList());
+        List<CustomSceneDTO> customScenes = customScript.getScenes();
+        List<Scene> scenes = new ArrayList<>();
+        for (int i = 0; i < customScenes.size(); i++) {
+            scenes.add(buildScene(customScenes.get(i), i + 1));
+        }
+        return scenes;
     }
 
-    private Scene buildSceneEntity(SceneDTO dto) {
+    private Scene buildScene(CustomSceneDTO customScene, int seqNum) {
         Scene scene = new Scene();
-        scene.setTitle(dto.getTitle());
-        scene.setStartTime(dto.getStartTime());
-        scene.setDurationSeconds(dto.getDurationSeconds());
-        scene.setSeqNum(dto.getSeqNum());
-        scene.setTalkativity(dto.getTalkativity());
-        scene.setWeekdays(dto.getWeekdays());
-        scene.setOneTimeRun(dto.isOneTimeRun());
-        scene.setIntroPrompts(dto.getPrompts() != null
-                ? dto.getPrompts().stream().map(p -> {
-            ScenePrompt sp = new ScenePrompt();
-            sp.setPromptId(p.getPromptId());
-            sp.setRank(p.getRank());
-            sp.setWeight(p.getWeight());
-            sp.setActive(p.isActive());
-            sp.setMandatory(p.isMandatory());
-            return sp;
-        }).collect(Collectors.toList())
-                : List.of());
-        scene.setPlaylistRequest(mapToPlaylistRequest(dto.getStagePlaylist()));
+        scene.setTitle("Scene " + seqNum);
+        scene.setSeqNum(seqNum);
+        if (customScene.getStartTime() != null) {
+            scene.setStartTime(List.of(customScene.getStartTime()));
+        }
+        scene.setTalkativity(customScene.getTalkativity());
+        if (customScene.getIntroPrompts() != null) {
+            scene.setIntroPrompts(customScene.getIntroPrompts().stream()
+                    .map(this::mapToScenePrompt)
+                    .collect(Collectors.toList()));
+        }
+        if (customScene.getActions() != null) {
+            scene.setActions(customScene.getActions().stream()
+                    .map(this::mapToCustomAction)
+                    .collect(Collectors.toList()));
+        }
+        scene.setPlaylistRequest(mapToPlaylistRequest(customScene.getStagePlaylist()));
         return scene;
+    }
+
+    private ScenePrompt mapToScenePrompt(ScenePromptDTO dto) {
+        ScenePrompt sp = new ScenePrompt();
+        sp.setPromptId(dto.getPromptId());
+        sp.setRank(dto.getRank());
+        sp.setWeight(dto.getWeight());
+        sp.setActive(dto.isActive());
+        sp.setMandatory(dto.isMandatory());
+        return sp;
+    }
+
+    private CustomAction mapToCustomAction(CustomActionDTO dto) {
+        CustomAction action = new CustomAction();
+        action.setName(dto.getName());
+        action.setInstruction(dto.getInstruction());
+        action.setContextVars(dto.getContextVars());
+        return action;
     }
 
     private PlaylistRequest mapToPlaylistRequest(StagePlaylistDTO dto) {
