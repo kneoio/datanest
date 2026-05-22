@@ -1,4 +1,4 @@
-package com.semantyca.datanest.dto.radiostation;
+package com.semantyca.datanest.dto.brand;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
@@ -6,6 +6,8 @@ import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.dto.validation.ValidCountry;
 import com.semantyca.core.dto.validation.ValidLocalizedName;
 import com.semantyca.core.model.cnst.LanguageCode;
+import com.semantyca.datanest.dto.script.BrandScriptEntryDTO;
+import com.semantyca.datanest.dto.script.CustomScriptDTO;
 import com.semantyca.datanest.model.cnst.ScriptMode;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
 import jakarta.validation.constraints.NotBlank;

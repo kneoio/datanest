@@ -9,8 +9,8 @@ import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.config.DatanestConfig;
-import com.semantyca.datanest.dto.SceneDTO;
-import com.semantyca.datanest.dto.radiostation.*;
+import com.semantyca.datanest.dto.script.*;
+import com.semantyca.datanest.dto.brand.*;
 import com.semantyca.datanest.messaging.CommandPublisher;
 import com.semantyca.datanest.messaging.MetricPublisher;
 import com.semantyca.datanest.model.cnst.ScriptMode;
@@ -343,13 +343,13 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         if (scene.getStartTime() != null && !scene.getStartTime().isEmpty()) {
             customScene.setStartTime(scene.getStartTime().get(0));
         }
-        customScene.setTalkActivity((int) scene.getTalkativity());
-        List<CustomSceneActionDTO> actions = new ArrayList<>();
+        customScene.setTalkativity((int) scene.getTalkativity());
+        List<CustomActionDTO> actions = new ArrayList<>();
         if (scene.getPrompts() != null) {
             scene.getPrompts().stream()
                     .filter(p -> p.getPromptId() != null)
                     .map(p -> {
-                        CustomSceneActionDTO action = new CustomSceneActionDTO();
+                        CustomActionDTO action = new CustomActionDTO();
                         return action;
                     })
                     .forEach(actions::add);

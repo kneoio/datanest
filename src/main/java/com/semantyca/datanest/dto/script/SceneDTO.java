@@ -1,8 +1,9 @@
-package com.semantyca.datanest.dto;
+package com.semantyca.datanest.dto.script;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
 import com.semantyca.core.dto.rls.RlsActionDTO;
+import com.semantyca.datanest.dto.StagePlaylistDTO;
 import lombok.Getter;
 import lombok.Setter;
 

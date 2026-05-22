@@ -1,4 +1,4 @@
-package com.semantyca.datanest.dto.radiostation;
+package com.semantyca.datanest.dto.script;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Getter;

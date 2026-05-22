@@ -23,14 +23,14 @@ public class LabelFlatDTO {
         if (label == null) {
             return null;
         }
-        LabelFlatDTO r = new LabelFlatDTO();
-        r.setId(label.getId());
-        r.setIdentifier(label.getIdentifier());
-        r.setColor(label.getColor());
-        r.setFontColor(label.getFontColor());
-        r.setCategory(label.getCategory());
-        r.setName(pickName(label));
-        return r;
+        LabelFlatDTO dto = new LabelFlatDTO();
+        dto.setId(label.getId());
+        dto.setIdentifier(label.getIdentifier());
+        dto.setColor(label.getColor());
+        dto.setFontColor(label.getFontColor());
+        dto.setCategory(label.getCategory());
+        dto.setName(pickName(label));
+        return dto;
     }
 
     private static String pickName(LabelDTO label) {

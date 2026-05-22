@@ -5,12 +5,12 @@ import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.util.WebHelper;
-import com.semantyca.datanest.dto.SceneDTO;
-import com.semantyca.datanest.dto.ScenePromptDTO;
-import com.semantyca.datanest.dto.ScriptDTO;
+import com.semantyca.datanest.dto.script.SceneDTO;
+import com.semantyca.datanest.dto.script.ScenePromptDTO;
+import com.semantyca.datanest.dto.script.ScriptDTO;
 import com.semantyca.datanest.dto.StagePlaylistDTO;
-import com.semantyca.datanest.dto.radiostation.CustomSceneDTO;
-import com.semantyca.datanest.dto.radiostation.CustomScriptDTO;
+import com.semantyca.datanest.dto.script.CustomSceneDTO;
+import com.semantyca.datanest.dto.script.CustomScriptDTO;
 import com.semantyca.datanest.model.cnst.ScriptMode;
 import com.semantyca.datanest.repository.BrandCustomScriptRepository;
 import com.semantyca.datanest.repository.BrandRepository;
@@ -28,7 +28,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -123,7 +122,7 @@ public class BrandCustomScriptService {
         if (customScene.getStartTime() != null) {
             sceneDTO.setStartTime(List.of(customScene.getStartTime()));
         }
-        sceneDTO.setTalkativity(customScene.getTalkActivity());
+        sceneDTO.setTalkativity(customScene.getTalkativity());
         if (customScene.getActions() != null) {
             List<ScenePromptDTO> prompts = customScene.getActions().stream()
                     .map(a -> new ScenePromptDTO())

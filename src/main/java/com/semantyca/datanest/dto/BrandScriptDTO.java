@@ -1,6 +1,7 @@
 package com.semantyca.datanest.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.semantyca.datanest.dto.script.ScriptDTO;
 import lombok.Getter;
 import lombok.Setter;
 

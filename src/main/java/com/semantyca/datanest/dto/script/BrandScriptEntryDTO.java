@@ -1,4 +1,4 @@
-package com.semantyca.datanest.dto.radiostation;
+package com.semantyca.datanest.dto.script;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;

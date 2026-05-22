@@ -11,7 +11,7 @@ import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.datanest.dto.GenreFlatDTO;
 import com.semantyca.datanest.dto.LabelFlatDTO;
 import com.semantyca.datanest.dto.ProfileFlatDTO;
-import com.semantyca.datanest.dto.ScriptFlatDTO;
+import com.semantyca.datanest.dto.script.ScriptFlatDTO;
 import com.semantyca.datanest.dto.actionbars.AiAgentActionsFactory;
 import com.semantyca.datanest.dto.actionbars.ProfileActionsFactory;
 import com.semantyca.datanest.dto.aiagent.AiAgentFlatDTO;

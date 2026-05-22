@@ -1,4 +1,4 @@
-package com.semantyca.datanest.dto.radiostation;
+package com.semantyca.datanest.dto.script;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Getter;
@@ -6,13 +6,12 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.List;
-import java.util.UUID;
 
 @Setter
 @Getter
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class CustomSceneActionDTO {
+public class CustomActionDTO {
     private String name;
     private String instruction;
     private List<String> contextVars;

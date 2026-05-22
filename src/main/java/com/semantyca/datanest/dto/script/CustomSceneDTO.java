@@ -1,8 +1,7 @@
-package com.semantyca.datanest.dto.radiostation;
+package com.semantyca.datanest.dto.script;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.semantyca.datanest.dto.ScenePromptDTO;
-import com.semantyca.mixpla.model.ScenePrompt;
+import com.semantyca.datanest.dto.StagePlaylistDTO;
 import com.semantyca.mixpla.model.cnst.WayOfSourcing;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -10,6 +9,7 @@ import lombok.Setter;
 
 import java.time.LocalTime;
 import java.util.List;
+import java.util.UUID;
 
 @Setter
 @Getter
@@ -19,9 +19,12 @@ public class CustomSceneDTO {
     private LocalTime startTime;
     private boolean allowJingles;
     private boolean allowAds;
-    private int talkActivity;
+    private int talkativity;
+    @Deprecated
     private WayOfSourcing songsMode;
-    private List<String> songsLabels;
+    private StagePlaylistDTO stagePlaylist;
+    @Deprecated
+    private List<UUID> songsLabels;
     private List<ScenePromptDTO> introPrompts;
-    private List<CustomSceneActionDTO> actions;
+    private List<CustomActionDTO> actions;
 }

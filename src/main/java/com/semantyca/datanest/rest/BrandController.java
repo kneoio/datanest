@@ -12,7 +12,7 @@
     import com.semantyca.core.util.RuntimeUtil;
     import com.semantyca.core.util.WebHelper;
     import com.semantyca.datanest.dto.actionbars.SoundFragmentActionsFactory;
-    import com.semantyca.datanest.dto.radiostation.BrandDTO;
+    import com.semantyca.datanest.dto.brand.BrandDTO;
     import com.semantyca.datanest.service.BrandService;
     import com.semantyca.mixpla.model.brand.Brand;
     import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
@@ -27,6 +27,7 @@
     import io.vertx.ext.web.handler.BodyHandler;
     import jakarta.enterprise.context.ApplicationScoped;
     import jakarta.inject.Inject;
+    import jakarta.validation.ConstraintViolation;
     import jakarta.validation.Validator;
     import org.slf4j.Logger;
     import org.slf4j.LoggerFactory;
@@ -216,10 +217,10 @@
                 String slug = rc.pathParam("slug");
                 BrandDTO dto = rc.body().asJsonObject().mapTo(BrandDTO.class);
 
-                Set<jakarta.validation.ConstraintViolation<BrandDTO>> violations = validator.validate(dto);
+                Set<ConstraintViolation<BrandDTO>> violations = validator.validate(dto);
                 if (violations != null && !violations.isEmpty()) {
                     Map<String, List<String>> fieldErrors = new HashMap<>();
-                    for (jakarta.validation.ConstraintViolation<BrandDTO> v : violations) {
+                    for (ConstraintViolation<BrandDTO> v : violations) {
                         String field = v.getPropertyPath().toString();
                         fieldErrors.computeIfAbsent(field, k -> new ArrayList<>()).add(v.getMessage());
                     }

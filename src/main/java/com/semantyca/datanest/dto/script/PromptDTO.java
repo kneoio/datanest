@@ -1,4 +1,4 @@
-package com.semantyca.datanest.dto;
+package com.semantyca.datanest.dto.script;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
@@ -31,8 +31,6 @@ public class PromptDTO extends AbstractDTO {
     private UUID masterId;
     private double version;
     private int allowAsOption;
-    @Deprecated
-    private JsonObject optionLocName;
     private EnumMap<LanguageCode, String> localizedOptionName = new EnumMap<>(LanguageCode.class);
     private JsonArray exposedVariables;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)

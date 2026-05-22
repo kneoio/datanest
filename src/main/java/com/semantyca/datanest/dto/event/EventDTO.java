@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
 import com.semantyca.core.dto.scheduler.ScheduleDTO;
 import com.semantyca.core.dto.rls.RlsActionDTO;
-import com.semantyca.datanest.dto.ScenePromptDTO;
+import com.semantyca.datanest.dto.script.ScenePromptDTO;
 import com.semantyca.datanest.dto.StagePlaylistDTO;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;

@@ -311,7 +311,6 @@ public class BrandRepository extends AsyncRepository {
         }
 
         doc.setSlugName(row.getString("slug_name"));
-        doc.setArchived(row.getInteger("archived"));
         doc.setIsTemporary(row.getInteger("is_temporary"));
         doc.setPublicBrand(row.getInteger("public"));
         String country = row.getString("country");

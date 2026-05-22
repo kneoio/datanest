@@ -1,4 +1,4 @@
-package com.semantyca.datanest.dto;
+package com.semantyca.datanest.dto.script;
 
 import com.semantyca.core.model.cnst.LanguageCode;
 import lombok.Getter;

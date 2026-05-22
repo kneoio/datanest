@@ -15,7 +15,7 @@ import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
-import com.semantyca.datanest.dto.ScenePromptDTO;
+import com.semantyca.datanest.dto.script.ScenePromptDTO;
 import com.semantyca.datanest.dto.StagePlaylistDTO;
 import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.datanest.dto.event.EventDTO;

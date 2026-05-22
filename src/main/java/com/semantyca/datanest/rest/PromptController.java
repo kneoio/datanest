@@ -11,7 +11,7 @@ import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.ProblemDetailsUtil;
 import com.semantyca.core.util.RuntimeUtil;
-import com.semantyca.datanest.dto.PromptDTO;
+import com.semantyca.datanest.dto.script.PromptDTO;
 import com.semantyca.datanest.dto.agentrest.MasterPromptTranslateReqDTO;
 import com.semantyca.datanest.dto.agentrest.TranslateReqDTO;
 import com.semantyca.datanest.service.PromptService;

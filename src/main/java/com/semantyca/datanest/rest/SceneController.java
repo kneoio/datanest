@@ -9,7 +9,7 @@ import com.semantyca.core.dto.view.ViewPage;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
-import com.semantyca.datanest.dto.SceneDTO;
+import com.semantyca.datanest.dto.script.SceneDTO;
 import com.semantyca.datanest.service.SceneService;
 import com.semantyca.mixpla.model.Scene;
 import com.semantyca.mixpla.model.cnst.SceneTimingMode;

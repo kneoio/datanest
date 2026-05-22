@@ -9,7 +9,7 @@ import com.semantyca.core.dto.view.ViewPage;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
-import com.semantyca.datanest.dto.SceneOverrideDTO;
+import com.semantyca.datanest.dto.script.SceneOverrideDTO;
 import com.semantyca.datanest.service.SceneOverrideService;
 import com.semantyca.mixpla.model.SceneOverride;
 import io.smallrye.mutiny.Uni;

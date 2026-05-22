@@ -1,4 +1,4 @@
-package com.semantyca.datanest.dto.radiostation;
+package com.semantyca.datanest.dto.brand;
 
 import lombok.Getter;
 import lombok.Setter;
