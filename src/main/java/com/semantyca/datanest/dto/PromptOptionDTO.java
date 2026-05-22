@@ -1,8 +1,10 @@
 package com.semantyca.datanest.dto;
 
+import com.semantyca.core.model.cnst.LanguageCode;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.EnumMap;
 import java.util.UUID;
 
 @Getter
@@ -10,4 +12,5 @@ import java.util.UUID;
 public class PromptOptionDTO {
     UUID id;
     String name;
+    EnumMap<LanguageCode, String> localizedOptionName = new EnumMap<>(LanguageCode.class);
 }

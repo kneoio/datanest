@@ -7,12 +7,12 @@ import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.PromptDTO;
+import com.semantyca.datanest.dto.PromptOptionDTO;
 import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.datanest.repository.prompt.PromptRepository;
 import com.semantyca.mixpla.model.DjPrompt;
 import com.semantyca.mixpla.model.filter.PromptFilter;
 import io.smallrye.mutiny.Uni;
-import io.vertx.core.json.JsonObject;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -137,13 +137,17 @@ public class PromptService extends AbstractService<DjPrompt, PromptDTO> {
         return repository.update(id, entity, user);
     }
 
-    public Uni<List<JsonObject>> getOptions() {
+    public Uni<List<PromptOptionDTO>> getOptions() {
         return repository.getAllOptions()
                 .map(list -> list.stream()
-                        .map(p -> new JsonObject()
-                                .put("id", p.getId().toString())
-                                .put("localizedOptionName", p.getLocalizedOptionName() != null && !p.getLocalizedOptionName().isEmpty()
-                                        ? JsonObject.mapFrom(p.getLocalizedOptionName()) : new JsonObject()))
+                        .map(p -> {
+                            PromptOptionDTO dto = new PromptOptionDTO();
+                            dto.setId(p.getId());
+                            if (p.getLocalizedOptionName() != null) {
+                                dto.setLocalizedOptionName(p.getLocalizedOptionName());
+                            }
+                            return dto;
+                        })
                         .collect(Collectors.toList()));
     }
 
