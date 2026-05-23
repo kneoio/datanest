@@ -123,11 +123,14 @@ public class BrandPubService extends BrandService {
     }
 
     private Uni<UUID> resolveExistingCustomScriptId(Brand existing) {
-        if (existing.getScripts() == null || existing.getScripts().isEmpty()) {
-            return Uni.createFrom().nullItem();
-        }
-        return scriptService.getById(existing.getScripts().getFirst().getScriptId(), SuperUser.build())
-                .map(script -> script.isCustom() ? script.getId() : null);
+        return repository.getScriptEntriesForBrand(existing.getId())
+                .chain(entries -> {
+                    if (entries.isEmpty()) {
+                        return Uni.createFrom().nullItem();
+                    }
+                    return scriptService.getById(entries.getFirst().getScriptId(), SuperUser.build())
+                            .map(script -> script.isCustom() ? script.getId() : null);
+                });
     }
 
     private Script buildScript(String slug, String title) {
