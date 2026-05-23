@@ -99,24 +99,25 @@ public class BrandPubService extends BrandService {
                     .chain(existingBrand -> {
                         String slug = existingBrand.getSlugName();
                         Brand brand = super.buildEntity(dto, user, slug);
-                        return resolveExistingCustomScriptId(existingBrand)
-                                .chain(existingScriptId -> {
-                                    Uni<UUID> idUni;
-                                    if (isCustom) {
+                        if (isCustom) {
+                            return resolveExistingCustomScriptId(existingBrand)
+                                    .chain(existingScriptId -> {
                                         String color = ColorUtil.generateContrastColorPair()[0];
                                         Script script = buildScript(slug, dto.getCustomScript() != null ? dto.getCustomScript().getTitle() : null);
                                         script.setColor(color);
                                         List<Scene> scenes = buildScenes(dto.getCustomScript());
-                                        idUni = existingScriptId != null
-                                                ? brandPubRepository.updateBrandWithScript(existingBrand.getId(), existingScriptId, brand, script, scenes, List.of(), user)
-                                                : brandPubRepository.insertScriptAndUpdateBrand(existingBrand.getId(), brand, script, scenes, List.of(), user);
-                                    } else {
-                                        idUni = existingScriptId != null
+                                        return brandPubRepository.updateBrandWithScript(existingBrand.getId(), existingScriptId, brand, script, scenes, List.of(), user)
+                                                .chain(brandId -> repository.findById(brandId, user, true));
+                                    });
+                        } else {
+                            return resolveExistingCustomScriptId(existingBrand)
+                                    .chain(existingScriptId -> {
+                                        Uni<UUID> idUni = existingScriptId != null
                                                 ? brandPubRepository.archiveScriptAndUpdateBrand(existingBrand.getId(), existingScriptId, brand, List.of(), user)
                                                 : repository.update(existingBrand.getId(), brand, List.of(), user).map(Brand::getId);
-                                    }
-                                    return idUni.chain(brandId -> repository.findById(brandId, user, true));
-                                });
+                                        return idUni.chain(brandId -> repository.findById(brandId, user, true));
+                                    });
+                        }
                     });
         }
     }
