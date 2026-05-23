@@ -6,10 +6,12 @@ import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.dto.rls.RlsActionDTO;
+import com.semantyca.datanest.dto.script.CustomActionDTO;
 import com.semantyca.datanest.dto.script.SceneDTO;
 import com.semantyca.datanest.dto.script.ScenePromptDTO;
 import com.semantyca.datanest.dto.StagePlaylistDTO;
 import com.semantyca.datanest.repository.SceneRepository;
+import com.semantyca.mixpla.model.CustomAction;
 import com.semantyca.mixpla.model.PlaylistRequest;
 import com.semantyca.mixpla.model.Scene;
 import com.semantyca.mixpla.model.ScenePrompt;
@@ -119,9 +121,25 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
             dto.setWeekdays(doc.getWeekdays());
             dto.setOneTimeRun(doc.isOneTimeRun());
             dto.setPrompts(mapScenePromptsToDTOs(doc.getIntroPrompts()));
+            dto.setActions(mapCustomActionsToDTOs(doc.getActions()));
             dto.setStagePlaylist(mapStagePlaylistToDTO(doc.getPlaylistRequest()));
             return dto;
         });
+    }
+
+    private List<CustomActionDTO> mapCustomActionsToDTOs(List<CustomAction> actions) {
+        if (actions == null || actions.isEmpty()) {
+            return null;
+        }
+        return actions.stream()
+                .map(a -> {
+                    CustomActionDTO dto = new CustomActionDTO();
+                    dto.setName(a.getName());
+                    dto.setInstruction(a.getInstruction());
+                    dto.setContextVars(a.getContextVars());
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 
     private List<ScenePromptDTO> mapScenePromptsToDTOs(List<ScenePrompt> livePrompts) {

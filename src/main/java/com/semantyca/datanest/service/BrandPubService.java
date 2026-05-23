@@ -329,6 +329,9 @@ public class BrandPubService extends BrandService {
         if (scene.getPrompts() != null && !scene.getPrompts().isEmpty()) {
             customScene.setIntroPrompts(scene.getPrompts());
         }
+        if (scene.getActions() != null && !scene.getActions().isEmpty()) {
+            customScene.setActions(scene.getActions());
+        }
         return customScene;
     }
 }
