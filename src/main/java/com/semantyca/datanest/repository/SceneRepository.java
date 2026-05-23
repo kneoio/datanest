@@ -11,6 +11,7 @@ import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.rls.RlsActionUtil;
 import com.semantyca.core.repository.table.EntityData;
 import com.semantyca.datanest.repository.prompt.PromptRepository;
+import com.semantyca.mixpla.model.CustomAction;
 import com.semantyca.mixpla.model.PlaylistRequest;
 import com.semantyca.mixpla.model.Scene;
 import com.semantyca.mixpla.model.filter.SceneFilter;
@@ -167,8 +168,8 @@ public class SceneRepository extends AsyncRepository {
     public Uni<Scene> insert(Scene scene, List<RlsActionDTO> rlsActions, IUser user) {
         OffsetDateTime nowTime = OffsetDateTime.now();
         String sql = "INSERT INTO " + entityData.getTableName() +
-                " (author, reg_date, last_mod_user, last_mod_date, script_id, title, start_time, duration_seconds, seq_num, one_time_run, talkativity, weekdays, stage_playlist) " +
-                "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id";
+                " (author, reg_date, last_mod_user, last_mod_date, script_id, title, start_time, duration_seconds, seq_num, one_time_run, talkativity, weekdays, stage_playlist, actions) " +
+                "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id";
         Tuple params = Tuple.tuple()
                 .addLong(user.getId())
                 .addOffsetDateTime(nowTime)
@@ -182,7 +183,8 @@ public class SceneRepository extends AsyncRepository {
                 .addBoolean(scene.isOneTimeRun())
                 .addDouble(scene.getTalkativity())
                 .addArrayOfInteger(scene.getWeekdays() != null ? scene.getWeekdays().toArray(new Integer[0]) : null)
-                .addJsonObject(scene.getPlaylistRequest() != null ? JsonObject.mapFrom(scene.getPlaylistRequest()) : null);
+                .addJsonObject(scene.getPlaylistRequest() != null ? JsonObject.mapFrom(scene.getPlaylistRequest()) : null)
+                .addValue(scene.getActions() != null && !scene.getActions().isEmpty() ? new JsonArray(scene.getActions().stream().map(JsonObject::mapFrom).toList()) : new JsonArray());
         return client.withTransaction(tx ->
                 tx.preparedQuery(sql)
                         .execute(params)
@@ -204,7 +206,7 @@ public class SceneRepository extends AsyncRepository {
                     }
                     OffsetDateTime nowTime = OffsetDateTime.now();
                     String sql = "UPDATE " + entityData.getTableName() +
-                            " SET title=$1, start_time=$2, duration_seconds=$3, seq_num=$4, one_time_run=$5, talkativity=$6, weekdays=$7, stage_playlist=$8, last_mod_user=$9, last_mod_date=$10 WHERE id=$11";
+                            " SET title=$1, start_time=$2, duration_seconds=$3, seq_num=$4, one_time_run=$5, talkativity=$6, weekdays=$7, stage_playlist=$8, actions=$9, last_mod_user=$10, last_mod_date=$11 WHERE id=$12";
                     Tuple params = Tuple.tuple()
                             .addString(scene.getTitle())
                             .addJsonArray(scene.getStartTime() != null ? new JsonArray(scene.getStartTime()) : new JsonArray())
@@ -214,6 +216,7 @@ public class SceneRepository extends AsyncRepository {
                             .addDouble(scene.getTalkativity())
                             .addArrayOfInteger(scene.getWeekdays() != null ? scene.getWeekdays().toArray(new Integer[0]) : null)
                             .addJsonObject(scene.getPlaylistRequest() != null ? JsonObject.mapFrom(scene.getPlaylistRequest()) : null)
+                            .addValue(scene.getActions() != null && !scene.getActions().isEmpty() ? new JsonArray(scene.getActions().stream().map(JsonObject::mapFrom).toList()) : new JsonArray())
                             .addLong(user.getId())
                             .addOffsetDateTime(nowTime)
                             .addUUID(id);
@@ -317,6 +320,14 @@ public class SceneRepository extends AsyncRepository {
                 doc.setPlaylistRequest(playlistRequest);
             } catch (Exception e) {
                 LOGGER.error("Failed to parse stage_playlist JSON for scene: {}", row.getUUID("id"), e);
+            }
+        }
+        JsonArray actionsJson = row.getJsonArray("actions");
+        if (actionsJson != null && !actionsJson.isEmpty()) {
+            try {
+                doc.setActions(mapper.readValue(actionsJson.encode(), new com.fasterxml.jackson.core.type.TypeReference<List<CustomAction>>() {}));
+            } catch (Exception e) {
+                LOGGER.error("Failed to parse actions JSON for scene: {}", row.getUUID("id"), e);
             }
         }
         return doc;
