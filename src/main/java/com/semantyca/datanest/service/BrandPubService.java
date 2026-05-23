@@ -110,13 +110,9 @@ public class BrandPubService extends BrandService {
                                                 .chain(brandId -> repository.findById(brandId, user, true));
                                     });
                         } else {
-                            return resolveExistingCustomScriptId(existingBrand)
-                                    .chain(existingScriptId -> {
-                                        Uni<UUID> idUni = existingScriptId != null
-                                                ? brandPubRepository.archiveScriptAndUpdateBrand(existingBrand.getId(), existingScriptId, brand, List.of(), user)
-                                                : repository.update(existingBrand.getId(), brand, List.of(), user).map(Brand::getId);
-                                        return idUni.chain(brandId -> repository.findById(brandId, user, true));
-                                    });
+                            return repository.update(existingBrand.getId(), brand, List.of(), user)
+                                    .map(Brand::getId)
+                                    .chain(brandId -> repository.findById(brandId, user, true));
                         }
                     });
         }
