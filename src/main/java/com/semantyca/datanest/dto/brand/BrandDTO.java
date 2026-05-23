@@ -1,5 +1,6 @@
 package com.semantyca.datanest.dto.brand;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
 import com.semantyca.core.dto.rls.RlsActionDTO;
@@ -76,6 +77,7 @@ public class BrandDTO extends AbstractDTO {
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<RlsActionDTO> rlsActions = new ArrayList<>();
 
+    @JsonIgnore
     @AssertTrue(message = "Custom script must have at least one scene, and each scene must have at least one prompt or action")
     public boolean isCustomScriptValid() {
         if (!ScriptMode.CUSTOM.equals(scriptMode)) {
