@@ -45,9 +45,9 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     protected final CommandPublisher commandPublisher;
     protected final BrandRepository repository;
 
-    private final SceneService sceneService;
+    protected final SceneService sceneService;
     private final MetricPublisher metricPublisher;
-    private final DatanestConfig datanestConfig;
+    protected final DatanestConfig datanestConfig;
 
     protected BrandService() {
         super();
@@ -336,7 +336,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         });
     }
 
-    private CustomSceneDTO toCustomSceneDTO(SceneDTO scene) {
+    protected CustomSceneDTO toCustomSceneDTO(SceneDTO scene) {
         CustomSceneDTO customScene = new CustomSceneDTO();
         customScene.setTitle(scene.getTitle());
         if (scene.getStartTime() != null && !scene.getStartTime().isEmpty()) {
