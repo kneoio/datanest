@@ -106,6 +106,10 @@ public class BrandPubService extends BrandService {
                                         Script script = buildScript(slug, dto.getCustomScript() != null ? dto.getCustomScript().getTitle() : null);
                                         script.setColor(color);
                                         List<Scene> scenes = buildScenes(dto.getCustomScript());
+                                        if (existingScriptId == null) {
+                                            return brandPubRepository.insertScriptAndUpdateBrand(existingBrand.getId(), brand, script, scenes, List.of(), user)
+                                                    .chain(brandId -> repository.findById(brandId, user, true));
+                                        }
                                         return brandPubRepository.updateBrandWithScript(existingBrand.getId(), existingScriptId, brand, script, scenes, List.of(), user)
                                                 .chain(brandId -> repository.findById(brandId, user, true));
                                     });
