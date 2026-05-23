@@ -267,7 +267,8 @@ public class BrandPubService extends BrandService {
                 throw new RuntimeException(e);
             }
 
-            List<BrandScriptEntryDTO> scriptDTOs = tuple.getItem3().stream()
+            List<BrandScriptEntry> entries = tuple.getItem3();
+            List<BrandScriptEntryDTO> scriptDTOs = entries.stream()
                     .map(entry -> {
                         BrandScriptEntryDTO scriptDTO = new BrandScriptEntryDTO();
                         scriptDTO.setScriptId(entry.getScriptId());
@@ -286,12 +287,6 @@ public class BrandPubService extends BrandService {
             }
             dto.setLabels(doc.getLabels());
             dto.setGenres(doc.getGenres());
-
-            List<BrandScriptEntry> entries = tuple.getItem3();
-            if (entries.isEmpty()) {
-                dto.setScriptMode(ScriptMode.PREDEFINED);
-                return Uni.createFrom().item(dto);
-            }
 
             List<Uni<Script>> scriptUnis = entries.stream()
                     .map(e -> scriptService.getById(e.getScriptId(), SuperUser.build()))
@@ -312,6 +307,7 @@ public class BrandPubService extends BrandService {
                                 .map(sceneDTOs -> {
                                     CustomScriptDTO customScriptDTO = new CustomScriptDTO();
                                     customScriptDTO.setTitle(customScript.getName());
+                                    customScriptDTO.setColor(customScript.getColor());
                                     customScriptDTO.setScenes(sceneDTOs.stream()
                                             .map(this::toCustomSceneDTO)
                                             .collect(Collectors.toList()));
@@ -320,5 +316,19 @@ public class BrandPubService extends BrandService {
                                 });
                     });
         });
+    }
+
+    private CustomSceneDTO toCustomSceneDTO(SceneDTO scene) {
+        CustomSceneDTO customScene = new CustomSceneDTO();
+        customScene.setTitle(scene.getTitle());
+        if (scene.getStartTime() != null && !scene.getStartTime().isEmpty()) {
+            customScene.setStartTime(scene.getStartTime().getFirst());
+        }
+        customScene.setTalkativity((int) scene.getTalkativity());
+        customScene.setStagePlaylist(scene.getStagePlaylist());
+        if (scene.getPrompts() != null && !scene.getPrompts().isEmpty()) {
+            customScene.setIntroPrompts(scene.getPrompts());
+        }
+        return customScene;
     }
 }

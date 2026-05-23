@@ -31,7 +31,6 @@ import org.jboss.logging.Logger;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.time.ZoneId;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -312,46 +311,12 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                     .collect(Collectors.toList());
 
             return Uni.join().all(scriptUnis).andFailFast()
-                    .chain(scripts -> {
-                        Script customScript = scripts.stream()
-                                .filter(Script::isCustom)
-                                .findFirst()
-                                .orElse(null);
-                        if (customScript == null) {
-                            dto.setScriptMode(ScriptMode.PREDEFINED);
-                            return Uni.createFrom().item(dto);
-                        }
-                        dto.setScriptMode(ScriptMode.CUSTOM);
-                        return sceneService.getAllByScript(customScript.getId(), 1000, 0, SuperUser.build())
-                                .map(sceneDTOs -> {
-                                    CustomScriptDTO customScriptDTO = new CustomScriptDTO();
-                                    customScriptDTO.setTitle(customScript.getName());
-                                    customScriptDTO.setScenes(sceneDTOs.stream()
-                                            .map(this::toCustomSceneDTO)
-                                            .collect(Collectors.toList()));
-                                    dto.setCustomScript(customScriptDTO);
-                                    return dto;
-                                });
+                    .map(scripts -> {
+                        boolean hasCustom = scripts.stream().anyMatch(Script::isCustom);
+                        dto.setScriptMode(hasCustom ? ScriptMode.CUSTOM : ScriptMode.PREDEFINED);
+                        return dto;
                     });
         });
-    }
-
-    protected CustomSceneDTO toCustomSceneDTO(SceneDTO scene) {
-        CustomSceneDTO customScene = new CustomSceneDTO();
-        customScene.setTitle(scene.getTitle());
-        if (scene.getStartTime() != null && !scene.getStartTime().isEmpty()) {
-            customScene.setStartTime(scene.getStartTime().getFirst());
-        }
-        customScene.setTalkativity((int) scene.getTalkativity());
-        List<CustomActionDTO> actions = new ArrayList<>();
-        if (scene.getPrompts() != null) {
-            scene.getPrompts().stream()
-                    .filter(p -> p.getPromptId() != null)
-                    .map(p -> new CustomActionDTO())
-                    .forEach(actions::add);
-        }
-        customScene.setActions(actions.isEmpty() ? null : actions);
-        return customScene;
     }
 
     Brand buildEntity(BrandDTO dto, IUser user, String slug) {
