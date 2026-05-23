@@ -19,6 +19,5 @@ public class ScriptFlatDTO {
     private String languageTag;
     private String timingMode;
     private boolean custom;
-    private int accessLevel;
     private List<LabelFlatDTO> tags;
 }

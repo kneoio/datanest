@@ -70,7 +70,6 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
         router.get(path + "/:id").handler(this::getById);
         router.post(path + "/:id?").handler(this::upsert);
         router.post(path + "/:id/clone").handler(this::cloneScript);
-        router.patch(path + "/:id/access-level").handler(this::updateAccessLevel);
         router.delete(path + "/:id").handler(this::delete);
         router.get(path + "/:id/access").handler(this::getDocumentAccess);
 
@@ -522,52 +521,6 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
         node.setEntityId(draft.getId().toString());
         node.setOpenTarget("draft-editor");
         return node;
-    }
-
-    private void updateAccessLevel(RoutingContext rc) {
-        try {
-            if (!validateJsonBody(rc)) return;
-
-            String id = rc.pathParam("id");
-            JsonObject body = rc.body().asJsonObject();
-            
-            int accessLevel;
-            Object accessLevelValue = body.getValue("accessLevel");
-
-            switch (accessLevelValue) {
-                case null -> {
-                    rc.fail(400, new IllegalArgumentException("accessLevel is required"));
-                    return;
-                }
-                case String accessLevelStr -> {
-                    if ("PUBLIC".equalsIgnoreCase(accessLevelStr)) {
-                        accessLevel = 1;
-                    } else if ("PRIVATE".equalsIgnoreCase(accessLevelStr)) {
-                        accessLevel = 0;
-                    } else {
-                        rc.fail(400, new IllegalArgumentException("Invalid accessLevel value. Expected 'PUBLIC', 'PRIVATE', or integer"));
-                        return;
-                    }
-                }
-                case Number number -> accessLevel = number.intValue();
-                default -> {
-                    rc.fail(400, new IllegalArgumentException("accessLevel must be a string or integer"));
-                    return;
-                }
-            }
-
-            getContextUser(rc, false, true)
-                    .chain(user -> service.updateAccessLevel(id, accessLevel, user))
-                    .subscribe().with(
-                            dto -> rc.response()
-                                    .setStatusCode(200)
-                                    .putHeader("Content-Type", "application/json")
-                                    .end(io.vertx.core.json.Json.encode(dto)),
-                            rc::fail
-                    );
-        } catch (Exception e) {
-            rc.fail(400, new IllegalArgumentException("Invalid JSON payload"));
-        }
     }
 
     private void cloneScript(RoutingContext rc) {

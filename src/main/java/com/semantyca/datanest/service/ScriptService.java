@@ -295,13 +295,6 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                 });
     }
 
-    public Uni<ScriptDTO> updateAccessLevel(String id, Integer accessLevel, IUser user) {
-        assert repository != null;
-        UUID uuid = UUID.fromString(id);
-        return repository.updateAccessLevel(uuid, accessLevel, user)
-                .chain(script -> mapToDTO(script, user));
-    }
-
     public Uni<List<BrandScript>> getAllScriptsForBrandWithScenes(UUID brandId, IUser user) {
         assert repository != null;
         return repository.findForBrand(brandId, 100, 0, false, user)

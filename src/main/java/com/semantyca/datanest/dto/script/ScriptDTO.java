@@ -23,7 +23,6 @@ public class ScriptDTO extends AbstractDTO {
     @NotBlank
     private String description;
     private boolean custom;
-    private Integer accessLevel = 0;
     @NotBlank
     private String languageTag;
     @NotNull

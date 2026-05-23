@@ -87,8 +87,8 @@ public class BrandPubRepository extends AsyncRepository {
 
     private Uni<UUID> insertScript(SqlClient tx, Script script, IUser user) {
         OffsetDateTime now = OffsetDateTime.now();
-        String sql = "INSERT INTO mixpla__scripts (author, reg_date, last_mod_user, last_mod_date, name, slug_name, description, access_level, language_tag, timing_mode, custom, color) " +
-                "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id";
+        String sql = "INSERT INTO mixpla__scripts (author, reg_date, last_mod_user, last_mod_date, name, slug_name, description, language_tag, timing_mode, custom, color) " +
+                "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id";
         Tuple params = Tuple.tuple()
                 .addLong(user.getId())
                 .addOffsetDateTime(now)
@@ -97,7 +97,6 @@ public class BrandPubRepository extends AsyncRepository {
                 .addString(script.getName())
                 .addString(script.getSlugName())
                 .addString(script.getDescription())
-                .addInteger(0)
                 .addString(script.getLanguageTag().tag())
                 .addString(script.getTimingMode().name())
                 .addBoolean(script.isCustom())
