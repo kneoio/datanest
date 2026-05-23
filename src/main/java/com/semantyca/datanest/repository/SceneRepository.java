@@ -184,7 +184,7 @@ public class SceneRepository extends AsyncRepository {
                 .addDouble(scene.getTalkativity())
                 .addArrayOfInteger(scene.getWeekdays() != null ? scene.getWeekdays().toArray(new Integer[0]) : null)
                 .addJsonObject(scene.getPlaylistRequest() != null ? JsonObject.mapFrom(scene.getPlaylistRequest()) : null)
-                .addValue(scene.getActions() != null && !scene.getActions().isEmpty() ? new JsonArray(scene.getActions().stream().map(JsonObject::mapFrom).toList()) : new JsonArray());
+                .addJsonArray(scene.getActions() != null && !scene.getActions().isEmpty() ? new JsonArray(scene.getActions().stream().map(JsonObject::mapFrom).toList()) : new JsonArray());
         return client.withTransaction(tx ->
                 tx.preparedQuery(sql)
                         .execute(params)
