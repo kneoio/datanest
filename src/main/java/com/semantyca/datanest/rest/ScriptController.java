@@ -52,8 +52,7 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
     }
 
     @Inject
-    public ScriptController(UserService userService, ScriptService service, BrandScriptUpdateService brandScriptUpdateService,
-                            Validator validator) {
+    public ScriptController(UserService userService, ScriptService service, Validator validator) {
         super(userService);
         this.service = service;
         this.validator = validator;
