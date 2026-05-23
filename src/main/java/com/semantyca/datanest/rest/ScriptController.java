@@ -163,6 +163,11 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
                 dto.setActivated(json.getBoolean("activated", false));
                 any = true;
             }
+
+            if (json.containsKey("custom")) {
+                dto.setCustom(json.getBoolean("custom"));
+                any = true;
+            }
         } catch (IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {

@@ -301,39 +301,27 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             dto.setLabels(doc.getLabels());
             dto.setGenres(doc.getGenres());
 
-            List<BrandScriptEntry> entries = tuple.getItem3();
-            if (entries.isEmpty()) {
-                dto.setScriptMode(ScriptMode.PREDEFINED);
-                return Uni.createFrom().item(dto);
+            ScriptMode mode = ScriptMode.valueOf(doc.getScriptMode());
+            dto.setScriptMode(mode);
+
+            if (ScriptMode.CUSTOM.equals(mode)) {
+                List<BrandScriptEntry> entries = tuple.getItem3();
+                if (!entries.isEmpty()) {
+                    return scriptService.getById(entries.getFirst().getScriptId(), SuperUser.build())
+                            .chain(customScript -> sceneService.getAllByScript(customScript.getId(), 1000, 0, SuperUser.build())
+                                    .map(sceneDTOs -> {
+                                        CustomScriptDTO customScriptDTO = new CustomScriptDTO();
+                                        customScriptDTO.setTitle(customScript.getName());
+                                        customScriptDTO.setColor(customScript.getColor());
+                                        customScriptDTO.setScenes(sceneDTOs.stream()
+                                                .map(this::toCustomSceneDTO)
+                                                .collect(Collectors.toList()));
+                                        dto.setCustomScript(customScriptDTO);
+                                        return dto;
+                                    }));
+                }
             }
-
-            List<Uni<Script>> scriptUnis = entries.stream()
-                    .map(e -> scriptService.getById(e.getScriptId(), SuperUser.build()))
-                    .collect(Collectors.toList());
-
-            return Uni.join().all(scriptUnis).andFailFast()
-                    .chain(scripts -> {
-                        Script customScript = scripts.stream()
-                                .filter(Script::isCustom)
-                                .findFirst()
-                                .orElse(null);
-                        if (customScript == null) {
-                            dto.setScriptMode(ScriptMode.PREDEFINED);
-                            return Uni.createFrom().item(dto);
-                        }
-                        dto.setScriptMode(ScriptMode.CUSTOM);
-                        return sceneService.getAllByScript(customScript.getId(), 1000, 0, SuperUser.build())
-                                .map(sceneDTOs -> {
-                                    CustomScriptDTO customScriptDTO = new CustomScriptDTO();
-                                    customScriptDTO.setTitle(customScript.getName());
-                                    customScriptDTO.setColor(customScript.getColor());
-                                    customScriptDTO.setScenes(sceneDTOs.stream()
-                                            .map(this::toCustomSceneDTO)
-                                            .collect(Collectors.toList()));
-                                    dto.setCustomScript(customScriptDTO);
-                                    return dto;
-                                });
-                    });
+            return Uni.createFrom().item(dto);
         });
     }
 
@@ -408,6 +396,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             BrandScriptEntryDTO first = dto.getScripts().getFirst();
             doc.setScripts(List.of(new BrandScriptEntry(first.getScriptId(), first.getUserVariables())));
         }
+        doc.setScriptMode(dto.getScriptMode() != null ? dto.getScriptMode().name() : ScriptMode.PREDEFINED.name());
 
         return doc;
     }

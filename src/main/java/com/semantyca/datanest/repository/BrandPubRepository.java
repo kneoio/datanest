@@ -202,7 +202,7 @@ public class BrandPubRepository extends AsyncRepository {
 
     private Uni<UUID> updateBrand(SqlClient tx, UUID brandId, Brand brand, List<RlsActionDTO> rlsActions, IUser user) {
         OffsetDateTime now = OffsetDateTime.now();
-        String sql = "UPDATE mixpla__brands SET country=$1, time_zone=$2, managing_mode=$3, color=$4, loc_name=$5, ai_overriding=$6, profile_overriding=$7, bit_rate=$8, genres=$9, slug_name=$10, description=$11, profile_id=$12, ai_agent_id=$13, one_time_stream_policy=$14::submission_policy, submission_policy=$15, messaging_policy=$16, title_font=$17, is_temporary=$18, public=$19, last_mod_user=$20, last_mod_date=$21, owner=$22 WHERE id=$23";
+        String sql = "UPDATE mixpla__brands SET country=$1, time_zone=$2, managing_mode=$3, color=$4, loc_name=$5, ai_overriding=$6, profile_overriding=$7, bit_rate=$8, genres=$9, slug_name=$10, description=$11, profile_id=$12, ai_agent_id=$13, one_time_stream_policy=$14::submission_policy, submission_policy=$15, messaging_policy=$16, title_font=$17, is_temporary=$18, public=$19, last_mod_user=$20, last_mod_date=$21, owner=$22, script_mode=$23 WHERE id=$24";
         return tx.preparedQuery(sql)
                 .execute(buildBrandUpdateTuple(brand, user, now, brandId))
                 .chain(v -> updateBrandScripts(tx, brandId, brand.getScripts()))
@@ -292,6 +292,7 @@ public class BrandPubRepository extends AsyncRepository {
                 .addLong(user.getId())
                 .addOffsetDateTime(now)
                 .addJsonObject(brand.getOwner() != null ? JsonObject.mapFrom(brand.getOwner()) : new JsonObject())
+                .addString(brand.getScriptMode() != null ? brand.getScriptMode() : "PREDEFINED")
                 .addUUID(brandId);
     }
 

@@ -130,6 +130,10 @@ public class ScriptRepository extends AsyncRepository {
             conditions.append("))");
         }
 
+        if (filter.getCustom() != null) {
+            conditions.append(" AND t.custom = ").append(filter.getCustom());
+        }
+
         if (filter.getTimingMode() != null) {
             conditions.append(" AND t.timing_mode = '").append(filter.getTimingMode().name()).append("'");
         }
