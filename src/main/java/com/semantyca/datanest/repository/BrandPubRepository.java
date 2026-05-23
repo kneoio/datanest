@@ -134,8 +134,8 @@ public class BrandPubRepository extends AsyncRepository {
 
     private Uni<Void> insertScene(SqlClient tx, UUID scriptId, Scene scene, IUser user) {
         OffsetDateTime now = OffsetDateTime.now();
-        String sql = "INSERT INTO mixpla__script_scenes (author, reg_date, last_mod_user, last_mod_date, script_id, title, start_time, duration_seconds, seq_num, one_time_run, talkativity, weekdays, stage_playlist) " +
-                "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id";
+        String sql = "INSERT INTO mixpla__script_scenes (author, reg_date, last_mod_user, last_mod_date, script_id, title, start_time, duration_seconds, seq_num, one_time_run, talkativity, weekdays, stage_playlist, actions) " +
+                "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id";
         Tuple params = Tuple.tuple()
                 .addLong(user.getId())
                 .addOffsetDateTime(now)
@@ -149,7 +149,8 @@ public class BrandPubRepository extends AsyncRepository {
                 .addBoolean(scene.isOneTimeRun())
                 .addDouble(scene.getTalkativity())
                 .addArrayOfInteger(scene.getWeekdays() != null ? scene.getWeekdays().toArray(new Integer[0]) : null)
-                .addJsonObject(scene.getPlaylistRequest() != null ? JsonObject.mapFrom(scene.getPlaylistRequest()) : null);
+                .addJsonObject(scene.getPlaylistRequest() != null ? JsonObject.mapFrom(scene.getPlaylistRequest()) : null)
+                .addValue(scene.getActions() != null && !scene.getActions().isEmpty() ? new JsonArray(scene.getActions().stream().map(JsonObject::mapFrom).toList()) : new JsonArray());
         return tx.preparedQuery(sql)
                 .execute(params)
                 .map(result -> result.iterator().next().getUUID("id"))

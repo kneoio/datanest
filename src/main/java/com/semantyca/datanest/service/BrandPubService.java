@@ -9,8 +9,11 @@ import com.semantyca.core.util.ColorUtil;
 import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.StagePlaylistDTO;
-import com.semantyca.datanest.dto.brand.*;
-import com.semantyca.datanest.dto.script.*;
+import com.semantyca.datanest.dto.brand.BrandDTO;
+import com.semantyca.datanest.dto.script.CustomActionDTO;
+import com.semantyca.datanest.dto.script.CustomSceneDTO;
+import com.semantyca.datanest.dto.script.CustomScriptDTO;
+import com.semantyca.datanest.dto.script.ScenePromptDTO;
 import com.semantyca.datanest.messaging.CommandPublisher;
 import com.semantyca.datanest.messaging.MetricPublisher;
 import com.semantyca.datanest.model.cnst.ScriptMode;
@@ -23,7 +26,6 @@ import com.semantyca.mixpla.model.Scene;
 import com.semantyca.mixpla.model.ScenePrompt;
 import com.semantyca.mixpla.model.Script;
 import com.semantyca.mixpla.model.brand.Brand;
-import com.semantyca.mixpla.model.brand.BrandScriptEntry;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.cnst.SceneTimingMode;
 import com.semantyca.mixpla.model.cnst.SourceType;
@@ -34,8 +36,6 @@ import jakarta.enterprise.inject.Typed;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
-import java.net.MalformedURLException;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -207,131 +207,4 @@ public class BrandPubService extends BrandService {
         return pr;
     }
 
-    @Override
-    Uni<BrandDTO> mapToDTO(Brand doc) {
-        return Uni.combine().all().unis(
-                userService.getUserName(doc.getAuthor()),
-                userService.getUserName(doc.getLastModifier()),
-                repository.getScriptEntriesForBrand(doc.getId())
-        ).asTuple().chain(tuple -> {
-            BrandDTO dto = new BrandDTO();
-            dto.setId(doc.getId());
-            dto.setAuthor(tuple.getItem1());
-            dto.setRegDate(doc.getRegDate());
-            dto.setLastModifier(tuple.getItem2());
-            dto.setLastModifiedDate(doc.getLastModifiedDate());
-            dto.setLocalizedName(doc.getLocalizedName());
-            dto.setCountry(doc.getCountry() != null ? doc.getCountry().name() : null);
-            dto.setColor(doc.getColor());
-            dto.setTimeZone(doc.getTimeZone().getId());
-            dto.setDescription(doc.getDescription());
-            dto.setTitleFont(doc.getTitleFont());
-            dto.setSlugName(doc.getSlugName());
-            dto.setBitRate(doc.getBitRate());
-            dto.setAiAgentId(doc.getAiAgentId());
-            dto.setProfileId(doc.getProfileId());
-            dto.setOneTimeStreamPolicy(doc.getOneTimeStreamPolicy());
-            dto.setSubmissionPolicy(doc.getSubmissionPolicy());
-            dto.setMessagingPolicy(doc.getMessagingPolicy());
-            dto.setIsTemporary(doc.getIsTemporary());
-            dto.setPublicBrand(doc.getPublicBrand());
-            dto.setPopularityRate(doc.getPopularityRate());
-
-            if (doc.getAiOverriding() != null) {
-                AiOverridingDTO aiDto = new AiOverridingDTO();
-                aiDto.setName(doc.getAiOverriding().getName());
-                aiDto.setPrompt(doc.getAiOverriding().getPrompt());
-                aiDto.setPrimaryVoice(doc.getAiOverriding().getPrimaryVoice());
-                dto.setAiOverriding(aiDto);
-                dto.setAiOverridingEnabled(true);
-            } else {
-                dto.setAiOverridingEnabled(false);
-            }
-
-            if (doc.getProfileOverriding() != null) {
-                ProfileOverridingDTO profileDto = new ProfileOverridingDTO();
-                profileDto.setName(doc.getProfileOverriding().getName());
-                profileDto.setDescription(doc.getProfileOverriding().getDescription());
-                dto.setProfileOverriding(profileDto);
-                dto.setProfileOverridingEnabled(true);
-            } else {
-                dto.setProfileOverridingEnabled(false);
-            }
-
-            try {
-                dto.setHlsUrl(URI.create(datanestConfig.getHost() + "/live/" + dto.getSlugName() + "/stream.m3u8").toURL());
-                dto.setIceCastUrl(URI.create(datanestConfig.getHost() + "/" + dto.getSlugName() + "/radio/icecast").toURL());
-                dto.setMp3Url(URI.create(datanestConfig.getHost() + "/" + dto.getSlugName() + "/radio/stream.mp3").toURL());
-                dto.setMixplaUrl(URI.create("https://mixpla.online/" + dto.getSlugName()).toURL());
-            } catch (MalformedURLException e) {
-                throw new RuntimeException(e);
-            }
-
-            List<BrandScriptEntry> entries = tuple.getItem3();
-            List<BrandScriptEntryDTO> scriptDTOs = entries.stream()
-                    .map(entry -> {
-                        BrandScriptEntryDTO scriptDTO = new BrandScriptEntryDTO();
-                        scriptDTO.setScriptId(entry.getScriptId());
-                        scriptDTO.setUserVariables(entry.getUserVariables());
-                        return scriptDTO;
-                    })
-                    .collect(Collectors.toList());
-            dto.setScripts(scriptDTOs);
-
-            if (doc.getOwner() != null) {
-                OwnerDTO ownerDTO = new OwnerDTO();
-                ownerDTO.setUserId(doc.getOwner().getUserId());
-                ownerDTO.setName(doc.getOwner().getName());
-                ownerDTO.setEmail(doc.getOwner().getEmail());
-                dto.setOwner(ownerDTO);
-            }
-            dto.setLabels(doc.getLabels());
-            dto.setGenres(doc.getGenres());
-
-            List<Uni<Script>> scriptUnis = entries.stream()
-                    .map(e -> scriptService.getById(e.getScriptId(), SuperUser.build()))
-                    .collect(Collectors.toList());
-
-            return Uni.join().all(scriptUnis).andFailFast()
-                    .chain(scripts -> {
-                        Script customScript = scripts.stream()
-                                .filter(Script::isCustom)
-                                .findFirst()
-                                .orElse(null);
-                        if (customScript == null) {
-                            dto.setScriptMode(ScriptMode.PREDEFINED);
-                            return Uni.createFrom().item(dto);
-                        }
-                        dto.setScriptMode(ScriptMode.CUSTOM);
-                        return sceneService.getAllByScript(customScript.getId(), 1000, 0, SuperUser.build())
-                                .map(sceneDTOs -> {
-                                    CustomScriptDTO customScriptDTO = new CustomScriptDTO();
-                                    customScriptDTO.setTitle(customScript.getName());
-                                    customScriptDTO.setColor(customScript.getColor());
-                                    customScriptDTO.setScenes(sceneDTOs.stream()
-                                            .map(this::toCustomSceneDTO)
-                                            .collect(Collectors.toList()));
-                                    dto.setCustomScript(customScriptDTO);
-                                    return dto;
-                                });
-                    });
-        });
-    }
-
-    private CustomSceneDTO toCustomSceneDTO(SceneDTO scene) {
-        CustomSceneDTO customScene = new CustomSceneDTO();
-        customScene.setTitle(scene.getTitle());
-        if (scene.getStartTime() != null && !scene.getStartTime().isEmpty()) {
-            customScene.setStartTime(scene.getStartTime().getFirst());
-        }
-        customScene.setTalkativity((int) scene.getTalkativity());
-        customScene.setStagePlaylist(scene.getStagePlaylist());
-        if (scene.getPrompts() != null && !scene.getPrompts().isEmpty()) {
-            customScene.setIntroPrompts(scene.getPrompts());
-        }
-        if (scene.getActions() != null && !scene.getActions().isEmpty()) {
-            customScene.setActions(scene.getActions());
-        }
-        return customScene;
-    }
 }
