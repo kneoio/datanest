@@ -86,8 +86,8 @@ public class BrandPubService extends BrandService {
             Brand brand = super.buildEntity(dto, user, slug);
             brand.setPopularityRate(5);
             if (isCustom) {
+                Script script = buildScript(slug,dto.getCustomScript().getTitle());
                 String color = ColorUtil.generateContrastColorPair()[0];
-                Script script = buildScript(slug, dto.getCustomScript() != null ? dto.getCustomScript().getTitle() : null);
                 script.setColor(color);
                 return brandPubRepository.insertBrandWithScript(brand, script, buildScenes(dto.getCustomScript()), List.of(), user)
                         .chain(brandId -> repository.findById(brandId, user, true));
@@ -96,10 +96,10 @@ public class BrandPubService extends BrandService {
             }
         } else {
             return repository.findById(UUID.fromString(id), user, false)
-                    .chain(existing -> {
-                        String slug = existing.getSlugName();
+                    .chain(existingBrand -> {
+                        String slug = existingBrand.getSlugName();
                         Brand brand = super.buildEntity(dto, user, slug);
-                        return resolveExistingCustomScriptId(existing)
+                        return resolveExistingCustomScriptId(existingBrand)
                                 .chain(existingScriptId -> {
                                     Uni<UUID> idUni;
                                     if (isCustom) {
@@ -108,12 +108,12 @@ public class BrandPubService extends BrandService {
                                         script.setColor(color);
                                         List<Scene> scenes = buildScenes(dto.getCustomScript());
                                         idUni = existingScriptId != null
-                                                ? brandPubRepository.updateBrandWithScript(existing.getId(), existingScriptId, brand, script, scenes, List.of(), user)
-                                                : brandPubRepository.insertScriptAndUpdateBrand(existing.getId(), brand, script, scenes, List.of(), user);
+                                                ? brandPubRepository.updateBrandWithScript(existingBrand.getId(), existingScriptId, brand, script, scenes, List.of(), user)
+                                                : brandPubRepository.insertScriptAndUpdateBrand(existingBrand.getId(), brand, script, scenes, List.of(), user);
                                     } else {
                                         idUni = existingScriptId != null
-                                                ? brandPubRepository.archiveScriptAndUpdateBrand(existing.getId(), existingScriptId, brand, List.of(), user)
-                                                : repository.update(existing.getId(), brand, List.of(), user).map(Brand::getId);
+                                                ? brandPubRepository.archiveScriptAndUpdateBrand(existingBrand.getId(), existingScriptId, brand, List.of(), user)
+                                                : repository.update(existingBrand.getId(), brand, List.of(), user).map(Brand::getId);
                                     }
                                     return idUni.chain(brandId -> repository.findById(brandId, user, true));
                                 });
