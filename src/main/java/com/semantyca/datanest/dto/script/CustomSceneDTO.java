@@ -14,7 +14,7 @@ import java.util.List;
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class CustomSceneDTO {
-    private String title;
+    private String name;
     private LocalTime startTime;
     private boolean allowJingles;
     private boolean allowAds;

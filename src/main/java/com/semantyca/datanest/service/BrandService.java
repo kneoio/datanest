@@ -328,7 +328,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
     protected CustomSceneDTO toCustomSceneDTO(SceneDTO scene) {
         CustomSceneDTO customScene = new CustomSceneDTO();
-        customScene.setTitle(scene.getTitle());
+        customScene.setName(scene.getTitle());
         if (scene.getStartTime() != null && !scene.getStartTime().isEmpty()) {
             customScene.setStartTime(scene.getStartTime().getFirst());
         }
