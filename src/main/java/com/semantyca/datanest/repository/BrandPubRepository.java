@@ -237,7 +237,7 @@ public class BrandPubRepository extends AsyncRepository {
                                 .addUUID(entry.getScriptId())
                                 .addJsonObject(entry.getUserVariables() != null ? JsonObject.mapFrom(entry.getUserVariables()) : new JsonObject())
                                 .addInteger(i);
-                        chain = chain.chain(v -> tx.preparedQuery(insertSql).execute(params).replaceWithVoid());
+                        chain = chain.chain(ignored -> tx.preparedQuery(insertSql).execute(params).replaceWithVoid());
                     }
                     return chain;
                 });
