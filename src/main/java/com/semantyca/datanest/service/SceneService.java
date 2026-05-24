@@ -136,7 +136,7 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
                     CustomActionDTO dto = new CustomActionDTO();
                     dto.setName(a.getName());
                     dto.setInstruction(a.getInstruction());
-                    dto.setContextVars(a.getContextVars());
+                    dto.setContextVars(CustomActionDTO.AVAILABLE_CONTEXT_VARS);
                     return dto;
                 })
                 .collect(Collectors.toList());

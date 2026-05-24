@@ -183,7 +183,6 @@ public class BrandPubService extends BrandService {
         CustomAction action = new CustomAction();
         action.setName(dto.getName());
         action.setInstruction(dto.getInstruction());
-        action.setContextVars(dto.getContextVars());
         return action;
     }
 
