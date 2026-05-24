@@ -15,9 +15,12 @@ import com.semantyca.datanest.dto.DraftDTO;
 import com.semantyca.datanest.dto.LabelFlatDTO;
 import com.semantyca.datanest.dto.script.PromptDTO;
 import com.semantyca.datanest.dto.script.SceneDTO;
+import com.semantyca.datanest.dto.script.CustomActionDTO;
 import com.semantyca.datanest.dto.script.ScenePromptDTO;
 import com.semantyca.datanest.dto.script.ScriptDTO;
 import com.semantyca.datanest.dto.script.ScriptExportDTO;
+
+import static com.semantyca.datanest.dto.script.CustomActionDTO.AVAILABLE_CONTEXT_VARS;
 import com.semantyca.datanest.dto.script.ScriptFlatDTO;
 import com.semantyca.datanest.dto.StagePlaylistDTO;
 import com.semantyca.datanest.repository.ScriptRepository;
@@ -653,6 +656,10 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                     .map(action -> importScenePromptDTO(action, actionToPromptId))
                     .collect(Collectors.toList());
             dto.setPrompts(promptDTOs);
+        }
+        if (sceneDTO.getCustomActions() != null && !sceneDTO.getCustomActions().isEmpty()) {
+            sceneDTO.getCustomActions().forEach(a -> a.setContextVars(AVAILABLE_CONTEXT_VARS));
+            dto.setActions(sceneDTO.getCustomActions());
         }
 
         assert scriptSceneService != null;

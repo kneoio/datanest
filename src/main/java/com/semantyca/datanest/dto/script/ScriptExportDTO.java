@@ -11,6 +11,8 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
+import static com.semantyca.datanest.dto.script.CustomActionDTO.AVAILABLE_CONTEXT_VARS;
+
 @Setter
 @Getter
 @NoArgsConstructor
@@ -35,6 +37,7 @@ public class ScriptExportDTO {
         private double podcastMode;
         private List<Integer> weekdays;
         private List<ScenePromptExportDTO> actions;
+        private List<CustomActionDTO> customActions;
     }
 
     @Setter
