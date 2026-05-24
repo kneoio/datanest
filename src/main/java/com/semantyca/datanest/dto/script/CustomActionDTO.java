@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.List;
+import java.util.UUID;
 
 @Setter
 @Getter
@@ -16,7 +17,9 @@ public class CustomActionDTO {
             "songTitle", "songArtist", "description", "genre", "country", "stationBrand"
     );
 
+    private String type;
     private String name;
     private String instruction;
+    private UUID actionId;
     private List<String> contextVars;
 }

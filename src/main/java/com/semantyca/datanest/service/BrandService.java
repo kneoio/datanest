@@ -32,6 +32,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -333,12 +334,20 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         }
         customScene.setTalkativity((int) scene.getTalkativity());
         customScene.setStagePlaylist(scene.getStagePlaylist());
-        if (scene.getPrompts() != null && !scene.getPrompts().isEmpty()) {
-            customScene.setIntroPrompts(scene.getPrompts());
+        List<CustomActionDTO> merged = new ArrayList<>();
+        if (scene.getActions() != null) {
+            scene.getActions().forEach(a -> a.setType("custom"));
+            merged.addAll(scene.getActions());
         }
-        if (scene.getActions() != null && !scene.getActions().isEmpty()) {
-            customScene.setActions(scene.getActions());
+        if (scene.getPrompts() != null) {
+            scene.getPrompts().forEach(p -> {
+                CustomActionDTO a = new CustomActionDTO();
+                a.setType("predefined");
+                a.setActionId(p.getPromptId());
+                merged.add(a);
+            });
         }
+        if (!merged.isEmpty()) customScene.setActions(merged);
         return customScene;
     }
 

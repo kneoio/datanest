@@ -159,15 +159,18 @@ public class BrandPubService extends BrandService {
             scene.setStartTime(List.of(customScene.getStartTime()));
         }
         scene.setTalkativity(customScene.getTalkativity());
-        if (customScene.getIntroPrompts() != null) {
-            scene.setIntroPrompts(customScene.getIntroPrompts().stream()
-                    .map(this::mapToScenePrompt)
-                    .collect(Collectors.toList()));
-        }
         if (customScene.getActions() != null) {
-            scene.setActions(customScene.getActions().stream()
+            List<CustomAction> customActions = customScene.getActions().stream()
+                    .filter(a -> !"predefined".equals(a.getType()))
                     .map(this::mapToCustomAction)
-                    .collect(Collectors.toList()));
+                    .collect(Collectors.toList());
+            if (!customActions.isEmpty()) scene.setActions(customActions);
+
+            List<ScenePrompt> prompts = customScene.getActions().stream()
+                    .filter(a -> "predefined".equals(a.getType()) && a.getActionId() != null)
+                    .map(a -> { ScenePrompt sp = new ScenePrompt(); sp.setPromptId(a.getActionId()); return sp; })
+                    .collect(Collectors.toList());
+            if (!prompts.isEmpty()) scene.setIntroPrompts(prompts);
         }
         scene.setPlaylistRequest(mapToPlaylistRequest(customScene.getStagePlaylist()));
         return scene;
