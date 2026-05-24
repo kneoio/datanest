@@ -18,7 +18,7 @@ public class CustomSceneDTO {
     private LocalTime startTime;
     private boolean allowJingles;
     private boolean allowAds;
-    private int talkativity;
+    private double talkativity;
     private StagePlaylistDTO stagePlaylist;
     private List<ScenePromptDTO> introPrompts;
     private List<CustomActionDTO> actions;

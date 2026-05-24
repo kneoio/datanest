@@ -332,7 +332,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         if (scene.getStartTime() != null && !scene.getStartTime().isEmpty()) {
             customScene.setStartTime(scene.getStartTime().getFirst());
         }
-        customScene.setTalkativity((int) scene.getTalkativity());
+        customScene.setTalkativity(scene.getTalkativity());
         customScene.setAllowJingles(scene.isAllowJingles());
         customScene.setAllowAds(scene.isAllowAds());
         customScene.setStagePlaylist(scene.getStagePlaylist());
