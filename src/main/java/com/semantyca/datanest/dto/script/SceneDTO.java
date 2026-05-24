@@ -29,6 +29,8 @@ public class SceneDTO extends AbstractDTO {
     private int seqNum;
     private List<Integer> weekdays;
     private boolean oneTimeRun;
+    private boolean allowJingles;
+    private boolean allowAds;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<RlsActionDTO> rlsActions = new ArrayList<>();
 }

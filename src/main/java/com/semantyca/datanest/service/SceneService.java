@@ -120,6 +120,8 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
             dto.setTalkativity(doc.getTalkativity());
             dto.setWeekdays(doc.getWeekdays());
             dto.setOneTimeRun(doc.isOneTimeRun());
+            dto.setAllowJingles(doc.isAllowJingles());
+            dto.setAllowAds(doc.isAllowAds());
             dto.setPrompts(mapScenePromptsToDTOs(doc.getIntroPrompts()));
             dto.setActions(mapCustomActionsToDTOs(doc.getActions()));
             dto.setStagePlaylist(mapStagePlaylistToDTO(doc.getPlaylistRequest()));
@@ -168,6 +170,8 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
         entity.setWeekdays(dto.getWeekdays());
         entity.setTalkativity(dto.getTalkativity());
         entity.setOneTimeRun(dto.isOneTimeRun());
+        entity.setAllowJingles(dto.isAllowJingles());
+        entity.setAllowAds(dto.isAllowAds());
         entity.setIntroPrompts(dto.getPrompts() != null ? mapScenePromptDTOsToEntities(dto.getPrompts()) : List.of());
         entity.setPlaylistRequest(mapDTOToStagePlaylist(dto.getStagePlaylist()));
         entity.setScriptId(dto.getScriptId());

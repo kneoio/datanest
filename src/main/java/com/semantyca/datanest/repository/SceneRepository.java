@@ -174,8 +174,8 @@ public class SceneRepository extends AsyncRepository {
     public Uni<Scene> insert(Scene scene, List<RlsActionDTO> rlsActions, IUser user) {
         OffsetDateTime nowTime = OffsetDateTime.now();
         String sql = "INSERT INTO " + entityData.getTableName() +
-                " (author, reg_date, last_mod_user, last_mod_date, script_id, title, start_time, duration_seconds, seq_num, one_time_run, talkativity, weekdays, stage_playlist, actions) " +
-                "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id";
+                " (author, reg_date, last_mod_user, last_mod_date, script_id, title, start_time, duration_seconds, seq_num, one_time_run, allow_jingles, allow_ads, talkativity, weekdays, stage_playlist, actions) " +
+                "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id";
         Tuple params = Tuple.tuple()
                 .addLong(user.getId())
                 .addOffsetDateTime(nowTime)
@@ -187,6 +187,8 @@ public class SceneRepository extends AsyncRepository {
                 .addInteger(scene.getDurationSeconds())
                 .addInteger(scene.getSeqNum())
                 .addBoolean(scene.isOneTimeRun())
+                .addBoolean(scene.isAllowJingles())
+                .addBoolean(scene.isAllowAds())
                 .addDouble(scene.getTalkativity())
                 .addArrayOfInteger(scene.getWeekdays() != null ? scene.getWeekdays().toArray(new Integer[0]) : null)
                 .addJsonObject(scene.getPlaylistRequest() != null ? JsonObject.mapFrom(scene.getPlaylistRequest()) : null)
@@ -212,13 +214,15 @@ public class SceneRepository extends AsyncRepository {
                     }
                     OffsetDateTime nowTime = OffsetDateTime.now();
                     String sql = "UPDATE " + entityData.getTableName() +
-                            " SET title=$1, start_time=$2, duration_seconds=$3, seq_num=$4, one_time_run=$5, talkativity=$6, weekdays=$7, stage_playlist=$8, actions=$9, last_mod_user=$10, last_mod_date=$11 WHERE id=$12";
+                            " SET title=$1, start_time=$2, duration_seconds=$3, seq_num=$4, one_time_run=$5, allow_jingles=$6, allow_ads=$7, talkativity=$8, weekdays=$9, stage_playlist=$10, actions=$11, last_mod_user=$12, last_mod_date=$13 WHERE id=$14";
                     Tuple params = Tuple.tuple()
                             .addString(scene.getTitle())
                             .addJsonArray(scene.getStartTime() != null ? new JsonArray(scene.getStartTime()) : new JsonArray())
                             .addInteger(scene.getDurationSeconds())
                             .addInteger(scene.getSeqNum())
                             .addBoolean(scene.isOneTimeRun())
+                            .addBoolean(scene.isAllowJingles())
+                            .addBoolean(scene.isAllowAds())
                             .addDouble(scene.getTalkativity())
                             .addArrayOfInteger(scene.getWeekdays() != null ? scene.getWeekdays().toArray(new Integer[0]) : null)
                             .addJsonObject(scene.getPlaylistRequest() != null ? JsonObject.mapFrom(scene.getPlaylistRequest()) : null)
@@ -309,6 +313,10 @@ public class SceneRepository extends AsyncRepository {
         if (seqNum != null) doc.setSeqNum(seqNum);
         Boolean oneTimeRun = row.getBoolean("one_time_run");
         if (oneTimeRun != null) doc.setOneTimeRun(oneTimeRun);
+        Boolean allowJingles = row.getBoolean("allow_jingles");
+        if (allowJingles != null) doc.setAllowJingles(allowJingles);
+        Boolean allowAds = row.getBoolean("allow_ads");
+        if (allowAds != null) doc.setAllowAds(allowAds);
         Double talk = row.getDouble("talkativity");
         if (talk != null) doc.setTalkativity(talk);
         Object[] weekdaysArr = row.getArrayOfIntegers("weekdays");

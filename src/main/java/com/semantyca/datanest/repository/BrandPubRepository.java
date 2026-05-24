@@ -137,8 +137,8 @@ public class BrandPubRepository extends AsyncRepository {
 
     private Uni<Void> insertScene(SqlClient tx, UUID scriptId, Scene scene, IUser user) {
         OffsetDateTime now = OffsetDateTime.now();
-        String sql = "INSERT INTO mixpla__script_scenes (author, reg_date, last_mod_user, last_mod_date, script_id, title, start_time, duration_seconds, seq_num, one_time_run, talkativity, weekdays, stage_playlist, actions) " +
-                "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id";
+        String sql = "INSERT INTO mixpla__script_scenes (author, reg_date, last_mod_user, last_mod_date, script_id, title, start_time, duration_seconds, seq_num, one_time_run, allow_jingles, allow_ads, talkativity, weekdays, stage_playlist, actions) " +
+                "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id";
         Tuple params = Tuple.tuple()
                 .addLong(user.getId())
                 .addOffsetDateTime(now)
@@ -150,6 +150,8 @@ public class BrandPubRepository extends AsyncRepository {
                 .addInteger(scene.getDurationSeconds())
                 .addInteger(scene.getSeqNum())
                 .addBoolean(scene.isOneTimeRun())
+                .addBoolean(scene.isAllowJingles())
+                .addBoolean(scene.isAllowAds())
                 .addDouble(scene.getTalkativity())
                 .addArrayOfInteger(scene.getWeekdays() != null ? scene.getWeekdays().toArray(new Integer[0]) : null)
                 .addJsonObject(scene.getPlaylistRequest() != null ? JsonObject.mapFrom(scene.getPlaylistRequest()) : null)

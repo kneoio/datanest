@@ -333,6 +333,8 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             customScene.setStartTime(scene.getStartTime().getFirst());
         }
         customScene.setTalkativity((int) scene.getTalkativity());
+        customScene.setAllowJingles(scene.isAllowJingles());
+        customScene.setAllowAds(scene.isAllowAds());
         customScene.setStagePlaylist(scene.getStagePlaylist());
         List<CustomActionDTO> merged = new ArrayList<>();
         if (scene.getActions() != null) {

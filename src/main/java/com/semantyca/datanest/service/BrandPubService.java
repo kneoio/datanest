@@ -159,6 +159,8 @@ public class BrandPubService extends BrandService {
             scene.setStartTime(List.of(customScene.getStartTime()));
         }
         scene.setTalkativity(customScene.getTalkativity());
+        scene.setAllowJingles(customScene.isAllowJingles());
+        scene.setAllowAds(customScene.isAllowAds());
         if (customScene.getActions() != null) {
             List<CustomAction> customActions = customScene.getActions().stream()
                     .filter(a -> !"predefined".equals(a.getType()))
