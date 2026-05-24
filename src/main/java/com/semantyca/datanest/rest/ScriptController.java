@@ -13,13 +13,12 @@ import com.semantyca.core.util.ProblemDetailsUtil;
 import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.datanest.dto.BrandScriptDTO;
 import com.semantyca.datanest.dto.DraftDTO;
+import com.semantyca.datanest.dto.TreeNodeDTO;
 import com.semantyca.datanest.dto.script.PromptDTO;
 import com.semantyca.datanest.dto.script.SceneDTO;
 import com.semantyca.datanest.dto.script.ScriptDTO;
 import com.semantyca.datanest.dto.script.ScriptExportDTO;
-import com.semantyca.datanest.dto.TreeNodeDTO;
 import com.semantyca.datanest.service.ScriptService;
-import com.semantyca.datanest.service.util.BrandScriptUpdateService;
 import com.semantyca.mixpla.model.Script;
 import com.semantyca.mixpla.model.cnst.SceneTimingMode;
 import com.semantyca.mixpla.model.filter.ScriptFilter;
@@ -35,11 +34,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.validation.Validator;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
