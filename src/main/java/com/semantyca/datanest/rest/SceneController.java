@@ -121,6 +121,11 @@ public class SceneController extends AbstractSecuredController<Scene, SceneDTO> 
                 } catch (IllegalArgumentException ignored) {
                 }
             }
+
+            if (json.containsKey("customScript")) {
+                dto.setCustomScript(json.getBoolean("customScript"));
+                any = true;
+            }
         } catch (IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
