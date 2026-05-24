@@ -25,7 +25,6 @@ import org.jboss.logging.Logger;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -182,14 +181,14 @@ public class BrandPubRepository extends AsyncRepository {
             return Uni.createFrom().voidItem();
         }
         String insertSql = "INSERT INTO mixpla__script_scene_prompts (script_scene_id, prompt_id, rank, weight, active, mandatory) VALUES ($1, $2, $3, $4, $5, $6)";
-        List<Uni<Void>> insertUnis = new ArrayList<>();
+        Uni<Void> chain = Uni.createFrom().voidItem();
         for (int i = 0; i < validPrompts.size(); i++) {
             ScenePrompt p = validPrompts.get(i);
             Tuple params = Tuple.of(sceneId, p.getPromptId(), p.getRank() != 0 ? p.getRank() : i,
                     p.getWeight() != null ? p.getWeight() : BigDecimal.valueOf(0.5), p.isActive(), p.isMandatory());
-            insertUnis.add(tx.preparedQuery(insertSql).execute(params).replaceWithVoid());
+            chain = chain.chain(v -> tx.preparedQuery(insertSql).execute(params).replaceWithVoid());
         }
-        return Uni.join().all(insertUnis).andFailFast().replaceWithVoid();
+        return chain;
     }
 
     private Uni<UUID> insertBrand(SqlClient tx, Brand brand, List<RlsActionDTO> rlsActions, IUser user) {
@@ -230,7 +229,7 @@ public class BrandPubRepository extends AsyncRepository {
                     if (scripts == null || scripts.isEmpty()) {
                         return Uni.createFrom().voidItem();
                     }
-                    List<Uni<Void>> insertUnis = new ArrayList<>();
+                    Uni<Void> chain = Uni.createFrom().voidItem();
                     for (int i = 0; i < scripts.size(); i++) {
                         BrandScriptEntry entry = scripts.get(i);
                         Tuple params = Tuple.tuple()
@@ -238,9 +237,9 @@ public class BrandPubRepository extends AsyncRepository {
                                 .addUUID(entry.getScriptId())
                                 .addJsonObject(entry.getUserVariables() != null ? JsonObject.mapFrom(entry.getUserVariables()) : new JsonObject())
                                 .addInteger(i);
-                        insertUnis.add(tx.preparedQuery(insertSql).execute(params).replaceWithVoid());
+                        chain = chain.chain(v -> tx.preparedQuery(insertSql).execute(params).replaceWithVoid());
                     }
-                    return Uni.join().all(insertUnis).andFailFast().replaceWithVoid();
+                    return chain;
                 });
     }
 
