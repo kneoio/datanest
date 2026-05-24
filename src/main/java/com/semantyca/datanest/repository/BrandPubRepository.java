@@ -128,7 +128,11 @@ public class BrandPubRepository extends AsyncRepository {
         if (scenes == null || scenes.isEmpty()) {
             return Uni.createFrom().voidItem();
         }
-        return Uni.join().all(scenes.stream().map(scene -> insertScene(tx, scriptId, scene, user)).toList()).andFailFast().replaceWithVoid();
+        Uni<Void> chain = Uni.createFrom().voidItem();
+        for (Scene scene : scenes) {
+            chain = chain.chain(v -> insertScene(tx, scriptId, scene, user));
+        }
+        return chain;
     }
 
     private Uni<Void> insertScene(SqlClient tx, UUID scriptId, Scene scene, IUser user) {
