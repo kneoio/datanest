@@ -1,0 +1,234 @@
+[
+  {
+    "id": "802e3bc2b27e49c2995d23ef70e6ac89",
+    "name": "Energetic Male",
+    "gender": "male",
+    "language": "en-US",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "d8a1340984ee4b63ad1ffae27a6a4339",
+    "name": "Elite",
+    "gender": "male",
+    "language": "en-US",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "52e0660e03fe4f9a8d2336f67cab5440",
+    "name": "Alex Chikna",
+    "gender": "male",
+    "language": "en-US",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "5196af35f6ff4a0dbf541793fc9f2157",
+    "name": "Donald J. Trump",
+    "gender": "male",
+    "language": "en-US",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "03397b4c4be74759b72533b663fbd001",
+    "name": "Elon Musk",
+    "gender": "male",
+    "language": "en-US",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "98655a12fa944e26b274c535e5e03842",
+    "name": "E-girl",
+    "gender": "female",
+    "language": "en-US",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "933563129e564b19a115bedd57b7406a",
+    "name": "Sarah",
+    "gender": "female",
+    "language": "en-US",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "59e9dc1cb20c452584788a2690c80970",
+    "name": "Alle",
+    "gender": "female",
+    "language": "en-US",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "6358dc020b2e49bf9fcc693fee488ea0",
+    "name": "Kurzgesagt",
+    "gender": "male",
+    "language": "en-GB",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "c5427f2b8d26406e9aba10cc7ba00971",
+    "name": "Phoenix",
+    "gender": "male",
+    "language": "en-GB",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "04736e4d6a644abab81e601a7d2ae4b9",
+    "name": "Waldo Morais",
+    "gender": "male",
+    "language": "pt-PT",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "a4ac1426e4a749839c86853ad613eebe",
+    "name": "Lula",
+    "gender": "male",
+    "language": "pt-PT",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "066e4751b43743afa427d76d72b3e080",
+    "name": "Italian Brainrot",
+    "gender": "male",
+    "language": "it-IT",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "b53fe45fbb00402aa983d669e889ca09",
+    "name": "Brainrot",
+    "gender": "male",
+    "language": "it-IT",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "dfa5b230c8054f429e434f4a6e9bbdec",
+    "name": "Farid Dieck",
+    "gender": "male",
+    "language": "es-ES",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "5161d41404314212af1254556477c17d",
+    "name": "Genki Female",
+    "gender": "female",
+    "language": "ja-JP",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "46745543e52548238593a3962be77e3a",
+    "name": "Fuuka",
+    "gender": "female",
+    "language": "ja-JP",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "f28d669a0eff409bbf07c4d3f12aabb3",
+    "name": "Putin Voice",
+    "gender": "male",
+    "language": "ru-RU",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "0a690dbeb3984a9f88cd39353880775f",
+    "name": "Mellstroy",
+    "gender": "male",
+    "language": "ru-RU",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "6dc11f3f67a543f6ad4537a4a347e224",
+    "name": "Mita",
+    "gender": "female",
+    "language": "ru-RU",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "c64d451c1fa545c8b93e51e0d0bad74b",
+    "name": "Luk Anjprd",
+    "gender": "male",
+    "language": "ka-GE",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "90042f762dbf49baa2e7776d011eee6b",
+    "name": "Vorlesen",
+    "gender": "male",
+    "language": "de-DE",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "a288bdc744da4ad194921adad6863175",
+    "name": "Clemence",
+    "gender": "female",
+    "language": "fr-FR",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "690813f2df56491b82ee02a22d1c67fd",
+    "name": "Fille",
+    "gender": "female",
+    "language": "fr-FR",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "da31468f7d0248838545b75fdfe6ffd1",
+    "name": "Macron",
+    "gender": "male",
+    "language": "fr-FR",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "4f2a0684dd0247dda68f339738c780e6",
+    "name": "Le Narrateur",
+    "gender": "male",
+    "language": "fr-FR",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "a46b54294a73455b95d614037277bf46",
+    "name": "Zelensky",
+    "gender": "male",
+    "language": "uk-UA",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "6be22288f35f4e9b964bdbeb099baee1",
+    "name": "Volodomyr Zelensky",
+    "gender": "male",
+    "language": "uk-UA",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "c4b59d5bb654460aa97a17da95ff542b",
+    "name": "Rita",
+    "gender": "female",
+    "language": "uk-UA",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  }
+]
