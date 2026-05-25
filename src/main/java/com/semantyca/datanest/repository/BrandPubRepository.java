@@ -158,8 +158,15 @@ public class BrandPubRepository extends AsyncRepository {
         return tx.preparedQuery(sql)
                 .execute(params)
                 .map(result -> result.iterator().next().getUUID("id"))
-                .chain(sceneId -> insertRLSPermissions(tx, sceneId, sceneEntityData, user)
+                .chain(sceneId -> insertSceneRLS(tx, sceneId, user)
                         .chain(v -> insertScenePrompts(tx, sceneId, scene.getIntroPrompts())));
+    }
+
+    private Uni<Void> insertSceneRLS(SqlClient tx, UUID sceneId, IUser user) {
+        String sql = "INSERT INTO mixpla__script_scene_readers (reader, entity_id, can_edit, can_delete) " +
+                "SELECT u.id, $1, true, true FROM _users u WHERE u.i_su = true OR u.id = $2 " +
+                "ON CONFLICT DO NOTHING";
+        return tx.preparedQuery(sql).execute(Tuple.of(sceneId, user.getId())).replaceWithVoid();
     }
 
     private Uni<Void> replaceScenes(SqlClient tx, UUID scriptId, List<Scene> scenes, IUser user) {
