@@ -210,7 +210,7 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
             return null;
         }
         StagePlaylistDTO dto = new StagePlaylistDTO();
-        dto.setSourcing(playlistRequest.getSourcing() != null ? List.of(playlistRequest.getSourcing().name()) : null);
+        dto.setSourcing(playlistRequest.getSourcing() != null ? playlistRequest.getSourcing().name() : null);
         dto.setTitle(playlistRequest.getTitle());
         dto.setArtist(playlistRequest.getArtist());
         dto.setGenres(playlistRequest.getGenres());
@@ -228,7 +228,7 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
             return null;
         }
         PlaylistRequest playlistRequest = new PlaylistRequest();
-        playlistRequest.setSourcing(dto.getSourcing() != null && !dto.getSourcing().isEmpty() ? WayOfSourcing.valueOf(dto.getSourcing().get(0)) : null);
+        playlistRequest.setSourcing(dto.getSourcing() != null ? WayOfSourcing.valueOf(dto.getSourcing()) : null);
         playlistRequest.setTitle(dto.getTitle());
         playlistRequest.setArtist(dto.getArtist());
         playlistRequest.setGenres(dto.getGenres());

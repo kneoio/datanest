@@ -925,7 +925,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         if (originalScene.getPlaylistRequest() != null) {
             PlaylistRequest originalPlaylist = originalScene.getPlaylistRequest();
             StagePlaylistDTO playlistDTO = new StagePlaylistDTO();
-            playlistDTO.setSourcing(originalPlaylist.getSourcing() != null ? List.of(originalPlaylist.getSourcing().name()) : null);
+            playlistDTO.setSourcing(originalPlaylist.getSourcing() != null ? originalPlaylist.getSourcing().name() : null);
             playlistDTO.setTitle(originalPlaylist.getTitle());
             playlistDTO.setArtist(originalPlaylist.getArtist());
             playlistDTO.setGenres(originalPlaylist.getGenres());

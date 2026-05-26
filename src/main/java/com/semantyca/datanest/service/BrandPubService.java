@@ -196,7 +196,7 @@ public class BrandPubService extends BrandService {
             return null;
         }
         PlaylistRequest pr = new PlaylistRequest();
-        pr.setSourcing(dto.getSourcing() != null && !dto.getSourcing().isEmpty() ? WayOfSourcing.valueOf(dto.getSourcing().get(0)) : null);
+        pr.setSourcing(dto.getSourcing() != null ? WayOfSourcing.valueOf(dto.getSourcing()) : null);
         pr.setTitle(dto.getTitle());
         pr.setArtist(dto.getArtist());
         pr.setGenres(dto.getGenres());
