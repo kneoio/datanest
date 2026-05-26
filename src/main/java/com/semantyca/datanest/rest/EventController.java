@@ -101,7 +101,7 @@ public class EventController extends AbstractSecuredController<Event, EventDTO> 
                     if ("new".equals(id)) {
                         EventDTO dto = new EventDTO();
                         StagePlaylistDTO playlistDTO = new StagePlaylistDTO();
-                        playlistDTO.setSourcing(WayOfSourcing.RANDOM.toString());
+                        playlistDTO.setSourcing(List.of(WayOfSourcing.RANDOM.toString()));
                         dto.setStagePlaylist(playlistDTO);
                         dto.setPriority(EventPriority.LOW.name());
                         dto.setSchedule(ScheduleFactory.createWorkdaySchedule(60));
