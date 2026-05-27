@@ -12,6 +12,7 @@ import java.util.UUID;
 
 @Getter
 @Setter
+@Deprecated
 public class SharedSoundFragment {
     private UUID id;
     private OffsetDateTime regDate;
