@@ -4,6 +4,8 @@ import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
 
+import java.util.Optional;
+
 @ConfigMapping(prefix = "datanest")
 public interface DatanestConfig {
     @WithName("host")
@@ -22,6 +24,9 @@ public interface DatanestConfig {
     @WithName("ffprobe.path")
     @WithDefault("ffprobe")
     String getFfprobePath();
+
+    @WithName("groq.api-key")
+    Optional<String> getGroqApiKey();
 
     @WithName("anthropic.api-key")
     String getAnthropicApiKey();
