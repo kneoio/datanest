@@ -137,7 +137,8 @@ public class PromptRepository extends AsyncRepository {
 
     public Uni<Integer> getAllMastersCount(IUser user, boolean includeArchived, final PromptFilter filter) {
         String sql = "SELECT COUNT(*) FROM " + entityData.getTableName() + " t, " + entityData.getRlsName() + " rls " +
-                "WHERE t.id = rls.entity_id AND rls.reader = " + user.getId();
+                "WHERE t.id = rls.entity_id AND rls.reader = " + user.getId() +
+                " AND t.is_master = true";
 
         if (!includeArchived) {
             sql += " AND t.archived = 0";

@@ -33,7 +33,8 @@ public class PromptQueryBuilder {
                                           PromptFilter filter, int limit, int offset) {
         StringBuilder sql = new StringBuilder()
                 .append("SELECT * FROM ").append(tableName).append(" t, ").append(rlsName).append(" rls ")
-                .append("WHERE t.id = rls.entity_id AND rls.reader = ").append(userId);
+                .append("WHERE t.id = rls.entity_id AND rls.reader = ").append(userId)
+                .append(" AND t.is_master = true");
 
         if (!includeArchived) {
             sql.append(" AND t.archived = 0");
