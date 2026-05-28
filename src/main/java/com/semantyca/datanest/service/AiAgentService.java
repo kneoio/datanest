@@ -185,6 +185,14 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
                     weatherReporterVoice.setGain(doc.getTtsSetting().getWeatherReporter().getGain());
                     ttsSettingDTO.setWeatherReporter(weatherReporterVoice);
                 }
+                if (doc.getTtsSetting().getAdReader() != null) {
+                    VoiceDTO adReaderVoice = new VoiceDTO();
+                    adReaderVoice.setId(doc.getTtsSetting().getAdReader().getId());
+                    adReaderVoice.setName(doc.getTtsSetting().getAdReader().getName());
+                    adReaderVoice.setEngineType(doc.getTtsSetting().getAdReader().getEngineType());
+                    adReaderVoice.setGain(doc.getTtsSetting().getAdReader().getGain());
+                    ttsSettingDTO.setAdReader(adReaderVoice);
+                }
                 dto.setTtsSetting(ttsSettingDTO);
             }
 
@@ -257,6 +265,14 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
                 weatherReporterVoice.setEngineType(dto.getTtsSetting().getWeatherReporter().getEngineType());
                 weatherReporterVoice.setGain(dto.getTtsSetting().getWeatherReporter().getGain());
                 ttsSetting.setWeatherReporter(weatherReporterVoice);
+            }
+            if (dto.getTtsSetting().getAdReader() != null) {
+                Voice adReaderVoice = new Voice();
+                adReaderVoice.setId(dto.getTtsSetting().getAdReader().getId());
+                adReaderVoice.setName(dto.getTtsSetting().getAdReader().getName());
+                adReaderVoice.setEngineType(dto.getTtsSetting().getAdReader().getEngineType());
+                adReaderVoice.setGain(dto.getTtsSetting().getAdReader().getGain());
+                ttsSetting.setAdReader(adReaderVoice);
             }
             doc.setTtsSetting(ttsSetting);
         }
