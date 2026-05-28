@@ -9,9 +9,10 @@ import com.semantyca.core.dto.view.ViewPage;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
-import com.semantyca.datanest.dto.script.SceneOverrideDTO;
-import com.semantyca.datanest.service.SceneOverrideService;
-import com.semantyca.mixpla.model.SceneOverride;
+import com.semantyca.datanest.dto.UserAdDTO;
+import com.semantyca.datanest.service.UserAdService;
+import com.semantyca.mixpla.model.UserAd;
+import com.semantyca.mixpla.model.filter.UserAdFilter;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.tuples.Tuple2;
 import io.vertx.core.json.JsonObject;
@@ -25,42 +26,42 @@ import jakarta.validation.Validator;
 import java.util.UUID;
 
 @ApplicationScoped
-public class SceneOverrideController extends AbstractSecuredController<SceneOverride, SceneOverrideDTO> {
-    @Inject
-    SceneOverrideService sceneOverrideService;
+public class UserAdController extends AbstractSecuredController<UserAd, UserAdDTO> {
+    private UserAdService service;
     private Validator validator;
 
-    public SceneOverrideController() {
+    public UserAdController() {
         super(null);
     }
 
     @Inject
-    public SceneOverrideController(UserService userService, SceneOverrideService sceneOverrideService, Validator validator) {
+    public UserAdController(UserService userService, UserAdService service, Validator validator) {
         super(userService);
-        this.sceneOverrideService = sceneOverrideService;
+        this.service = service;
         this.validator = validator;
     }
 
     public void setupRoutes(Router router) {
-        String path = "/datanest/scene-overrides";
+        String path = "/datanest/user-ads";
         router.route(path + "*").handler(BodyHandler.create());
         router.get(path).handler(this::getAll);
         router.get(path + "/:id").handler(this::getById);
         router.post(path + "/:id").handler(this::upsert);
-        router.delete(path + "/:id").handler(this::deleteSceneOverride);
-        router.get(path + "/:id/access").handler(this::getDocumentAccess);
+        router.delete(path + "/:id").handler(this::delete);
     }
 
     private void getAll(RoutingContext rc) {
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
+        UserAdFilter filter = parseFilter(rc);
+
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
-                        sceneOverrideService.getAllCount(user),
-                        sceneOverrideService.getAllDTO(size, (page - 1) * size, user)
+                        service.getAllCount(user, filter),
+                        service.getAll(size, (page - 1) * size, user, filter)
                 ).asTuple().map(tuple -> {
                     ViewPage viewPage = new ViewPage();
-                    View<SceneOverrideDTO> dtoEntries = new View<>(tuple.getItem2(),
+                    View<UserAdDTO> dtoEntries = new View<>(tuple.getItem2(),
                             tuple.getItem1(), page,
                             RuntimeUtil.countMaxPage(tuple.getItem1(), size),
                             size);
@@ -80,21 +81,20 @@ public class SceneOverrideController extends AbstractSecuredController<SceneOver
     private void getById(RoutingContext rc) {
         String id = rc.pathParam("id");
         LanguageCode languageCode = LanguageCode.valueOf(rc.request().getParam("lang", LanguageCode.en.name()));
+
         getContextUser(rc, false, true)
                 .chain(user -> {
                     if ("new".equals(id)) {
-                        SceneOverrideDTO dto = new SceneOverrideDTO();
+                        UserAdDTO dto = new UserAdDTO();
                         return Uni.createFrom().item(Tuple2.of(dto, user));
-                    } else {
-                        return sceneOverrideService.getDTO(UUID.fromString(id), user, languageCode)
-                                .map(doc -> Tuple2.of(doc, user));
                     }
+                    return service.getDTO(UUID.fromString(id), user, languageCode)
+                            .map(doc -> Tuple2.of(doc, user));
                 })
                 .subscribe().with(
                         tuple -> {
-                            SceneOverrideDTO doc = tuple.getItem1();
                             FormPage page = new FormPage();
-                            page.addPayload(PayloadType.DOC_DATA, doc);
+                            page.addPayload(PayloadType.DOC_DATA, tuple.getItem1());
                             page.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());
                             rc.response()
                                     .setStatusCode(200)
@@ -109,59 +109,54 @@ public class SceneOverrideController extends AbstractSecuredController<SceneOver
         try {
             if (!validateJsonBody(rc)) return;
             String id = rc.pathParam("id");
-            SceneOverrideDTO dto = rc.body().asJsonObject().mapTo(SceneOverrideDTO.class);
+            UserAdDTO dto = rc.body().asJsonObject().mapTo(UserAdDTO.class);
             if (!validateDTO(rc, dto, validator)) return;
             getContextUser(rc, false, true)
-                    .chain(user -> sceneOverrideService.upsert(id, dto, user))
+                    .chain(user -> service.upsert(id, dto, user))
                     .subscribe().with(
                             doc -> sendUpsertResponse(rc, doc, id),
                             throwable -> handleUpsertFailure(rc, throwable)
                     );
         } catch (Exception e) {
-            if (e instanceof IllegalArgumentException) {
-                rc.fail(400, e);
-            } else {
-                rc.fail(400, new IllegalArgumentException("Invalid JSON payload"));
-            }
+            rc.fail(400, new IllegalArgumentException("Invalid JSON payload"));
         }
     }
 
-    private void deleteSceneOverride(RoutingContext rc) {
+    private void delete(RoutingContext rc) {
         String id = rc.pathParam("id");
         getContextUser(rc, false, true)
-                .chain(user -> sceneOverrideService.archive(id, user))
+                .chain(user -> service.delete(id, user))
                 .subscribe().with(
                         count -> rc.response().setStatusCode(count > 0 ? 204 : 404).end(),
                         rc::fail
                 );
     }
 
-    private void getDocumentAccess(RoutingContext rc) {
-        String id = rc.pathParam("id");
-        try {
-            UUID documentId = UUID.fromString(id);
-            getContextUser(rc, false, true)
-                    .chain(user -> sceneOverrideService.getDocumentAccess(documentId, user))
-                    .subscribe().with(
-                            accessList -> {
-                                JsonObject response = new JsonObject();
-                                response.put("documentId", id);
-                                response.put("accessList", accessList);
-                                rc.response()
-                                        .setStatusCode(200)
-                                        .putHeader("Content-Type", "application/json")
-                                        .end(response.encode());
-                            },
-                            throwable -> {
-                                if (throwable instanceof IllegalArgumentException) {
-                                    rc.fail(400, throwable);
-                                } else {
-                                    rc.fail(500, throwable);
-                                }
-                            }
-                    );
-        } catch (IllegalArgumentException e) {
-            rc.fail(400, new IllegalArgumentException("Invalid document ID format"));
+    private UserAdFilter parseFilter(RoutingContext rc) {
+        String filterParam = rc.request().getParam("filter");
+        if (filterParam == null || filterParam.trim().isEmpty()) {
+            return null;
         }
+        UserAdFilter filter = new UserAdFilter();
+        boolean any = false;
+        try {
+            JsonObject json = new JsonObject(filterParam);
+            String userId = json.getString("userId");
+            if (userId != null && !userId.trim().isEmpty()) {
+                try {
+                    filter.setUserId(Long.parseLong(userId));
+                    any = true;
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            String searchTerm = json.getString("searchTerm");
+            if (searchTerm != null && !searchTerm.trim().isEmpty()) {
+                filter.setSearchTerm(searchTerm);
+                any = true;
+            }
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid filter JSON: " + e.getMessage(), e);
+        }
+        return any ? filter : null;
     }
 }
