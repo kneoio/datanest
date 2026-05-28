@@ -1,5 +1,6 @@
 package com.semantyca.datanest.service;
 
+import com.semantyca.core.model.UserData;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.service.AbstractService;
@@ -76,6 +77,9 @@ public class UserAdService extends AbstractService<UserAd, UserAdDTO> {
             dto.setDescription(doc.getDescription());
             dto.setContacts(doc.getContacts());
             dto.setArchived(doc.getArchived());
+            if (doc.getUserData() != null) {
+                dto.setUserData(doc.getUserData().getData());
+            }
             return dto;
         });
     }
@@ -86,6 +90,9 @@ public class UserAdService extends AbstractService<UserAd, UserAdDTO> {
         entity.setTitle(dto.getTitle());
         entity.setDescription(dto.getDescription());
         entity.setContacts(dto.getContacts());
+        if (dto.getUserData() != null && !dto.getUserData().isEmpty()) {
+            entity.setUserData(new UserData(dto.getUserData()));
+        }
         return entity;
     }
 }

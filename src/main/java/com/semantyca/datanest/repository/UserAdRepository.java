@@ -1,6 +1,7 @@
 package com.semantyca.datanest.repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.semantyca.core.model.UserData;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.repository.AsyncRepository;
 import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
@@ -10,6 +11,7 @@ import com.semantyca.mixpla.model.filter.UserAdFilter;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
@@ -71,8 +73,8 @@ public class UserAdRepository extends AsyncRepository {
 
     public Uni<UserAd> insert(UserAd entity, IUser user) {
         String sql = "INSERT INTO " + entityData.getTableName() +
-                " (author, reg_date, last_mod_user, last_mod_date, user_id, title, description, contacts) " +
-                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id";
+                " (author, reg_date, last_mod_user, last_mod_date, user_id, title, description, contacts, user_data) " +
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id";
         OffsetDateTime now = OffsetDateTime.now();
         Tuple params = Tuple.tuple()
                 .addLong(user.getId())
@@ -82,7 +84,8 @@ public class UserAdRepository extends AsyncRepository {
                 .addLong(entity.getUserId())
                 .addString(entity.getTitle())
                 .addString(entity.getDescription())
-                .addString(entity.getContacts());
+                .addString(entity.getContacts())
+                .addJsonObject(toUserDataJson(entity.getUserData()));
         return client.preparedQuery(sql)
                 .execute(params)
                 .onItem().transform(result -> result.iterator().next().getUUID("id"))
@@ -91,12 +94,13 @@ public class UserAdRepository extends AsyncRepository {
 
     public Uni<UserAd> update(UUID id, UserAd entity, IUser user) {
         String sql = "UPDATE " + entityData.getTableName() +
-                " SET title = $1, description = $2, contacts = $3, last_mod_user = $4, last_mod_date = $5 WHERE id = $6";
+                " SET title = $1, description = $2, contacts = $3, user_data = $4, last_mod_user = $5, last_mod_date = $6 WHERE id = $7";
         OffsetDateTime now = OffsetDateTime.now();
         Tuple params = Tuple.tuple()
                 .addString(entity.getTitle())
                 .addString(entity.getDescription())
                 .addString(entity.getContacts())
+                .addJsonObject(toUserDataJson(entity.getUserData()))
                 .addLong(user.getId())
                 .addOffsetDateTime(now)
                 .addUUID(id);
@@ -160,6 +164,29 @@ public class UserAdRepository extends AsyncRepository {
         doc.setDescription(row.getString("description"));
         doc.setContacts(row.getString("contacts"));
         doc.setArchived(row.getInteger("archived"));
+        doc.setUserData(fromUserDataJson(row.getJsonObject("user_data")));
         return doc;
+    }
+
+    private JsonObject toUserDataJson(UserData userData) {
+        JsonObject json = new JsonObject();
+        if (userData == null || userData.getData() == null || userData.getData().isEmpty()) {
+            return json;
+        }
+        userData.getData().forEach(json::put);
+        return json;
+    }
+
+    private UserData fromUserDataJson(JsonObject json) {
+        UserData userData = new UserData();
+        if (json == null || json.isEmpty()) {
+            return userData;
+        }
+        json.getMap().forEach((key, value) -> {
+            if (key != null && value != null) {
+                userData.put(key, value.toString());
+            }
+        });
+        return userData;
     }
 }
