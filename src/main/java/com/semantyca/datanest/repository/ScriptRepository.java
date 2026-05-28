@@ -595,27 +595,4 @@ public class ScriptRepository extends AsyncRepository {
                 .replaceWithVoid();
     }
 
-    public Uni<List<UUID>> findScriptIdsByDraftId(UUID draftId) {
-        String sql = "SELECT DISTINCT ss.script_id FROM mixpla_script_scenes ss " +
-                "JOIN mixpla__script_scene_prompts ssa ON ssa.script_scene_id = ss.id " +
-                "JOIN mixpla_prompts p ON p.id = ssa.prompt_id " +
-                "WHERE p.draft_id = $1";
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(draftId))
-                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
-                .onItem().transform(row -> row.getUUID("script_id"))
-                .collect().asList();
-    }
-
-    public Uni<List<UUID>> findDraftIdsForScript(UUID scriptId) {
-        String sql = "SELECT DISTINCT p.draft_id FROM mixpla_script_scenes ss " +
-                "JOIN mixpla__script_scene_prompts ssa ON ssa.script_scene_id = ss.id " +
-                "JOIN mixpla_prompts p ON p.id = ssa.prompt_id " +
-                "WHERE ss.script_id = $1 AND p.draft_id IS NOT NULL";
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(scriptId))
-                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
-                .onItem().transform(row -> row.getUUID("draft_id"))
-                .collect().asList();
-    }
 }

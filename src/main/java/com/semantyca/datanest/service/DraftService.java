@@ -8,7 +8,6 @@ import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.DraftDTO;
 import com.semantyca.datanest.dto.agentrest.DraftTestReqDTO;
-import com.semantyca.datanest.repository.ScriptRepository;
 import com.semantyca.datanest.repository.draft.DraftRepository;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
 import com.semantyca.datanest.util.ScriptVariableExtractor;
@@ -26,18 +25,16 @@ import java.util.stream.Collectors;
 public class DraftService extends AbstractService<Draft, DraftDTO> {
 
     private final DraftRepository repository;
-    private final ScriptRepository scriptRepository;
     private final SoundFragmentService soundFragmentService;
     private final AiAgentService aiAgentService;
     private final BrandService brandService;
 
     @Inject
-    public DraftService(UserService userService, DraftRepository repository, ScriptRepository scriptRepository,
+    public DraftService(UserService userService, DraftRepository repository,
                         SoundFragmentService soundFragmentService,
                         AiAgentService aiAgentService, BrandService brandService) {
         super(userService);
         this.repository = repository;
-        this.scriptRepository = scriptRepository;
         this.soundFragmentService = soundFragmentService;
         this.aiAgentService = aiAgentService;
         this.brandService = brandService;
@@ -101,8 +98,6 @@ public class DraftService extends AbstractService<Draft, DraftDTO> {
                 ? repository.insert(entity, user)
                 : repository.update(UUID.fromString(id), entity, user);
         return saveOperation
-                .chain(savedDraft -> updateScriptsRequiredVariables(savedDraft.getId())
-                        .onItem().transform(v -> savedDraft))
                 .chain(this::mapToDTO);
     }
 
@@ -159,38 +154,6 @@ public class DraftService extends AbstractService<Draft, DraftDTO> {
         doc.setEnabled(dto.isEnabled());
         doc.setVersion(dto.getVersion());
         return doc;
-    }
-
-    private Uni<Void> updateScriptsRequiredVariables(UUID draftId) {
-        return scriptRepository.findScriptIdsByDraftId(draftId)
-                .chain(scriptIds -> {
-                    if (scriptIds.isEmpty()) {
-                        return Uni.createFrom().voidItem();
-                    }
-                    List<Uni<Void>> updates = scriptIds.stream()
-                            .map(this::updateScriptRequiredVariables)
-                            .toList();
-                    return Uni.join().all(updates).andFailFast().replaceWithVoid();
-                });
-    }
-
-    private Uni<Void> updateScriptRequiredVariables(UUID scriptId) {
-        return scriptRepository.findDraftIdsForScript(scriptId)
-                .chain(draftIds -> {
-                    if (draftIds.isEmpty()) {
-                        return scriptRepository.patchRequiredVariables(scriptId, List.of());
-                    }
-                    return getByIds(draftIds)
-                            .chain(drafts -> {
-                                List<ScriptVariable> allVariables = drafts.stream()
-                                        .map(Draft::getContent)
-                                        .filter(java.util.Objects::nonNull)
-                                        .flatMap(content -> ScriptVariableExtractor.extract(content).stream())
-                                        .distinct()
-                                        .toList();
-                                return scriptRepository.patchRequiredVariables(scriptId, allVariables);
-                            });
-                });
     }
 
     public List<ScriptVariable> extractVariables(String code) {
