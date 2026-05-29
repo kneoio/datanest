@@ -7,7 +7,7 @@ import com.semantyca.mixpla.model.cnst.MixingType;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -29,19 +29,19 @@ public class PlaylistRequestDTO {
     private List<UUID> soundFragments;
     private List<ScenePromptDTO> prompts;
 
-    public List<String> getAvailableMixingTypes() {
-        if (!"GENERATED".equals(sourcing)) return null;
-        return Arrays.stream(MixingType.values())
-                .filter(t -> MergingTypeMeta.of(t).hasGeneratedContent())
-                .map(Enum::name)
-                .toList();
-    }
+    private static final List<MixingType> GENERATED_MIXING_TYPES = List.of(
+            MixingType.JINGLE_GENERATED_JINGLE_WITH_BACKGROUND,
+            MixingType.JINGLE_GENERATED_JINGLE
+    );
 
-    public List<String> getArtifactSlots() {
-        if (mixingType == null || !MergingTypeMeta.of(mixingType).hasGeneratedContent()) return null;
-        return MergingTypeMeta.of(mixingType).requiredSongKeys().stream()
-                .map(Enum::name)
-                .sorted()
-                .toList();
+    public Map<String, List<String>> getAvailableMixingTypes() {
+        if (!"GENERATED".equals(sourcing)) return null;
+        Map<String, List<String>> result = new LinkedHashMap<>();
+        for (MixingType t : GENERATED_MIXING_TYPES) {
+            List<String> slots = MergingTypeMeta.of(t).requiredSongKeys().stream()
+                    .map(Enum::name).sorted().toList();
+            result.put(t.name(), slots);
+        }
+        return result;
     }
 }
