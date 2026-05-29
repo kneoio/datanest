@@ -81,6 +81,7 @@ public class UserAdService extends AbstractService<UserAd, UserAdDTO> {
             if (doc.getUserData() != null) {
                 dto.setUserData(doc.getUserData().getData());
             }
+            dto.setPlayHistory(doc.getPlayHistory());
             return dto;
         });
     }
@@ -89,6 +90,7 @@ public class UserAdService extends AbstractService<UserAd, UserAdDTO> {
         UserAd entity = new UserAd();
         entity.setUserId(dto.getUserId());
         entity.setBrandId(dto.getBrandId());
+        entity.setPlayHistory(dto.getPlayHistory());
         entity.setTitle(dto.getTitle());
         entity.setDescription(dto.getDescription());
         entity.setContacts(dto.getContacts());

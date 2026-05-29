@@ -11,6 +11,9 @@ import com.semantyca.mixpla.model.filter.UserAdFilter;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.semantyca.mixpla.model.PlayHistory;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
@@ -20,6 +23,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 import java.time.OffsetDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -73,8 +77,8 @@ public class UserAdRepository extends AsyncRepository {
 
     public Uni<UserAd> insert(UserAd entity, IUser user) {
         String sql = "INSERT INTO " + entityData.getTableName() +
-                " (author, reg_date, last_mod_user, last_mod_date, user_id, brand_id, title, description, contacts, user_data) " +
-                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id";
+                " (author, reg_date, last_mod_user, last_mod_date, user_id, brand_id, title, description, contacts, user_data, play_history) " +
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id";
         OffsetDateTime now = OffsetDateTime.now();
         Tuple params = Tuple.tuple()
                 .addLong(user.getId())
@@ -86,7 +90,8 @@ public class UserAdRepository extends AsyncRepository {
                 .addString(entity.getTitle())
                 .addString(entity.getDescription())
                 .addString(entity.getContacts())
-                .addJsonObject(toUserDataJson(entity.getUserData()));
+                .addJsonObject(toUserDataJson(entity.getUserData()))
+                .addJsonArray(toPlayHistoryJson(entity.getPlayHistory()));
         return client.preparedQuery(sql)
                 .execute(params)
                 .onItem().transform(result -> result.iterator().next().getUUID("id"))
@@ -95,7 +100,7 @@ public class UserAdRepository extends AsyncRepository {
 
     public Uni<UserAd> update(UUID id, UserAd entity, IUser user) {
         String sql = "UPDATE " + entityData.getTableName() +
-                " SET title = $1, description = $2, contacts = $3, user_data = $4, brand_id = $5, last_mod_user = $6, last_mod_date = $7 WHERE id = $8";
+                " SET title = $1, description = $2, contacts = $3, user_data = $4, brand_id = $5, play_history = $6, last_mod_user = $7, last_mod_date = $8 WHERE id = $9";
         OffsetDateTime now = OffsetDateTime.now();
         Tuple params = Tuple.tuple()
                 .addString(entity.getTitle())
@@ -103,6 +108,7 @@ public class UserAdRepository extends AsyncRepository {
                 .addString(entity.getContacts())
                 .addJsonObject(toUserDataJson(entity.getUserData()))
                 .addValue(entity.getBrandId())
+                .addJsonArray(toPlayHistoryJson(entity.getPlayHistory()))
                 .addLong(user.getId())
                 .addOffsetDateTime(now)
                 .addUUID(id);
@@ -168,6 +174,7 @@ public class UserAdRepository extends AsyncRepository {
         doc.setContacts(row.getString("contacts"));
         doc.setArchived(row.getInteger("archived"));
         doc.setUserData(fromUserDataJson(row.getJsonObject("user_data")));
+        doc.setPlayHistory(fromPlayHistoryJson(row.getJsonArray("play_history")));
         return doc;
     }
 
@@ -178,6 +185,28 @@ public class UserAdRepository extends AsyncRepository {
         }
         userData.getData().forEach(json::put);
         return json;
+    }
+
+    private JsonArray toPlayHistoryJson(List<PlayHistory> list) {
+        if (list == null || list.isEmpty()) {
+            return new JsonArray();
+        }
+        try {
+            return new JsonArray(mapper.writeValueAsString(list));
+        } catch (Exception e) {
+            return new JsonArray();
+        }
+    }
+
+    private List<PlayHistory> fromPlayHistoryJson(JsonArray json) {
+        if (json == null || json.isEmpty()) {
+            return Collections.emptyList();
+        }
+        try {
+            return mapper.readValue(json.encode(), new TypeReference<>() {});
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
     }
 
     private UserData fromUserDataJson(JsonObject json) {
