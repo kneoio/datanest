@@ -34,12 +34,16 @@ public class PlaylistRequestDTO {
             MixingType.JINGLE_GENERATED_JINGLE
     );
 
+    private static String toDisplayKey(String songKey) {
+        return "BACKGROUND_MUSIC".equals(songKey) ? "BACKGROUND_LOOP" : songKey;
+    }
+
     public Map<String, List<String>> getAvailableMixingTypes() {
         if (!"GENERATED".equals(sourcing)) return null;
         Map<String, List<String>> result = new LinkedHashMap<>();
         for (MixingType t : GENERATED_MIXING_TYPES) {
             List<String> slots = MergingTypeMeta.of(t).requiredSongKeys().stream()
-                    .map(Enum::name).sorted().toList();
+                    .map(k -> toDisplayKey(k.name())).sorted().toList();
             result.put(t.name(), slots);
         }
         return result;
