@@ -16,7 +16,7 @@ import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.script.ScenePromptDTO;
-import com.semantyca.datanest.dto.StagePlaylistDTO;
+import com.semantyca.datanest.dto.PlaylistRequestDTO;
 import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.datanest.dto.event.EventDTO;
 import com.semantyca.datanest.dto.event.EventEntryDTO;
@@ -258,7 +258,7 @@ public class EventService extends AbstractService<Event, EventDTO> {
 
         dto.setSchedule(scheduleOnceOnLocalDate(eventDay));
 
-        StagePlaylistDTO playlistDTO = new StagePlaylistDTO();
+        PlaylistRequestDTO playlistDTO = new PlaylistRequestDTO();
         playlistDTO.setSourcing(WayOfSourcing.RANDOM.toString());
         dto.setStagePlaylist(playlistDTO);
         dto.setActions(List.of());
@@ -589,11 +589,11 @@ public class EventService extends AbstractService<Event, EventDTO> {
                 .collect(Collectors.toList());
     }
 
-    private StagePlaylistDTO mapStagePlaylistToDTO(PlaylistRequest playlistRequest) {
+    private PlaylistRequestDTO mapStagePlaylistToDTO(PlaylistRequest playlistRequest) {
         if (playlistRequest == null) {
             return null;
         }
-        StagePlaylistDTO dto = new StagePlaylistDTO();
+        PlaylistRequestDTO dto = new PlaylistRequestDTO();
         dto.setSourcing(playlistRequest.getSourcing() != null ? playlistRequest.getSourcing().name() : null);
         dto.setTitle(playlistRequest.getTitle());
         dto.setArtist(playlistRequest.getArtist());
@@ -606,7 +606,7 @@ public class EventService extends AbstractService<Event, EventDTO> {
         return dto;
     }
 
-    private PlaylistRequest mapDTOToStagePlaylist(StagePlaylistDTO dto) {
+    private PlaylistRequest mapDTOToStagePlaylist(PlaylistRequestDTO dto) {
         if (dto == null) {
             return null;
         }

@@ -3,12 +3,11 @@ package com.semantyca.datanest.service;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.model.user.IUser;
-import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.ColorUtil;
 import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.config.DatanestConfig;
-import com.semantyca.datanest.dto.StagePlaylistDTO;
+import com.semantyca.datanest.dto.PlaylistRequestDTO;
 import com.semantyca.datanest.dto.brand.BrandDTO;
 import com.semantyca.datanest.dto.script.CustomActionDTO;
 import com.semantyca.datanest.dto.script.CustomSceneDTO;
@@ -191,7 +190,7 @@ public class BrandPubService extends BrandService {
         return action;
     }
 
-    private PlaylistRequest mapToPlaylistRequest(StagePlaylistDTO dto) {
+    private PlaylistRequest mapToPlaylistRequest(PlaylistRequestDTO dto) {
         if (dto == null) {
             return null;
         }

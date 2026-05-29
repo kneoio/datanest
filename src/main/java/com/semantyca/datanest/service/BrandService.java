@@ -18,7 +18,6 @@ import com.semantyca.datanest.repository.BrandRepository;
 import com.semantyca.mixpla.dto.queue.command.CommandType;
 import com.semantyca.mixpla.dto.queue.metric.MetricEventType;
 import com.semantyca.mixpla.dto.queue.metric.ProcessType;
-import com.semantyca.mixpla.model.Script;
 import com.semantyca.mixpla.model.brand.*;
 import com.semantyca.mixpla.model.cnst.ManagedBy;
 import com.semantyca.mixpla.model.filter.BrandFilter;
@@ -30,7 +29,6 @@ import org.jboss.logging.Logger;
 
 import java.net.MalformedURLException;
 import java.net.URI;
-import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -335,7 +333,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         customScene.setTalkativity(scene.getTalkativity());
         customScene.setAllowJingles(scene.isAllowJingles());
         customScene.setAllowAds(scene.isAllowAds());
-        customScene.setStagePlaylist(scene.getStagePlaylist());
+        customScene.setStagePlaylist(scene.getPlaylistRequest());
         List<CustomActionDTO> merged = new ArrayList<>();
         if (scene.getActions() != null) {
             scene.getActions().forEach(a -> a.setType("custom"));

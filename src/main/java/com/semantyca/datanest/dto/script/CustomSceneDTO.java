@@ -1,7 +1,7 @@
 package com.semantyca.datanest.dto.script;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.semantyca.datanest.dto.StagePlaylistDTO;
+import com.semantyca.datanest.dto.PlaylistRequestDTO;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -19,7 +19,7 @@ public class CustomSceneDTO {
     private boolean allowJingles;
     private boolean allowAds;
     private double talkativity;
-    private StagePlaylistDTO stagePlaylist;
+    private PlaylistRequestDTO stagePlaylist;
     private List<ScenePromptDTO> introPrompts;
     private List<CustomActionDTO> actions;
 }

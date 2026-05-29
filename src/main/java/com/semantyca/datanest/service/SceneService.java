@@ -9,7 +9,7 @@ import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.datanest.dto.script.CustomActionDTO;
 import com.semantyca.datanest.dto.script.SceneDTO;
 import com.semantyca.datanest.dto.script.ScenePromptDTO;
-import com.semantyca.datanest.dto.StagePlaylistDTO;
+import com.semantyca.datanest.dto.PlaylistRequestDTO;
 import com.semantyca.datanest.repository.SceneRepository;
 import com.semantyca.mixpla.model.CustomAction;
 import com.semantyca.mixpla.model.PlaylistRequest;
@@ -124,7 +124,7 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
             dto.setAllowAds(doc.isAllowAds());
             dto.setPrompts(mapScenePromptsToDTOs(doc.getIntroPrompts()));
             dto.setActions(mapCustomActionsToDTOs(doc.getActions()));
-            dto.setStagePlaylist(mapStagePlaylistToDTO(doc.getPlaylistRequest()));
+            dto.setPlaylistRequest(mapStagePlaylistToDTO(doc.getPlaylistRequest()));
             return dto;
         });
     }
@@ -173,7 +173,7 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
         entity.setAllowJingles(dto.isAllowJingles());
         entity.setAllowAds(dto.isAllowAds());
         entity.setIntroPrompts(dto.getPrompts() != null ? mapScenePromptDTOsToEntities(dto.getPrompts()) : List.of());
-        entity.setPlaylistRequest(mapDTOToStagePlaylist(dto.getStagePlaylist()));
+        entity.setPlaylistRequest(mapToPlaylistRequestDTO(dto.getPlaylistRequest()));
         entity.setScriptId(dto.getScriptId());
 
         if (entity.getPlaylistRequest() != null && entity.getPlaylistRequest().getSourcing() == WayOfSourcing.GENERATED) {
@@ -205,39 +205,43 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
                 .onItem().transform(accessInfoList -> accessInfoList.stream().map(this::mapToDocumentAccessDTO).collect(Collectors.toList()));
     }
 
-    private StagePlaylistDTO mapStagePlaylistToDTO(PlaylistRequest playlistRequest) {
-        if (playlistRequest == null) {
+    private PlaylistRequestDTO mapStagePlaylistToDTO(PlaylistRequest doc) {
+        if (doc == null) {
             return null;
         }
-        StagePlaylistDTO dto = new StagePlaylistDTO();
-        dto.setSourcing(playlistRequest.getSourcing() != null ? playlistRequest.getSourcing().name() : null);
-        dto.setTitle(playlistRequest.getTitle());
-        dto.setArtist(playlistRequest.getArtist());
-        dto.setGenres(playlistRequest.getGenres());
-        dto.setLabels(playlistRequest.getLabels());
-        dto.setType(playlistRequest.getType() != null ? playlistRequest.getType().stream().map(Enum::name).toList() : null);
-        dto.setSource(playlistRequest.getSource() != null ? playlistRequest.getSource().stream().map(Enum::name).toList() : null);
-        dto.setSearchTerm(playlistRequest.getSearchTerm());
-        dto.setSoundFragments(playlistRequest.getSoundFragments());
-        dto.setPrompts(mapScenePromptsToDTOs(playlistRequest.getContentPrompts()));
+        PlaylistRequestDTO dto = new PlaylistRequestDTO();
+        dto.setMixingType(doc.getMixingType());
+        dto.setMixingArtefacts(doc.getMixingArtefacts());
+        dto.setSourcing(doc.getSourcing() != null ? doc.getSourcing().name() : null);
+        dto.setTitle(doc.getTitle());
+        dto.setArtist(doc.getArtist());
+        dto.setGenres(doc.getGenres());
+        dto.setLabels(doc.getLabels());
+        dto.setType(doc.getType() != null ? doc.getType().stream().map(Enum::name).toList() : null);
+        dto.setSource(doc.getSource() != null ? doc.getSource().stream().map(Enum::name).toList() : null);
+        dto.setSearchTerm(doc.getSearchTerm());
+        dto.setSoundFragments(doc.getSoundFragments());
+        dto.setPrompts(mapScenePromptsToDTOs(doc.getContentPrompts()));
         return dto;
     }
 
-    private PlaylistRequest mapDTOToStagePlaylist(StagePlaylistDTO dto) {
+    private PlaylistRequest mapToPlaylistRequestDTO(PlaylistRequestDTO dto) {
         if (dto == null) {
             return null;
         }
-        PlaylistRequest playlistRequest = new PlaylistRequest();
-        playlistRequest.setSourcing(dto.getSourcing() != null ? WayOfSourcing.valueOf(dto.getSourcing()) : null);
-        playlistRequest.setTitle(dto.getTitle());
-        playlistRequest.setArtist(dto.getArtist());
-        playlistRequest.setGenres(dto.getGenres());
-        playlistRequest.setLabels(dto.getLabels());
-        playlistRequest.setType(dto.getType() != null ? dto.getType().stream().map(PlaylistItemType::valueOf).toList() : null);
-        playlistRequest.setSource(dto.getSource() != null ? dto.getSource().stream().map(SourceType::valueOf).toList() : null);
-        playlistRequest.setSearchTerm(dto.getSearchTerm());
-        playlistRequest.setSoundFragments(dto.getSoundFragments());
-        playlistRequest.setContentPrompts(dto.getPrompts() != null ? mapScenePromptDTOsToEntities(dto.getPrompts()) : List.of());
-        return playlistRequest;
+        PlaylistRequest doc = new PlaylistRequest();
+        doc.setMixingType(dto.getMixingType());
+        doc.setMixingArtefacts(dto.getMixingArtefacts());
+        doc.setSourcing(dto.getSourcing() != null ? WayOfSourcing.valueOf(dto.getSourcing()) : null);
+        doc.setTitle(dto.getTitle());
+        doc.setArtist(dto.getArtist());
+        doc.setGenres(dto.getGenres());
+        doc.setLabels(dto.getLabels());
+        doc.setType(dto.getType() != null ? dto.getType().stream().map(PlaylistItemType::valueOf).toList() : null);
+        doc.setSource(dto.getSource() != null ? dto.getSource().stream().map(SourceType::valueOf).toList() : null);
+        doc.setSearchTerm(dto.getSearchTerm());
+        doc.setSoundFragments(dto.getSoundFragments());
+        doc.setContentPrompts(dto.getPrompts() != null ? mapScenePromptDTOsToEntities(dto.getPrompts()) : List.of());
+        return doc;
     }
 }

@@ -15,14 +15,13 @@ import com.semantyca.datanest.dto.DraftDTO;
 import com.semantyca.datanest.dto.LabelFlatDTO;
 import com.semantyca.datanest.dto.script.PromptDTO;
 import com.semantyca.datanest.dto.script.SceneDTO;
-import com.semantyca.datanest.dto.script.CustomActionDTO;
 import com.semantyca.datanest.dto.script.ScenePromptDTO;
 import com.semantyca.datanest.dto.script.ScriptDTO;
 import com.semantyca.datanest.dto.script.ScriptExportDTO;
 
 import static com.semantyca.datanest.dto.script.CustomActionDTO.AVAILABLE_CONTEXT_VARS;
 import com.semantyca.datanest.dto.script.ScriptFlatDTO;
-import com.semantyca.datanest.dto.StagePlaylistDTO;
+import com.semantyca.datanest.dto.PlaylistRequestDTO;
 import com.semantyca.datanest.repository.ScriptRepository;
 import com.semantyca.datanest.util.ScriptVariableExtractor;
 import com.semantyca.mixpla.model.BrandScript;
@@ -924,7 +923,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
 
         if (originalScene.getPlaylistRequest() != null) {
             PlaylistRequest originalPlaylist = originalScene.getPlaylistRequest();
-            StagePlaylistDTO playlistDTO = new StagePlaylistDTO();
+            PlaylistRequestDTO playlistDTO = new PlaylistRequestDTO();
             playlistDTO.setSourcing(originalPlaylist.getSourcing() != null ? originalPlaylist.getSourcing().name() : null);
             playlistDTO.setTitle(originalPlaylist.getTitle());
             playlistDTO.setArtist(originalPlaylist.getArtist());
@@ -934,7 +933,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
             playlistDTO.setSource(originalPlaylist.getSource() != null ? originalPlaylist.getSource().stream().map(Enum::name).toList() : null);
             playlistDTO.setSearchTerm(originalPlaylist.getSearchTerm());
             playlistDTO.setSoundFragments(originalPlaylist.getSoundFragments());
-            sceneDTO.setStagePlaylist(playlistDTO);
+            sceneDTO.setPlaylistRequest(playlistDTO);
         }
 
         return sceneDTO;

@@ -5,7 +5,7 @@ import com.semantyca.core.dto.AbstractDTO;
 import com.semantyca.core.dto.scheduler.ScheduleDTO;
 import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.datanest.dto.script.ScenePromptDTO;
-import com.semantyca.datanest.dto.StagePlaylistDTO;
+import com.semantyca.datanest.dto.PlaylistRequestDTO;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import lombok.Builder;
@@ -33,7 +33,7 @@ public class EventDTO extends AbstractDTO {
     private ScheduleDTO schedule;
     private String priority;
     private List<ScenePromptDTO> actions;
-    private StagePlaylistDTO stagePlaylist;
+    private PlaylistRequestDTO stagePlaylist;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     @Builder.Default
     private List<RlsActionDTO> rlsActions = new ArrayList<>();

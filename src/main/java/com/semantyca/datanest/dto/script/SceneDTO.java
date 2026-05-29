@@ -3,7 +3,7 @@ package com.semantyca.datanest.dto.script;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
 import com.semantyca.core.dto.rls.RlsActionDTO;
-import com.semantyca.datanest.dto.StagePlaylistDTO;
+import com.semantyca.datanest.dto.PlaylistRequestDTO;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -23,7 +23,7 @@ public class SceneDTO extends AbstractDTO {
     private double podcastMode;
     private List<ScenePromptDTO> prompts;
     private List<CustomActionDTO> actions;
-    private StagePlaylistDTO stagePlaylist;
+    private PlaylistRequestDTO playlistRequest;
     private List<LocalTime> startTime;
     private int durationSeconds;
     private int seqNum;

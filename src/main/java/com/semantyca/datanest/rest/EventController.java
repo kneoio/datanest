@@ -10,7 +10,7 @@ import com.semantyca.core.dto.view.ViewPage;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.ProblemDetailsUtil;
 import com.semantyca.core.util.RuntimeUtil;
-import com.semantyca.datanest.dto.StagePlaylistDTO;
+import com.semantyca.datanest.dto.PlaylistRequestDTO;
 import com.semantyca.datanest.dto.event.EventDTO;
 import com.semantyca.datanest.dto.event.EventEntryDTO;
 import com.semantyca.datanest.service.EventService;
@@ -100,7 +100,7 @@ public class EventController extends AbstractSecuredController<Event, EventDTO> 
                 .chain(user -> {
                     if ("new".equals(id)) {
                         EventDTO dto = new EventDTO();
-                        StagePlaylistDTO playlistDTO = new StagePlaylistDTO();
+                        PlaylistRequestDTO playlistDTO = new PlaylistRequestDTO();
                         playlistDTO.setSourcing(WayOfSourcing.RANDOM.toString());
                         dto.setStagePlaylist(playlistDTO);
                         dto.setPriority(EventPriority.LOW.name());
