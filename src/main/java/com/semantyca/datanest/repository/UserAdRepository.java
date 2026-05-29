@@ -73,8 +73,8 @@ public class UserAdRepository extends AsyncRepository {
 
     public Uni<UserAd> insert(UserAd entity, IUser user) {
         String sql = "INSERT INTO " + entityData.getTableName() +
-                " (author, reg_date, last_mod_user, last_mod_date, user_id, title, description, contacts, user_data) " +
-                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id";
+                " (author, reg_date, last_mod_user, last_mod_date, user_id, brand_id, title, description, contacts, user_data) " +
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id";
         OffsetDateTime now = OffsetDateTime.now();
         Tuple params = Tuple.tuple()
                 .addLong(user.getId())
@@ -82,6 +82,7 @@ public class UserAdRepository extends AsyncRepository {
                 .addLong(user.getId())
                 .addOffsetDateTime(now)
                 .addLong(entity.getUserId())
+                .addValue(entity.getBrandId())
                 .addString(entity.getTitle())
                 .addString(entity.getDescription())
                 .addString(entity.getContacts())
@@ -94,13 +95,14 @@ public class UserAdRepository extends AsyncRepository {
 
     public Uni<UserAd> update(UUID id, UserAd entity, IUser user) {
         String sql = "UPDATE " + entityData.getTableName() +
-                " SET title = $1, description = $2, contacts = $3, user_data = $4, last_mod_user = $5, last_mod_date = $6 WHERE id = $7";
+                " SET title = $1, description = $2, contacts = $3, user_data = $4, brand_id = $5, last_mod_user = $6, last_mod_date = $7 WHERE id = $8";
         OffsetDateTime now = OffsetDateTime.now();
         Tuple params = Tuple.tuple()
                 .addString(entity.getTitle())
                 .addString(entity.getDescription())
                 .addString(entity.getContacts())
                 .addJsonObject(toUserDataJson(entity.getUserData()))
+                .addValue(entity.getBrandId())
                 .addLong(user.getId())
                 .addOffsetDateTime(now)
                 .addUUID(id);
@@ -160,6 +162,7 @@ public class UserAdRepository extends AsyncRepository {
         UserAd doc = new UserAd();
         setDefaultFields(doc, row);
         doc.setUserId(row.getLong("user_id"));
+        doc.setBrandId(row.getUUID("brand_id"));
         doc.setTitle(row.getString("title"));
         doc.setDescription(row.getString("description"));
         doc.setContacts(row.getString("contacts"));

@@ -7,12 +7,14 @@ import lombok.Setter;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @Setter
 @Getter
 public class UserAdDTO extends AbstractDTO {
     private long userId;
+    private UUID brandId;
     private String title;
     private String description;
     private String contacts;

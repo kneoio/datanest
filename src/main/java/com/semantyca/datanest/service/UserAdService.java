@@ -73,6 +73,7 @@ public class UserAdService extends AbstractService<UserAd, UserAdDTO> {
             dto.setLastModifier(tuple.getItem2());
             dto.setLastModifiedDate(doc.getLastModifiedDate());
             dto.setUserId(doc.getUserId());
+            dto.setBrandId(doc.getBrandId());
             dto.setTitle(doc.getTitle());
             dto.setDescription(doc.getDescription());
             dto.setContacts(doc.getContacts());
@@ -87,6 +88,7 @@ public class UserAdService extends AbstractService<UserAd, UserAdDTO> {
     private UserAd buildEntity(UserAdDTO dto) {
         UserAd entity = new UserAd();
         entity.setUserId(dto.getUserId());
+        entity.setBrandId(dto.getBrandId());
         entity.setTitle(dto.getTitle());
         entity.setDescription(dto.getDescription());
         entity.setContacts(dto.getContacts());
