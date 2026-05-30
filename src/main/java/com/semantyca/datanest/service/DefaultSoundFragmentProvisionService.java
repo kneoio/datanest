@@ -48,11 +48,13 @@ public class DefaultSoundFragmentProvisionService {
     }
 
     public Uni<Void> provisionForBrand(UUID brandId, String brandSlug, IUser registeredUser) {
+        LOGGER.infof("Starting default fragment provisioning for brand %s (%s), user %s", brandSlug, brandId, registeredUser.getId());
         String sql = "SELECT id, source, status, type, title, album, length, boost, description, slug_name, expires_at " +
                 "FROM " + SF_TABLE + " WHERE artist = $1 AND archived = 0";
 
         return client.preparedQuery(sql)
                 .execute(Tuple.of(DEFAULT_ARTIST))
+                .invoke(rows -> LOGGER.infof("Found %d default_mixpla fragments to provision for brand %s", rows.size(), brandSlug))
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
                 .onItem().transformToUniAndConcatenate(row -> {
                     UUID originalId = row.getUUID("id");
@@ -71,12 +73,14 @@ public class DefaultSoundFragmentProvisionService {
                             .onFailure().recoverWithItem((Void) null);
                 })
                 .collect().asList()
+                .invoke(results -> LOGGER.infof("Finished provisioning for brand %s: %d fragments processed", brandSlug, results.size()))
                 .replaceWithVoid();
     }
 
     private Uni<Void> copyFragment(Row originalRow, UUID originalId, UUID brandId, String brandSlug, IUser registeredUser) {
         UUID newId = UUID.randomUUID();
         String newSlug = originalRow.getString("slug_name") + "-" + newId.toString().replace("-", "").substring(0, 8);
+        LOGGER.infof("Copying fragment %s -> %s (slug: %s) for brand %s", originalId, newId, newSlug, brandSlug);
 
         return fetchAndCopyFile(originalId, brandSlug, newId)
                 .onItem().transformToUni(fileInfo ->
@@ -91,12 +95,15 @@ public class DefaultSoundFragmentProvisionService {
                 .execute(Tuple.of(SF_TABLE, originalId))
                 .onItem().transformToUni(rows -> {
                     if (!rows.iterator().hasNext()) {
+                        LOGGER.warnf("No file found for fragment %s, skipping file copy", originalId);
                         return Uni.createFrom().item((String[]) null);
                     }
                     Row fileRow = rows.iterator().next();
                     String originalKey = fileRow.getString("file_key");
                     String newKey = "music/" + brandSlug + "/default_mixpla/" + newId;
+                    LOGGER.infof("Copying Hetzner file: %s -> %s", originalKey, newKey);
                     return fileStorage.copyFile(originalKey, newKey)
+                            .invoke(v -> LOGGER.infof("Hetzner file copy done: %s", newKey))
                             .replaceWith(new String[]{
                                     newKey,
                                     fileRow.getString("mime_type"),
@@ -109,6 +116,7 @@ public class DefaultSoundFragmentProvisionService {
     private Uni<Void> doDbInserts(Row originalRow, UUID originalId, UUID newId, String newSlug,
                                    UUID brandId, String brandSlug, String[] fileInfo, IUser registeredUser) {
         OffsetDateTime now = OffsetDateTime.now();
+        LOGGER.infof("Inserting DB records for new fragment %s (fileInfo present: %s)", newId, fileInfo != null);
         String insertSql = "INSERT INTO " + SF_TABLE +
                 " (id, author, reg_date, last_mod_user, last_mod_date, source, status, type, " +
                 "title, artist, album, length, boost, description, slug_name, expires_at) " +
@@ -130,11 +138,13 @@ public class DefaultSoundFragmentProvisionService {
 
         return client.withTransaction(tx ->
                 tx.preparedQuery(insertSql).execute(params)
+                        .invoke(v -> LOGGER.infof("Fragment row inserted: %s", newId))
                         .onItem().transformToUni(v -> insertFileRow(tx, newId, fileInfo, now))
                         .onItem().transformToUni(v -> copyAssociations(tx, "mixpla__sound_fragment_genres", "genre_id", "sound_fragment_id", originalId, newId))
                         .onItem().transformToUni(v -> copyAssociations(tx, "mixpla__sound_fragment_labels", "label_id", "id", originalId, newId))
                         .onItem().transformToUni(v -> insertRlsForUser(tx, newId, registeredUser))
                         .onItem().transformToUni(v -> insertBrandAssociation(tx, newId, brandId))
+                        .invoke(v -> LOGGER.infof("All DB inserts complete for fragment %s -> brand %s", newId, brandId))
         );
     }
 
