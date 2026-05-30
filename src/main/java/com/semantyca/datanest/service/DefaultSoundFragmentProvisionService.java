@@ -80,7 +80,7 @@ public class DefaultSoundFragmentProvisionService {
 
         return fetchAndCopyFile(originalId, brandSlug, newId)
                 .onItem().transformToUni(fileInfo ->
-                        doDbInserts(originalRow, originalId, newId, newSlug, brandId, fileInfo, registeredUser)
+                        doDbInserts(originalRow, originalId, newId, newSlug, brandId, brandSlug, fileInfo, registeredUser)
                 );
     }
 
@@ -107,7 +107,7 @@ public class DefaultSoundFragmentProvisionService {
     }
 
     private Uni<Void> doDbInserts(Row originalRow, UUID originalId, UUID newId, String newSlug,
-                                   UUID brandId, String[] fileInfo, IUser registeredUser) {
+                                   UUID brandId, String brandSlug, String[] fileInfo, IUser registeredUser) {
         OffsetDateTime now = OffsetDateTime.now();
         String insertSql = "INSERT INTO " + SF_TABLE +
                 " (id, author, reg_date, last_mod_user, last_mod_date, source, status, type, " +
@@ -119,7 +119,7 @@ public class DefaultSoundFragmentProvisionService {
                 .addString(originalRow.getString("source"))
                 .addInteger(originalRow.getInteger("status"))
                 .addString(originalRow.getString("type"))
-                .addString(originalRow.getString("title"))
+                .addString(originalRow.getString("title") + " for " + brandSlug)
                 .addString(DEFAULT_ARTIST)
                 .addString(originalRow.getString("album"))
                 .addLong(originalRow.getLong("length"))
