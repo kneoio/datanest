@@ -61,9 +61,10 @@ public class BrandPubService extends BrandService {
             DatanestConfig datanestConfig,
             MetricPublisher metricPublisher,
             CommandPublisher commandPublisher,
+            DefaultSoundFragmentProvisionService provisionService,
             BrandPubRepository brandPubRepository
     ) {
-        super(userService, scriptService, sceneService, repository, datanestConfig, metricPublisher, commandPublisher);
+        super(userService, scriptService, sceneService, repository, datanestConfig, metricPublisher, commandPublisher, provisionService);
         this.brandPubRepository = brandPubRepository;
     }
 
