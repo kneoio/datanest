@@ -15,6 +15,7 @@ import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.datanest.dto.BrandSoundFragmentFlatDTO;
 import com.semantyca.datanest.dto.BulkBrandUpdateDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
+import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.actionbars.SoundFragmentActionsFactory;
 import com.semantyca.datanest.service.soundfragment.BrandSoundFragmentService;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
@@ -55,6 +56,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
     private FileDownloadService fileDownloadService;
     private ValidationService validationService;
     private Vertx vertx;
+    private DatanestConfig config;
 
     public SoundFragmentController() {
         super(null);
@@ -66,13 +68,15 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                                    BrandSoundFragmentService brandSoundFragmentService,
                                    FileDownloadService fileDownloadService,
                                    ValidationService validationService,
-                                   Vertx vertx) {
+                                   Vertx vertx,
+                                   DatanestConfig config) {
         super(userService);
         this.service = service;
         this.brandSoundFragmentService = brandSoundFragmentService;
         this.fileDownloadService = fileDownloadService;
         this.validationService = validationService;
         this.vertx = vertx;
+        this.config = config;
     }
 
     public void setupRoutes(Router router) {
@@ -212,6 +216,21 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
 
             SoundFragmentDTO dto = rc.body().asJsonObject().mapTo(SoundFragmentDTO.class);
             String id = rc.pathParam("id");
+
+            if (dto.getType() != null && !PlaylistItemType.SONG.equals(dto.getType())) {
+                config.getOtherGenreId().ifPresent(genreId ->
+                        dto.setGenres(List.of(UUID.fromString(genreId))));
+                if (rc.user() != null) {
+                    JsonObject principal = rc.user().principal();
+                    String username = principal.getString("username");
+                    if (username == null || username.isEmpty()) {
+                        username = principal.getString("preferred_username");
+                    }
+                    if (username != null && !username.isEmpty()) {
+                        dto.setArtist(username);
+                    }
+                }
+            }
 
             ValidationResult validationResult = validationService.validateSoundFragmentDTO(id, dto);
             if (!validationResult.valid()) {

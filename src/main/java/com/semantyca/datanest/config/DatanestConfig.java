@@ -39,4 +39,7 @@ public interface DatanestConfig {
     @WithDefault("4096")
     long getAnthropicMasterPromptTranslateMaxTokens();
 
+    @WithName("genre.other-id")
+    Optional<String> getOtherGenreId();
+
 }
