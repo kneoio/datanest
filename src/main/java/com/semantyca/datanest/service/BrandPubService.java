@@ -71,16 +71,22 @@ public class BrandPubService extends BrandService {
     public Uni<BrandDTO> upsert(String id, BrandDTO dto, IUser user, LanguageCode code) {
         boolean isNew = "new".equalsIgnoreCase(id) || id == null || id.isBlank();
         boolean isCustom = ScriptMode.CUSTOM.equals(dto.getScriptMode());
+        LOGGER.infof("BrandPubService.upsert: id=%s isNew=%s isCustom=%s user=%s", id, isNew, isCustom, user.getUserName());
         return doUpsert(id, dto, isNew, isCustom, user)
-                .invoke(saved -> commandPublisher.publishCommand(
-                        CommandType.FLOW_RESTART,
-                        "brand_saved",
-                        Map.of("brandId", saved.getId().toString(), "slug", saved.getSlugName(), "savedBy", user.getUserName())
-                ))
+                .invoke(saved -> {
+                    LOGGER.infof("BrandPubService.upsert: brand saved id=%s slug=%s", saved.getId(), saved.getSlugName());
+                    commandPublisher.publishCommand(
+                            CommandType.FLOW_RESTART,
+                            "brand_saved",
+                            Map.of("brandId", saved.getId().toString(), "slug", saved.getSlugName(), "savedBy", user.getUserName())
+                    );
+                })
                 .chain(saved -> {
                     if (!isNew) {
+                        LOGGER.infof("BrandPubService.upsert: update path, skipping provisioning");
                         return Uni.createFrom().item(saved);
                     }
+                    LOGGER.infof("BrandPubService.upsert: new brand, calling provisionForBrand id=%s slug=%s", saved.getId(), saved.getSlugName());
                     return provisionService.provisionForBrand(saved.getId(), saved.getSlugName(), user)
                             .onFailure().invoke(ex -> LOGGER.errorf(ex,
                                     "Default fragment provisioning failed for brand %s", saved.getId()))
