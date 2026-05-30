@@ -47,6 +47,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     protected final SceneService sceneService;
     private final MetricPublisher metricPublisher;
     protected final DatanestConfig datanestConfig;
+    private final DefaultSoundFragmentProvisionService provisionService;
 
     protected BrandService() {
         super();
@@ -56,6 +57,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         this.datanestConfig = null;
         this.metricPublisher = null;
         this.commandPublisher = null;
+        this.provisionService = null;
     }
 
     @Inject
@@ -66,7 +68,8 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             BrandRepository repository,
             DatanestConfig datanestConfig,
             MetricPublisher metricPublisher,
-            CommandPublisher commandPublisher
+            CommandPublisher commandPublisher,
+            DefaultSoundFragmentProvisionService provisionService
     ) {
         super(userService);
         this.scriptService = scriptService;
@@ -75,6 +78,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         this.datanestConfig = datanestConfig;
         this.metricPublisher = metricPublisher;
         this.commandPublisher = commandPublisher;
+        this.provisionService = provisionService;
     }
 
     public Uni<List<BrandDTO>> getAllDTO(final int limit, final int offset, final IUser user, final BrandFilter filter) {
@@ -153,10 +157,11 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 ? Uni.createFrom().item(WebHelper.generateSlug(dto.getLocalizedName()))
                 : repository.findById(UUID.fromString(id), user, false).map(Brand::getSlugName);
 
+        boolean isNew = "new".equalsIgnoreCase(id) || id == null || id.isBlank();
         return slugUni
                 .map(slug -> buildEntity(dto, user, slug))
                 .chain(entity -> {
-                    if ("new".equalsIgnoreCase(id) || id == null || id.isBlank()) {
+                    if (isNew) {
                         entity.setPopularityRate(5);
                         return repository.insert(entity, rlsActions, user);
                     } else {
@@ -168,6 +173,17 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                         "brand_saved",
                         Map.of("brandId", saved.getId().toString(), "slug", saved.getSlugName(), "savedBy", user.getUserName())
                 ))
+                .chain(saved -> {
+                    if (!isNew) {
+                        return Uni.createFrom().item(saved);
+                    }
+                    assert provisionService != null;
+                    return provisionService.provisionForBrand(saved.getId(), saved.getSlugName(), user)
+                            .onFailure().invoke(ex -> LOGGER.errorf(ex,
+                                    "Default fragment provisioning failed for brand %s", saved.getId()))
+                            .onFailure().recoverWithItem((Void) null)
+                            .replaceWith(saved);
+                })
                 .chain(this::mapToDTO);
     }
 
