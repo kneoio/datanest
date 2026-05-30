@@ -47,7 +47,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     protected final SceneService sceneService;
     private final MetricPublisher metricPublisher;
     protected final DatanestConfig datanestConfig;
-    private final DefaultSoundFragmentProvisionService provisionService;
+    protected final DefaultSoundFragmentProvisionService provisionService;
 
     protected BrandService() {
         super();
