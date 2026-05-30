@@ -14,7 +14,8 @@ import java.util.UUID;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class CustomActionDTO {
     public static final List<String> AVAILABLE_CONTEXT_VARS = List.of(
-            "songTitle", "songArtist", "genre", "country", "stationBrand", "djName", "timeContext", "labels", "listeners"
+            "songTitle", "songArtist", "songGenres", "country", "stationBrand", "djName", "timeContext", "labels", "listeners"
+            //songDescription  is hidden but available
     );
 
     private String type;
