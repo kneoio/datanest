@@ -384,15 +384,22 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
     }
 
     private SoundFragmentFilter parseFilterDTOForBrand(RoutingContext rc) {
-        return parseFilterDTO(rc, List.of(SourceType.USER_UPLOAD, SourceType.CONTRIBUTION));
+        return parseFilterDTO(rc, List.of(SourceType.USER_UPLOAD, SourceType.CONTRIBUTION), List.of(PlaylistItemType.SONG));
     }
 
     SoundFragmentFilter parseFilterDTO(RoutingContext rc, List<SourceType> allowedSources) {
+        return parseFilterDTO(rc, allowedSources, null);
+    }
+
+    SoundFragmentFilter parseFilterDTO(RoutingContext rc, List<SourceType> allowedSources, List<PlaylistItemType> allowedTypes) {
         String filterParam = rc.request().getParam("filter");
         if (filterParam == null || filterParam.trim().isEmpty()) {
             SoundFragmentFilter dto = new SoundFragmentFilter();
             if (allowedSources != null) {
                 dto.setSource(allowedSources);
+            }
+            if (allowedTypes != null) {
+                dto.setType(allowedTypes);
             }
             return dto;
         }
@@ -462,7 +469,8 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                     if (o instanceof String str) {
                         try {
                             PlaylistItemType playlistItemType = PlaylistItemType.valueOf(str);
-                            if (!requestedTypes.contains(playlistItemType)) {
+                            boolean typeAllowed = allowedTypes == null || allowedTypes.contains(playlistItemType);
+                            if (typeAllowed && !requestedTypes.contains(playlistItemType)) {
                                 requestedTypes.add(playlistItemType);
                             }
                         } catch (IllegalArgumentException ignored) {
@@ -473,6 +481,9 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                     dto.setType(requestedTypes);
                     hasConcreteFilters = true;
                 }
+            }
+            if (allowedTypes != null && (dto.getType() == null || dto.getType().isEmpty())) {
+                dto.setType(allowedTypes);
             }
             String searchTerm = json.getString("searchTerm");
             if (searchTerm != null && !searchTerm.trim().isEmpty()) {
