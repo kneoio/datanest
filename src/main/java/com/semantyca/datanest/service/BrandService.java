@@ -311,6 +311,8 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 ownerDTO.setUserId(doc.getOwner().getUserId());
                 ownerDTO.setName(doc.getOwner().getName());
                 ownerDTO.setEmail(doc.getOwner().getEmail());
+                ownerDTO.setExposeWhileSharing(doc.getOwner().isExposeWhileSharing());
+                ownerDTO.setActionDebugEnabled(doc.getOwner().isActionDebugEnabled());
                 dto.setOwner(ownerDTO);
             }
             dto.setLabels(doc.getLabels());
@@ -406,6 +408,8 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             owner.setUserId(dto.getOwner().getUserId() > 0 ? dto.getOwner().getUserId() : user.getId());
             owner.setName(dto.getOwner().getName());
             owner.setEmail(dto.getOwner().getEmail());
+            owner.setExposeWhileSharing(dto.getOwner().isExposeWhileSharing());
+            owner.setActionDebugEnabled(dto.getOwner().isActionDebugEnabled());
             doc.setOwner(owner);
         }
 
