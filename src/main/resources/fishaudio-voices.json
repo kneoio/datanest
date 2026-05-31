@@ -32,6 +32,14 @@
     "engineType": "fishaudio"
   },
   {
+    "id": "f9c87142160e44cc937ac39710322a65",
+    "name": "Elderly Male Narrator",
+    "gender": "male",
+    "language": "en-US",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
     "id": "03397b4c4be74759b72533b663fbd001",
     "name": "Elon Musk",
     "gender": "male",
