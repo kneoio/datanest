@@ -521,35 +521,49 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
     }
 
     private void triggerOpusEncoding(SoundFragment fragment, UUID brandId, Path localFilePath) {
-        if (opusEncodingService == null || fileStorage == null || repository == null) return;
+        LOGGER.infof("Opus encoding triggered: fragment=%s, localFile=%s, exists=%s",
+                fragment.getId(), localFilePath, Files.exists(localFilePath));
+        if (opusEncodingService == null || fileStorage == null || repository == null) {
+            LOGGER.warnf("Opus encoding skipped: services not initialized (opus=%s, storage=%s, repo=%s)",
+                    opusEncodingService, fileStorage, repository);
+            return;
+        }
         if (!Files.exists(localFilePath)) {
-            LOGGER.warnf("Local file not found for opus encoding: %s", localFilePath);
+            LOGGER.warnf("Opus encoding skipped: local file not found at %s", localFilePath);
             return;
         }
         List<FileMetadata> files = fragment.getFileMetadataList();
         if (files == null || files.isEmpty() || files.get(0).getFileKey() == null) {
-            LOGGER.warnf("No file key on fragment %s, skipping opus encoding", fragment.getId());
+            LOGGER.warnf("Opus encoding skipped: no file key on fragment %s", fragment.getId());
             return;
         }
         String originalKey = files.get(0).getFileKey();
+        LOGGER.infof("Opus encoding: originalKey=%s, brandId=%s", originalKey, brandId);
 
         Uni<Long> bitRateUni = brandId != null
-                ? brandService.getById(brandId, SuperUser.build()).map(brand -> brand.getBitRate() > 0 ? brand.getBitRate() : 128L)
+                ? brandService.getById(brandId, SuperUser.build())
+                    .invoke(brand -> LOGGER.infof("Opus encoding: brand bitRate=%d", brand.getBitRate()))
+                    .map(brand -> brand.getBitRate() > 0 ? brand.getBitRate() : 128L)
                 : Uni.createFrom().item(128L);
 
         bitRateUni
-                .chain(bitRate -> Uni.createFrom().item(() -> {
-                    try {
-                        return opusEncodingService.encode(localFilePath, bitRate);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                }).runSubscriptionOn(Infrastructure.getDefaultWorkerPool()))
+                .chain(bitRate -> {
+                    LOGGER.infof("Opus encoding: starting ffmpeg encode at %dkbps for %s", bitRate, localFilePath);
+                    return Uni.createFrom().item(() -> {
+                        try {
+                            return opusEncodingService.encode(localFilePath, bitRate);
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    }).runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
+                })
                 .chain(encodedFile -> {
                     String encodedKey = originalKey + ".opus";
+                    LOGGER.infof("Opus encoding: ffmpeg done, uploading to Hetzner key=%s, localFile=%s", encodedKey, encodedFile);
                     return fileStorage.uploadFile(encodedKey, encodedFile.toString(), "audio/ogg")
                             .chain(ignored -> {
                                 try { Files.deleteIfExists(encodedFile); } catch (Exception ignored2) {}
+                                LOGGER.infof("Opus encoding: upload done, inserting _files record for fragment %s", fragment.getId());
                                 FileMetadata encodedMeta = new FileMetadata();
                                 encodedMeta.setFileKey(encodedKey);
                                 encodedMeta.setFileType(FileType.OPUS_ENCODED_SOUND_FRAGMENT);
@@ -560,7 +574,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                             });
                 })
                 .subscribe().with(
-                        ignored -> LOGGER.infof("Opus encoding done for fragment %s", fragment.getId()),
+                        ignored -> LOGGER.infof("Opus encoding complete for fragment %s", fragment.getId()),
                         err -> LOGGER.errorf(err, "Opus encoding failed for fragment %s", fragment.getId())
                 );
     }
