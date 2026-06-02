@@ -586,8 +586,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
 
         Uni<Long> bitRateUni = brandId != null
                 ? brandService.getById(brandId, SuperUser.build())
-                    .invoke(brand -> LOGGER.infof("Opus encoding: brand bitRate=%d", brand.getBitRate()))
-                    .map(brand -> brand.getBitRate() > 0 ? brand.getBitRate() : 128L)
+                    .invoke(brand -> LOGGER.infof("Opus encoding: brand bitRate=%d bps -> %d kbps", brand.getBitRate(), brand.getBitRate() / 1000))
+                    .map(brand -> brand.getBitRate() > 0 ? brand.getBitRate() / 1000 : 128L)
                 : Uni.createFrom().item(128L);
 
         bitRateUni
