@@ -247,7 +247,10 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                 );
                     });
         } else {
+            List<UUID> brandIds = dto.getRepresentedInBrands() != null ? dto.getRepresentedInBrands() : List.of();
+            UUID brandId = brandIds.isEmpty() ? null : brandIds.get(0);
             return repository.update(UUID.fromString(id), entity, dto.getRepresentedInBrands(), dto.getRlsActions(), user)
+                    .invoke(doc -> triggerOpusEncodingIfMissing(doc, brandId, fileMetadataList))
                     .chain(doc -> mapToDTO(doc, true, null, null))
                     .onFailure().invoke(failure -> {
                         LOGGER.warnf("Entity update failed, cleaning up files for user: %s, entity: %s",
@@ -518,6 +521,47 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                     return repository.insert(fragment, brandIds, Collections.emptyList(), user);
                 })
                 .invoke(insertedFragment -> triggerOpusEncoding(insertedFragment, brandId, Paths.get(uploadFile.getFullPath())));
+    }
+
+    private void triggerOpusEncodingIfMissing(SoundFragment fragment, UUID brandId, List<FileMetadata> newlyUploadedFiles) {
+        if (fragment.getFileMetadataList() == null) return;
+        boolean hasOpus = fragment.getFileMetadataList().stream()
+                .anyMatch(m -> FileType.OPUS_ENCODED_SOUND_FRAGMENT.equals(m.getFileType()));
+        if (hasOpus) return;
+
+        // prefer local file from this upload
+        Optional<Path> localPath = newlyUploadedFiles.stream()
+                .map(FileMetadata::getFilePath)
+                .filter(p -> p != null && Files.exists(p))
+                .findFirst();
+
+        if (localPath.isPresent()) {
+            triggerOpusEncoding(fragment, brandId, localPath.get());
+            return;
+        }
+
+        // no new local file — download original from Hetzner then encode
+        FileMetadata original = fragment.getFileMetadataList().stream()
+                .filter(m -> m.getFileType() == null || FileType.SOUND_FRAGMENT.equals(m.getFileType()))
+                .findFirst().orElse(null);
+        if (original == null || original.getFileKey() == null) {
+            LOGGER.warnf("Opus encoding skipped on update: no original file found for fragment %s", fragment.getId());
+            return;
+        }
+
+        LOGGER.infof("Opus encoding on update: downloading original from Hetzner key=%s for fragment %s",
+                original.getFileKey(), fragment.getId());
+
+        fileStorage.getFileStream(original.getFileKey())
+                .chain(fileMeta -> fileMeta.materializeFileStream(uploadDir))
+                .chain(tempPath -> {
+                    triggerOpusEncoding(fragment, brandId, tempPath);
+                    return Uni.createFrom().voidItem();
+                })
+                .subscribe().with(
+                        ignored -> {},
+                        err -> LOGGER.errorf(err, "Failed to download original for opus encoding, fragment %s", fragment.getId())
+                );
     }
 
     private void triggerOpusEncoding(SoundFragment fragment, UUID brandId, Path localFilePath) {
