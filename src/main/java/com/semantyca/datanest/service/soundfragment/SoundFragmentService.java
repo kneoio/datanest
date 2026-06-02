@@ -612,7 +612,9 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                 encodedMeta.setFileKey(encodedKey);
                                 encodedMeta.setFileType(FileType.OPUS_ENCODED_SOUND_FRAGMENT);
                                 encodedMeta.setMimeType("audio/ogg");
-                                encodedMeta.setFileOriginalName(localFilePath.getFileName() + ".opus");
+                                FileMetadata orig = files.get(0);
+                                String origName = orig.getFileOriginalName() != null ? orig.getFileOriginalName() : localFilePath.getFileName().toString();
+                                encodedMeta.setFileOriginalName(origName + ".opus");
                                 encodedMeta.setSlugName(files.get(0).getSlugName() + "-opus");
                                 return repository.insertEncodedFile(fragment.getId(), encodedMeta);
                             });
