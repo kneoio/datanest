@@ -4,6 +4,7 @@ import com.semantyca.core.dto.DocumentAccessDTO;
 import com.semantyca.core.model.DataEntity;
 import com.semantyca.core.model.FileMetadata;
 import com.semantyca.core.model.cnst.ArchivedStatus;
+import com.semantyca.core.model.cnst.FileType;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
@@ -20,6 +21,8 @@ import com.semantyca.datanest.repository.soundfragment.SoundFragmentRepository;
 import com.semantyca.datanest.service.BrandService;
 import com.semantyca.datanest.service.RefService;
 import com.semantyca.datanest.service.maintenance.LocalFileCleanupService;
+import com.semantyca.datanest.service.manipulation.OpusEncodingService;
+import com.semantyca.core.service.external.hetzner.HetznerStorageService;
 import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.cnst.SourceType;
@@ -27,6 +30,7 @@ import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
 import com.semantyca.mixpla.model.soundfragment.SoundFragment;
 import com.semantyca.officeframe.service.GenreService;
 import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.validation.Validator;
@@ -49,6 +53,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
     private final LocalFileCleanupService localFileCleanupService;
     private final RefService refService;
     private final SharedSoundFragmentService sharedSoundFragmentService;
+    private final OpusEncodingService opusEncodingService;
+    private final HetznerStorageService fileStorage;
     private String uploadDir;
     Validator validator;
 
@@ -60,6 +66,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         this.brandService = null;
         this.refService = null;
         this.sharedSoundFragmentService = null;
+        this.opusEncodingService = null;
+        this.fileStorage = null;
     }
 
     @Inject
@@ -70,7 +78,9 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                 SoundFragmentRepository repository,
                                 DatanestConfig config,
                                 RefService refService,
-                                SharedSoundFragmentService sharedSoundFragmentService) {
+                                SharedSoundFragmentService sharedSoundFragmentService,
+                                OpusEncodingService opusEncodingService,
+                                HetznerStorageService fileStorage) {
         super(userService);
         this.genreService = genreService;
         this.localFileCleanupService = localFileCleanupService;
@@ -79,6 +89,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         this.brandService = brandService;
         this.refService = refService;
         this.sharedSoundFragmentService = sharedSoundFragmentService;
+        this.opusEncodingService = opusEncodingService;
+        this.fileStorage = fileStorage;
         uploadDir = config.getPathUploads() + "/sound-fragments-controller";
     }
 
@@ -376,6 +388,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                     fileDto.setStatus("finished");
                     fileDto.setUrl("/soundfragments/files/" + doc.getId() + "/" + meta.getSlugName());
                     fileDto.setPercentage(100);
+                    fileDto.setType(meta.getFileType() == FileType.OPUS_ENCODED_SOUND_FRAGMENT ? "opus" : "original");
                     files.add(fileDto);
                 });
             }
@@ -503,7 +516,53 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                     fragment.setGenres(genreIds);
                     assert repository != null;
                     return repository.insert(fragment, brandIds, Collections.emptyList(), user);
-                });
+                })
+                .invoke(insertedFragment -> triggerOpusEncoding(insertedFragment, brandId, Paths.get(uploadFile.getFullPath())));
+    }
+
+    private void triggerOpusEncoding(SoundFragment fragment, UUID brandId, Path localFilePath) {
+        if (opusEncodingService == null || fileStorage == null || repository == null) return;
+        if (!Files.exists(localFilePath)) {
+            LOGGER.warnf("Local file not found for opus encoding: %s", localFilePath);
+            return;
+        }
+        List<FileMetadata> files = fragment.getFileMetadataList();
+        if (files == null || files.isEmpty() || files.get(0).getFileKey() == null) {
+            LOGGER.warnf("No file key on fragment %s, skipping opus encoding", fragment.getId());
+            return;
+        }
+        String originalKey = files.get(0).getFileKey();
+
+        Uni<Long> bitRateUni = brandId != null
+                ? brandService.getById(brandId, SuperUser.build()).map(brand -> brand.getBitRate() > 0 ? brand.getBitRate() : 128L)
+                : Uni.createFrom().item(128L);
+
+        bitRateUni
+                .chain(bitRate -> Uni.createFrom().item(() -> {
+                    try {
+                        return opusEncodingService.encode(localFilePath, bitRate);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }).runSubscriptionOn(Infrastructure.getDefaultWorkerPool()))
+                .chain(encodedFile -> {
+                    String encodedKey = originalKey + ".opus";
+                    return fileStorage.uploadFile(encodedKey, encodedFile.toString(), "audio/ogg")
+                            .chain(ignored -> {
+                                try { Files.deleteIfExists(encodedFile); } catch (Exception ignored2) {}
+                                FileMetadata encodedMeta = new FileMetadata();
+                                encodedMeta.setFileKey(encodedKey);
+                                encodedMeta.setFileType(FileType.OPUS_ENCODED_SOUND_FRAGMENT);
+                                encodedMeta.setMimeType("audio/ogg");
+                                encodedMeta.setFileOriginalName(localFilePath.getFileName() + ".opus");
+                                encodedMeta.setSlugName(files.get(0).getSlugName() + "-opus");
+                                return repository.insertEncodedFile(fragment.getId(), encodedMeta);
+                            });
+                })
+                .subscribe().with(
+                        ignored -> LOGGER.infof("Opus encoding done for fragment %s", fragment.getId()),
+                        err -> LOGGER.errorf(err, "Opus encoding failed for fragment %s", fragment.getId())
+                );
     }
 
     private static String baseNameWithoutExtension(String fileName) {

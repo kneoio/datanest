@@ -25,6 +25,10 @@ public interface DatanestConfig {
     @WithDefault("ffprobe")
     String getFfprobePath();
 
+    @WithName("ffmpeg.path")
+    @WithDefault("ffmpeg")
+    String getFfmpegPath();
+
     @WithName("groq.api-key")
     Optional<String> getGroqApiKey();
 

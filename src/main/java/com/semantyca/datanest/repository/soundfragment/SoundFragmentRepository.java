@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.model.FileMetadata;
 import com.semantyca.core.model.cnst.FileStorageType;
+import com.semantyca.core.model.cnst.FileType;
 import com.semantyca.core.model.embedded.DocumentAccessInfo;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.repository.IFileStorage;
@@ -462,17 +463,18 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
         }
         OffsetDateTime nowTime = ZonedDateTime.now(ZoneOffset.UTC).toOffsetDateTime();
         String filesSql = "INSERT INTO _files (parent_table, parent_id, storage_type, " +
-                "mime_type, file_original_name, file_key, file_bin, slug_name, reg_date, last_mod_date) " +
-                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)";
+                "mime_type, file_type, file_original_name, file_key, file_bin, slug_name, reg_date, last_mod_date) " +
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)";
         List<Tuple> filesParams = doc.getFileMetadataList().stream()
                 .map(meta -> Tuple.of(
                                         entityData.getTableName(),
                                         id,
                                         FileStorageType.HETZNER,
                                         meta.getMimeType(),
-                                        meta.getFileOriginalName(),
-                                        meta.getFileKey()
+                                        meta.getFileType() != null ? meta.getFileType().getCode() : FileType.SOUND_FRAGMENT.getCode()
                                 )
+                                .addString(meta.getFileOriginalName())
+                                .addString(meta.getFileKey())
                                 .addValue(meta.getFileBin())
                                 .addValue(meta.getSlugName())
                                 .addValue(nowTime)
@@ -648,23 +650,44 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
 
         OffsetDateTime nowTime = ZonedDateTime.now(ZoneOffset.UTC).toOffsetDateTime();
         String filesSql = "INSERT INTO _files (parent_table, parent_id, storage_type, " +
-                "mime_type, file_original_name, file_key, file_bin, slug_name, reg_date, last_mod_date) " +
-                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)";
+                "mime_type, file_type, file_original_name, file_key, file_bin, slug_name, reg_date, last_mod_date) " +
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)";
         FileMetadata meta = newFiles.getFirst();
         Tuple fileParams = Tuple.of(
                         entityData.getTableName(),
                         id,
                         FileStorageType.HETZNER,
                         meta.getMimeType(),
-                        meta.getFileOriginalName(),
-                        meta.getFileKey()
+                        meta.getFileType() != null ? meta.getFileType().getCode() : FileType.SOUND_FRAGMENT.getCode()
                 )
+                .addString(meta.getFileOriginalName())
+                .addString(meta.getFileKey())
                 .addValue(meta.getFileBin())
                 .addValue(meta.getSlugName())
                 .addValue(nowTime)
                 .addValue(nowTime);
 
         return tx.preparedQuery(filesSql).execute(fileParams).onItem().ignore().andContinueWithNull();
+    }
+
+    public Uni<Void> insertEncodedFile(UUID fragmentId, FileMetadata meta) {
+        OffsetDateTime nowTime = ZonedDateTime.now(ZoneOffset.UTC).toOffsetDateTime();
+        String sql = "INSERT INTO _files (parent_table, parent_id, storage_type, " +
+                "mime_type, file_type, file_original_name, file_key, slug_name, reg_date, last_mod_date) " +
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)";
+        Tuple params = Tuple.of(
+                        entityData.getTableName(),
+                        fragmentId,
+                        FileStorageType.HETZNER,
+                        meta.getMimeType(),
+                        meta.getFileType() != null ? meta.getFileType().getCode() : FileType.OPUS_ENCODED_SOUND_FRAGMENT.getCode()
+                )
+                .addString(meta.getFileOriginalName())
+                .addString(meta.getFileKey())
+                .addValue(meta.getSlugName())
+                .addValue(nowTime)
+                .addValue(nowTime);
+        return client.preparedQuery(sql).execute(params).onItem().ignore().andContinueWithNull();
     }
 
     private Uni<RowSet<Row>> updateSoundFragmentRecord(SqlClient tx, UUID id, SoundFragment doc, IUser user, OffsetDateTime nowTime) {

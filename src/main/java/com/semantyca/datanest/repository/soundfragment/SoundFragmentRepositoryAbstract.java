@@ -3,6 +3,7 @@ package com.semantyca.datanest.repository.soundfragment;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.semantyca.core.model.FileMetadata;
 import com.semantyca.core.model.cnst.FileStorageType;
+import com.semantyca.core.model.cnst.FileType;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.repository.AsyncRepository;
@@ -84,7 +85,7 @@ public abstract class SoundFragmentRepositoryAbstract extends AsyncRepository {
 
         if (includeFiles) {
             String fileQuery = "SELECT id, reg_date, last_mod_date, parent_table, parent_id, archived, archived_date, storage_type, " +
-                    "mime_type, slug_name, file_original_name, file_key " +
+                    "mime_type, file_type, slug_name, file_original_name, file_key " +
                     "FROM _files " +
                     "WHERE parent_table = '" + entityData.getTableName() + "' AND parent_id = $1 AND archived = 0 ORDER BY reg_date ASC";
             uni = uni.chain(d -> client.preparedQuery(fileQuery)
@@ -103,6 +104,10 @@ public abstract class SoundFragmentRepositoryAbstract extends AsyncRepository {
                                 fileMetadata.setArchivedDate(fileRow.getOffsetDateTime("archived_date"));
                             fileMetadata.setFileStorageType(FileStorageType.valueOf(fileRow.getString("storage_type")));
                             fileMetadata.setMimeType(fileRow.getString("mime_type"));
+                            Integer fileTypeCode = fileRow.getInteger("file_type");
+                            if (fileTypeCode != null && fileTypeCode != 0) {
+                                try { fileMetadata.setFileType(FileType.fromCode(fileTypeCode)); } catch (IllegalArgumentException ignored) {}
+                            }
                             fileMetadata.setSlugName(fileRow.getString("slug_name"));
                             fileMetadata.setFileOriginalName(fileRow.getString("file_original_name"));
                             fileMetadata.setFileKey(fileRow.getString("file_key"));
