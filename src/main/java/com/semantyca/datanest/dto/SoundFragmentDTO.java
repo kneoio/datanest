@@ -35,6 +35,7 @@ public class SoundFragmentDTO extends AbstractDTO {
     private String title;
     @NotBlank
     private String artist;
+    private UUID artistId;
     @NotNull
     @NotEmpty
     private List<UUID> genres;

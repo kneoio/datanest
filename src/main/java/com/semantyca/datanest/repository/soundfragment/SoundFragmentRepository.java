@@ -368,8 +368,8 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
         return fileUploadCompletionUni.onItem().transformToUni(v -> {
             String sql = String.format(
                     "INSERT INTO %s (reg_date, author, last_mod_date, last_mod_user, source, status, type, " +
-                            "title, artist, album, length, boost, description, slug_name, expires_at) " +
-                            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id;",
+                            "title, artist, artist_id, album, length, boost, description, slug_name, expires_at) " +
+                            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id;",
                     entityData.getTableName()
             );
 
@@ -381,6 +381,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                     .addString(doc.getType().name())
                     .addString(doc.getTitle())
                     .addString(doc.getArtist())
+                    .addUUID(doc.getArtistId())
                     .addString(doc.getAlbum())
                     .addLong(lengthMillis)
                     .addInteger(doc.getBoost())
@@ -693,7 +694,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
     private Uni<RowSet<Row>> updateSoundFragmentRecord(SqlClient tx, UUID id, SoundFragment doc, IUser user, OffsetDateTime nowTime) {
         String updateSql = String.format("UPDATE %s SET last_mod_user=$1, last_mod_date=$2, " +
                         "status=$3, type=$4, title=$5, " +
-                        "artist=$6, album=$7, length=$8, boost=$9, description=$10, slug_name=$11, expires_at=$12 WHERE id=$13;",
+                        "artist=$6, artist_id=$7, album=$8, length=$9, boost=$10, description=$11, slug_name=$12, expires_at=$13 WHERE id=$14;",
                 entityData.getTableName());
 
         Tuple params = Tuple.of(user.getId(), nowTime)
@@ -701,6 +702,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                 .addString(doc.getType().name())
                 .addString(doc.getTitle())
                 .addString(doc.getArtist())
+                .addUUID(doc.getArtistId())
                 .addString(doc.getAlbum())
                 .addLong(doc.getLength() != null ? doc.getLength().toMillis() : null)
                 .addInteger(doc.getBoost())

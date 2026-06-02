@@ -407,6 +407,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
             dto.setType(doc.getType());
             dto.setTitle(doc.getTitle());
             dto.setArtist(doc.getArtist());
+            dto.setArtistId(doc.getArtistId());
             dto.setGenres(doc.getGenres());
             dto.setLabels(doc.getLabels());
             dto.setAlbum(doc.getAlbum());
@@ -430,6 +431,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         doc.setType(dto.getType());
         doc.setTitle(dto.getTitle());
         doc.setArtist(dto.getArtist());
+        doc.setArtistId(dto.getArtistId());
         doc.setGenres(dto.getGenres());
         doc.setLabels(dto.getLabels());
         doc.setAlbum(dto.getAlbum());

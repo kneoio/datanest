@@ -10,6 +10,9 @@ import jakarta.inject.Inject;
 public class DatanestApplication {
 
     @Inject
+    ArtistController artistController;
+
+    @Inject
     BrandController brandController;
 
     @Inject
@@ -59,6 +62,7 @@ public class DatanestApplication {
     UserAdController userAdController;
 
     void setupRoutes(@Observes Router router) {
+        artistController.setupRoutes(router);
         brandController.setupRoutes(router);
         draftController.setupRoutes(router);
         eventController.setupRoutes(router);

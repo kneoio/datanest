@@ -50,6 +50,7 @@ public abstract class SoundFragmentRepositoryAbstract extends AsyncRepository {
         doc.setType(PlaylistItemType.valueOf(row.getString("type")));
         doc.setTitle(row.getString("title"));
         doc.setArtist(row.getString("artist"));
+        doc.setArtistId(row.getUUID("artist_id"));
         doc.setAlbum(row.getString("album"));
         
         if (row.getValue("length") != null) {
