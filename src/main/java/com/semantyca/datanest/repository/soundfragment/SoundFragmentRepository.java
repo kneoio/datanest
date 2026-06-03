@@ -7,6 +7,7 @@ import com.semantyca.core.model.cnst.FileStorageType;
 import com.semantyca.core.model.cnst.FileType;
 import com.semantyca.core.model.embedded.DocumentAccessInfo;
 import com.semantyca.core.model.user.IUser;
+import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.repository.IFileStorage;
 import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.exception.DocumentModificationAccessException;
@@ -15,6 +16,7 @@ import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.rls.RlsActionUtil;
 import com.semantyca.core.repository.table.EntityData;
 import com.semantyca.core.service.external.hetzner.HetznerStorageService;
+import com.semantyca.datanest.repository.SchedulableRepository;
 import com.semantyca.datanest.util.SlugHelper;
 import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
 import com.semantyca.mixpla.model.soundfragment.SoundFragment;
@@ -42,7 +44,7 @@ import static com.semantyca.mixpla.repository.MixplaNameResolver.SOUND_FRAGMENT;
 
 
 @ApplicationScoped
-public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
+public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract implements SchedulableRepository<SoundFragment> {
 
     private static final Logger LOGGER = Logger.getLogger(SoundFragmentRepository.class);
     private static final EntityData entityData = MixplaNameResolver.create().getEntityNames(SOUND_FRAGMENT);
@@ -368,8 +370,8 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
         return fileUploadCompletionUni.onItem().transformToUni(v -> {
             String sql = String.format(
                     "INSERT INTO %s (reg_date, author, last_mod_date, last_mod_user, source, status, type, " +
-                            "title, artist, artist_id, album, length, boost, description, slug_name, expires_at) " +
-                            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id;",
+                            "title, artist, artist_id, album, length, boost, description, slug_name, expires_at, scheduler) " +
+                            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id;",
                     entityData.getTableName()
             );
 
@@ -387,7 +389,10 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                     .addInteger(doc.getBoost())
                     .addString(doc.getDescription())
                     .addString(doc.getSlugName())
-                    .addOffsetDateTime(doc.getExpiresAt());
+                    .addOffsetDateTime(doc.getExpiresAt())
+                    .addValue(doc.getScheduler() != null
+                            ? JsonObject.of("scheduler", JsonObject.mapFrom(doc.getScheduler()))
+                            : null);
 
             return client.withTransaction(tx -> tx.preparedQuery(sql)
                     .execute(params)
@@ -694,7 +699,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
     private Uni<RowSet<Row>> updateSoundFragmentRecord(SqlClient tx, UUID id, SoundFragment doc, IUser user, OffsetDateTime nowTime) {
         String updateSql = String.format("UPDATE %s SET last_mod_user=$1, last_mod_date=$2, " +
                         "status=$3, type=$4, title=$5, " +
-                        "artist=$6, artist_id=$7, album=$8, length=$9, boost=$10, description=$11, slug_name=$12, expires_at=$13 WHERE id=$14;",
+                        "artist=$6, artist_id=$7, album=$8, length=$9, boost=$10, description=$11, slug_name=$12, expires_at=$13, scheduler=$14 WHERE id=$15;",
                 entityData.getTableName());
 
         Tuple params = Tuple.of(user.getId(), nowTime)
@@ -709,9 +714,28 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract {
                 .addString(doc.getDescription())
                 .addString(doc.getSlugName())
                 .addOffsetDateTime(doc.getExpiresAt())
+                .addValue(doc.getScheduler() != null
+                        ? JsonObject.of("scheduler", JsonObject.mapFrom(doc.getScheduler()))
+                        : null)
                 .addUUID(id);
 
         return tx.preparedQuery(updateSql).execute(params);
+    }
+
+    @Override
+    public Uni<List<SoundFragment>> findActiveScheduled() {
+        String sql = "SELECT t.* FROM " + entityData.getTableName() + " t " +
+                "JOIN " + entityData.getRlsName() + " rls ON t.id = rls.entity_id " +
+                "WHERE t.archived = 0 AND t.scheduler IS NOT NULL AND rls.reader = $1";
+
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(SuperUser.build().getId()))
+                .onFailure().invoke(throwable -> LOGGER.error("Failed to retrieve active scheduled sound fragments", throwable))
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transformToUni(row -> from(row, false, false, false))
+                .concatenate()
+                .select().where(sf -> sf.getScheduler() != null && sf.getScheduler().isEnabled())
+                .collect().asList();
     }
 
     public Uni<List<DocumentAccessInfo>> getDocumentAccessInfo(UUID documentId, IUser user) {

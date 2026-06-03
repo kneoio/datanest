@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.semantyca.core.model.FileMetadata;
 import com.semantyca.core.model.cnst.FileStorageType;
 import com.semantyca.core.model.cnst.FileType;
+import com.semantyca.core.model.scheduler.Scheduler;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.repository.AsyncRepository;
@@ -16,6 +17,7 @@ import com.semantyca.mixpla.model.soundfragment.SoundFragment;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.SqlResult;
@@ -63,6 +65,18 @@ public abstract class SoundFragmentRepositoryAbstract extends AsyncRepository {
         doc.setSlugName(row.getString("slug_name"));
         doc.setDescription(row.getString("description"));
         doc.setExpiresAt(row.getOffsetDateTime("expires_at"));
+
+        JsonObject schedulerJson = row.getJsonObject("scheduler");
+        if (schedulerJson != null) {
+            try {
+                JsonObject schedulerData = schedulerJson.getJsonObject("scheduler");
+                if (schedulerData != null) {
+                    doc.setScheduler(mapper.convertValue(schedulerData.getMap(), Scheduler.class));
+                }
+            } catch (Exception e) {
+                LOGGER.errorf("Failed to parse scheduler JSON for sound fragment: %s", row.getUUID("id"), e);
+            }
+        }
 
         Uni<SoundFragment> uni = Uni.createFrom().item(doc);
 

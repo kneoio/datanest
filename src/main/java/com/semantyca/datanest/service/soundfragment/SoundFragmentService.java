@@ -1,11 +1,20 @@
 package com.semantyca.datanest.service.soundfragment;
 
 import com.semantyca.core.dto.DocumentAccessDTO;
+import com.semantyca.core.dto.scheduler.OnceTriggerDTO;
+import com.semantyca.core.dto.scheduler.PeriodicTriggerDTO;
+import com.semantyca.core.dto.scheduler.ScheduleDTO;
+import com.semantyca.core.dto.scheduler.TaskDTO;
 import com.semantyca.core.model.DataEntity;
 import com.semantyca.core.model.FileMetadata;
 import com.semantyca.core.model.cnst.ArchivedStatus;
 import com.semantyca.core.model.cnst.FileType;
 import com.semantyca.core.model.cnst.LanguageCode;
+import com.semantyca.core.model.cnst.TriggerType;
+import com.semantyca.core.model.scheduler.OnceTrigger;
+import com.semantyca.core.model.scheduler.PeriodicTrigger;
+import com.semantyca.core.model.scheduler.Scheduler;
+import com.semantyca.core.model.scheduler.Task;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
@@ -415,6 +424,37 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
             dto.setBoost(doc.getBoost());
             dto.setDescription(doc.getDescription());
             dto.setExpiresAt(doc.getExpiresAt());
+            if (doc.getScheduler() != null) {
+                Scheduler scheduler = doc.getScheduler();
+                ScheduleDTO scheduleDTO = new ScheduleDTO();
+                scheduleDTO.setEnabled(scheduler.isEnabled());
+                if (scheduler.getTasks() != null && !scheduler.getTasks().isEmpty()) {
+                    List<TaskDTO> taskDTOs = scheduler.getTasks().stream().map(task -> {
+                        TaskDTO taskDTO = new TaskDTO();
+                        taskDTO.setId(task.getId());
+                        taskDTO.setTriggerType(task.getTriggerType());
+                        if (task.getTriggerType() == TriggerType.ONCE && task.getOnceTrigger() != null) {
+                            OnceTriggerDTO once = new OnceTriggerDTO();
+                            once.setStartTime(task.getOnceTrigger().getStartTime());
+                            once.setDuration(task.getOnceTrigger().getDuration());
+                            once.setWeekdays(task.getOnceTrigger().getWeekdays());
+                            taskDTO.setOnceTrigger(once);
+                        }
+                        if (task.getTriggerType() == TriggerType.PERIODIC && task.getPeriodicTrigger() != null) {
+                            PeriodicTriggerDTO periodic = new PeriodicTriggerDTO();
+                            PeriodicTrigger trigger = task.getPeriodicTrigger();
+                            periodic.setStartTime(trigger.getStartTime());
+                            periodic.setEndTime(trigger.getEndTime());
+                            periodic.setWeekdays(trigger.getWeekdays());
+                            periodic.setInterval(trigger.getInterval());
+                            taskDTO.setPeriodicTrigger(periodic);
+                        }
+                        return taskDTO;
+                    }).collect(Collectors.toList());
+                    scheduleDTO.setTasks(taskDTOs);
+                }
+                dto.setSchedule(scheduleDTO);
+            }
             dto.setUploadedFiles(files);
             dto.setRepresentedInBrands(representedInBrands);
             if (shares != null) {
@@ -440,6 +480,36 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         doc.setDescription(dto.getDescription());
         doc.setExpiresAt(dto.getExpiresAt());
         doc.setSlugName(WebHelper.generateSlug(dto.getTitle(), dto.getArtist()));
+        if (dto.getSchedule() != null) {
+            ScheduleDTO scheduleDTO = dto.getSchedule();
+            Scheduler scheduler = new Scheduler();
+            scheduler.setEnabled(scheduleDTO.isEnabled());
+            if (scheduleDTO.getTasks() != null && !scheduleDTO.getTasks().isEmpty()) {
+                List<Task> tasks = scheduleDTO.getTasks().stream().map(taskDTO -> {
+                    Task task = new Task();
+                    task.setId(taskDTO.getId() != null ? taskDTO.getId() : java.util.UUID.randomUUID());
+                    task.setTriggerType(taskDTO.getTriggerType());
+                    if (taskDTO.getTriggerType() == TriggerType.ONCE && taskDTO.getOnceTrigger() != null) {
+                        OnceTrigger once = new OnceTrigger();
+                        once.setStartTime(taskDTO.getOnceTrigger().getStartTime());
+                        once.setDuration(taskDTO.getOnceTrigger().getDuration());
+                        once.setWeekdays(taskDTO.getOnceTrigger().getWeekdays());
+                        task.setOnceTrigger(once);
+                    }
+                    if (taskDTO.getTriggerType() == TriggerType.PERIODIC && taskDTO.getPeriodicTrigger() != null) {
+                        PeriodicTrigger periodic = new PeriodicTrigger();
+                        periodic.setStartTime(taskDTO.getPeriodicTrigger().getStartTime());
+                        periodic.setEndTime(taskDTO.getPeriodicTrigger().getEndTime());
+                        periodic.setInterval(taskDTO.getPeriodicTrigger().getInterval());
+                        periodic.setWeekdays(taskDTO.getPeriodicTrigger().getWeekdays());
+                        task.setPeriodicTrigger(periodic);
+                    }
+                    return task;
+                }).collect(Collectors.toList());
+                scheduler.setTasks(tasks);
+            }
+            doc.setScheduler(scheduler);
+        }
         return doc;
     }
 

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.datatype.jsr310.ser.DurationSerializer;
 import com.semantyca.core.dto.AbstractDTO;
 import com.semantyca.core.dto.rls.RlsActionDTO;
+import com.semantyca.core.dto.scheduler.ScheduleDTO;
 import com.semantyca.datanest.dto.sharing.ShareDTO;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.cnst.SourceType;
@@ -52,6 +53,7 @@ public class SoundFragmentDTO extends AbstractDTO {
     private List<UploadFileDTO> uploadedFiles;
     private List<UUID> representedInBrands;
     private OffsetDateTime expiresAt;
+    private ScheduleDTO schedule;
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private boolean shared;
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
