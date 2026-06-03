@@ -116,7 +116,7 @@ public class ListenersRepository extends AsyncRepository {
                                             return listener;
                                         }));
                     } else {
-                        LOGGER.warn("No {} found with id: {}, user: {} ", LISTENER, uuid, user.getId());
+                        LOGGER.warnf("No {} found with id: {}, user: {} ", LISTENER, uuid, user.getId());
                         throw new DocumentHasNotFoundException(uuid);
                     }
                 });
@@ -264,7 +264,7 @@ public class ListenersRepository extends AsyncRepository {
         return Uni.createFrom().deferred(() -> {
             try {
                 return rlsRepository.findById(entityData.getRlsName(), user.getId(), id)
-                        .onFailure().invoke(throwable -> LOGGER.error("Failed to check RLS permissions for update listener: {} by user: {}", id, user.getId(), throwable))
+                        .onFailure().invoke(throwable -> LOGGER.errorf("Failed to check RLS permissions for update listener: {} by user: {}", id, user.getId(), throwable))
                         .onItem().transformToUni(permissions -> {
                             if (!permissions[0]) {
                                 return Uni.createFrom().failure(new DocumentModificationAccessException(
@@ -291,7 +291,7 @@ public class ListenersRepository extends AsyncRepository {
 
                                 return tx.preparedQuery(sql)
                                         .execute(params)
-                                        .onFailure().invoke(throwable -> LOGGER.error("Failed to update listener: {} by user: {}", id, user.getId(), throwable))
+                                        .onFailure().invoke(throwable -> LOGGER.errorf("Failed to update listener: {} by user: {}", id, user.getId(), throwable))
                                         .onItem().transformToUni(rowSet -> {
                                             if (rowSet.rowCount() == 0) {
                                                 return Uni.createFrom().failure(new DocumentHasNotFoundException(id));
@@ -303,7 +303,7 @@ public class ListenersRepository extends AsyncRepository {
                             }).onItem().transformToUni(ignored -> findById(id, user, true));
                         });
             } catch (Exception e) {
-                LOGGER.error("Failed to prepare update parameters for listener: {} by user: {}", id, user.getId(), e);
+                LOGGER.errorf("Failed to prepare update parameters for listener: {} by user: {}", id, user.getId(), e);
                 return Uni.createFrom().failure(e);
             }
         });

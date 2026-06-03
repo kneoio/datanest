@@ -1,14 +1,15 @@
 package com.semantyca.datanest.repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.model.embedded.DocumentAccessInfo;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.repository.AsyncRepository;
 import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.exception.DocumentModificationAccessException;
 import com.semantyca.core.repository.rls.RLSRepository;
+import com.semantyca.core.repository.rls.RlsActionUtil;
 import com.semantyca.core.repository.table.EntityData;
-import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.mixpla.model.Profile;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Multi;
@@ -16,17 +17,14 @@ import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.sqlclient.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import com.semantyca.core.repository.rls.RlsActionUtil;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
-import com.semantyca.core.repository.rls.RlsActionUtil;
 
 import static com.semantyca.mixpla.repository.MixplaNameResolver.PROFILE;
-import com.semantyca.core.repository.rls.RlsActionUtil;
 
 
 @ApplicationScoped
@@ -133,7 +131,7 @@ public class ProfileRepository extends AsyncRepository {
         return Uni.createFrom().deferred(() -> {
             try {
                 return rlsRepository.findById(entityData.getRlsName(), user.getId(), id)
-                        .onFailure().invoke(throwable -> LOGGER.error("Failed to check RLS permissions for update profile: {} by user: {}", id, user.getId(), throwable))
+                        .onFailure().invoke(throwable -> LOGGER.errorf("Failed to check RLS permissions for update profile: %s by user: %s", id, user.getId(), throwable))
                         .onItem().transformToUni(permissions -> {
                             if (!permissions[0]) {
                                 return Uni.createFrom().failure(new DocumentModificationAccessException(
@@ -157,7 +155,7 @@ public class ProfileRepository extends AsyncRepository {
 
                             return client.preparedQuery(sql)
                                     .execute(params)
-                                    .onFailure().invoke(throwable -> LOGGER.error("Failed to update profile: {} by user: {}", id, user.getId(), throwable))
+                                    .onFailure().invoke(throwable -> LOGGER.errorf("Failed to update profile: %s by user: %s", id, user.getId(), throwable))
                                     .onItem().transformToUni(rowSet -> {
                                         if (rowSet.rowCount() == 0) {
                                             return Uni.createFrom().failure(new DocumentHasNotFoundException(id));
@@ -167,7 +165,7 @@ public class ProfileRepository extends AsyncRepository {
                                     });
                         });
             } catch (Exception e) {
-                LOGGER.error("Failed to prepare update parameters for profile: {} by user: {}", id, user.getId(), e);
+                LOGGER.errorf("Failed to prepare update parameters for profile: %s by user: %s", id, user.getId(), e);
                 return Uni.createFrom().failure(e);
             }
         });
