@@ -23,6 +23,7 @@ import com.semantyca.mixpla.model.soundfragment.SoundFragment;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;

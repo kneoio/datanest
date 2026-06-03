@@ -24,7 +24,6 @@ import io.vertx.mutiny.sqlclient.SqlResult;
 import io.vertx.mutiny.sqlclient.Tuple;
 
 import java.time.Duration;
-import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -74,7 +73,7 @@ public abstract class SoundFragmentRepositoryAbstract extends AsyncRepository {
                     doc.setScheduler(mapper.convertValue(schedulerData.getMap(), Scheduler.class));
                 }
             } catch (Exception e) {
-                LOGGER.errorf("Failed to parse scheduler JSON for sound fragment: %s", row.getUUID("id"), e);
+                LOGGER.error("Failed to parse scheduler JSON for sound fragment: {}", row.getUUID("id"), e);
             }
         }
 
