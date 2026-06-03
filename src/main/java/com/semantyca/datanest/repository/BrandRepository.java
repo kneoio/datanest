@@ -1,6 +1,7 @@
 package com.semantyca.datanest.repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.embedded.DocumentAccessInfo;
 import com.semantyca.core.model.user.IUser;
@@ -8,8 +9,8 @@ import com.semantyca.core.repository.AsyncRepository;
 import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.exception.DocumentModificationAccessException;
 import com.semantyca.core.repository.rls.RLSRepository;
+import com.semantyca.core.repository.rls.RlsActionUtil;
 import com.semantyca.core.repository.table.EntityData;
-import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.mixpla.model.brand.*;
 import com.semantyca.mixpla.model.cnst.ManagedBy;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
@@ -24,22 +25,18 @@ import io.vertx.mutiny.sqlclient.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
-import com.semantyca.core.repository.rls.RlsActionUtil;
 
 import java.time.OffsetDateTime;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
-import com.semantyca.core.repository.rls.RlsActionUtil;
 
 import static com.semantyca.mixpla.repository.MixplaNameResolver.*;
-import com.semantyca.core.repository.rls.RlsActionUtil;
 
 @ApplicationScoped
 public class BrandRepository extends AsyncRepository {
     private static final Logger LOGGER = Logger.getLogger(BrandRepository.class);
     private static final EntityData entityData = MixplaNameResolver.create().getEntityNames(RADIO_STATION);
-    private static final EntityData brandStats = MixplaNameResolver.create().getEntityNames(BRAND_STATS);
     private static final EntityData soundFragmentEntityData = MixplaNameResolver.create().getEntityNames(SOUND_FRAGMENT);
     private static final EntityData listenerEntityData = MixplaNameResolver.create().getEntityNames(LISTENER);
 
@@ -543,34 +540,6 @@ public class BrandRepository extends AsyncRepository {
         return client.preparedQuery(sql)
                 .execute(Tuple.of(currentUserId))
                 .onItem().transform(rows -> rows.iterator().next().getInteger(0));
-    }
-
-    public Uni<Void> upsertStationAccessWithCountAndGeo(String stationName, Long accessCount, OffsetDateTime lastAccessTime, String userAgent, String ipAddress, String countryCode) {
-        String sql = "INSERT INTO " + brandStats.getTableName() +
-                " (station_name, access_count, last_access_time, user_agent, ip_address, country_code) " +
-                "VALUES ($1, $2, $3, $4, $5, $6) " +
-                "ON CONFLICT (station_name, ip_address, country_code) " +
-                "DO UPDATE SET access_count = EXCLUDED.access_count + " + brandStats.getTableName() + ".access_count, last_access_time = $3, user_agent = $4;";
-
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(stationName, accessCount, lastAccessTime, userAgent, ipAddress, countryCode))
-                .replaceWithVoid();
-    }
-
-    public Uni<OffsetDateTime> findLastAccessTimeByStationName(String stationName) {
-        String sql = "SELECT last_access_time FROM " +
-                brandStats.getTableName() + " WHERE station_name = $1 ORDER BY last_access_time DESC LIMIT 1";
-
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(stationName))
-                .onItem().transform(RowSet::iterator)
-                .onItem().transform(iterator -> {
-                    if (iterator.hasNext()) {
-                        return iterator.next().getOffsetDateTime("last_access_time");
-                    } else {
-                        return null;
-                    }
-                });
     }
 
     public Uni<List<DocumentAccessInfo>> getDocumentAccessInfo(UUID documentId, IUser user) {
