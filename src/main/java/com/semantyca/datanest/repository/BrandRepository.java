@@ -658,13 +658,18 @@ public class BrandRepository extends AsyncRepository {
     }
 
     private List<Long> extractCoOwnerIds(Brand brand) {
-        if (brand.getOwner() == null || brand.getOwner().getCoOwners() == null) {
+        if (brand.getOwner() == null) {
             return List.of();
         }
         List<Long> ids = new ArrayList<>();
-        for (Owner co : brand.getOwner().getCoOwners()) {
-            if (co.getUserId() != null) {
-                ids.add(co.getUserId());
+        if (brand.getOwner().getUserId() != null) {
+            ids.add(brand.getOwner().getUserId());
+        }
+        if (brand.getOwner().getCoOwners() != null) {
+            for (Owner co : brand.getOwner().getCoOwners()) {
+                if (co.getUserId() != null) {
+                    ids.add(co.getUserId());
+                }
             }
         }
         return ids;

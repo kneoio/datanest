@@ -159,7 +159,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
         boolean isNew = "new".equalsIgnoreCase(id) || id == null || id.isBlank();
         return slugUni
-                .map(slug -> buildEntity(dto, user, slug))
+                .chain(slug -> resolveOwnerUserIds(dto).map(resolvedDto -> buildEntity(resolvedDto, user, slug)))
                 .chain(entity -> {
                     if (isNew) {
                         entity.setPopularityRate(5);
@@ -382,6 +382,44 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         return customScene;
     }
 
+    private Uni<BrandDTO> resolveOwnerUserIds(BrandDTO dto) {
+        if (dto.getOwner() == null) return Uni.createFrom().item(dto);
+
+        List<Uni<Void>> resolutions = new ArrayList<>();
+        OwnerDTO owner = dto.getOwner();
+
+        if (owner.getUserId() == null && owner.getEmail() != null) {
+            resolutions.add(userService.findByEmail(owner.getEmail())
+                    .onFailure().recoverWithNull()
+                    .invoke(u -> {
+                        if (u != null) {
+                            owner.setUserId(u.getId());
+                            owner.setName(u.getUserName());
+                        }
+                    })
+                    .replaceWithVoid());
+        }
+
+        if (owner.getCoOwners() != null) {
+            for (OwnerDTO co : owner.getCoOwners()) {
+                if (co.getUserId() == null && co.getEmail() != null) {
+                    resolutions.add(userService.findByEmail(co.getEmail())
+                            .onFailure().recoverWithNull()
+                            .invoke(u -> {
+                                if (u != null) {
+                                    co.setUserId(u.getId());
+                                    co.setName(u.getUserName());
+                                }
+                            })
+                            .replaceWithVoid());
+                }
+            }
+        }
+
+        if (resolutions.isEmpty()) return Uni.createFrom().item(dto);
+        return Uni.combine().all().unis(resolutions).discardItems().replaceWith(dto);
+    }
+
     Brand buildEntity(BrandDTO dto, IUser user, String slug) {
         Brand doc = new Brand();
         doc.setLocalizedName(dto.getLocalizedName());
@@ -418,7 +456,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
         if (dto.getOwner() != null) {
             Owner owner = new Owner();
-            owner.setUserId(dto.getOwner().getUserId() > 0 ? dto.getOwner().getUserId() : user.getId());
+            owner.setUserId(dto.getOwner().getUserId() != null && dto.getOwner().getUserId() > 0 ? dto.getOwner().getUserId() : user.getId());
             owner.setName(dto.getOwner().getName());
             owner.setEmail(dto.getOwner().getEmail());
             owner.setExposeWhileSharing(dto.getOwner().isExposeWhileSharing());

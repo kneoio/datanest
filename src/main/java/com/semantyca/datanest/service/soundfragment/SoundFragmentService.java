@@ -532,9 +532,12 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                     for (Brand brand : brands) {
                         if (brand == null) continue;
                         Owner owner = brand.getOwner();
-                        if (owner == null || owner.getCoOwners() == null) continue;
-                        for (Owner co : owner.getCoOwners()) {
-                            if (co.getUserId() != null) coOwnerIds.add(co.getUserId());
+                        if (owner == null) continue;
+                        if (owner.getUserId() != null) coOwnerIds.add(owner.getUserId());
+                        if (owner.getCoOwners() != null) {
+                            for (Owner co : owner.getCoOwners()) {
+                                if (co.getUserId() != null) coOwnerIds.add(co.getUserId());
+                            }
                         }
                     }
                     if (coOwnerIds.isEmpty()) {
