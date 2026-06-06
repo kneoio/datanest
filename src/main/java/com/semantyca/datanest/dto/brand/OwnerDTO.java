@@ -3,6 +3,8 @@ package com.semantyca.datanest.dto.brand;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.List;
+
 @Getter
 @Setter
 public class OwnerDTO {
@@ -11,4 +13,5 @@ public class OwnerDTO {
     private String email;
     private boolean exposeWhileSharing;
     private boolean actionDebugEnabled;
+    private List<OwnerDTO> coOwners;
 }

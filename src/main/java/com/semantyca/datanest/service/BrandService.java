@@ -313,6 +313,19 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 ownerDTO.setEmail(doc.getOwner().getEmail());
                 ownerDTO.setExposeWhileSharing(doc.getOwner().isExposeWhileSharing());
                 ownerDTO.setActionDebugEnabled(doc.getOwner().isActionDebugEnabled());
+                if (doc.getOwner().getCoOwners() != null) {
+                    ownerDTO.setCoOwners(doc.getOwner().getCoOwners().stream()
+                            .map(co -> {
+                                OwnerDTO coDTO = new OwnerDTO();
+                                coDTO.setUserId(co.getUserId());
+                                coDTO.setName(co.getName());
+                                coDTO.setEmail(co.getEmail());
+                                coDTO.setExposeWhileSharing(co.isExposeWhileSharing());
+                                coDTO.setActionDebugEnabled(co.isActionDebugEnabled());
+                                return coDTO;
+                            })
+                            .collect(Collectors.toList()));
+                }
                 dto.setOwner(ownerDTO);
             }
             dto.setLabels(doc.getLabels());
@@ -410,6 +423,19 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             owner.setEmail(dto.getOwner().getEmail());
             owner.setExposeWhileSharing(dto.getOwner().isExposeWhileSharing());
             owner.setActionDebugEnabled(dto.getOwner().isActionDebugEnabled());
+            if (dto.getOwner().getCoOwners() != null) {
+                owner.setCoOwners(dto.getOwner().getCoOwners().stream()
+                        .map(co -> {
+                            Owner coOwner = new Owner();
+                            coOwner.setUserId(co.getUserId());
+                            coOwner.setName(co.getName());
+                            coOwner.setEmail(co.getEmail());
+                            coOwner.setExposeWhileSharing(co.isExposeWhileSharing());
+                            coOwner.setActionDebugEnabled(co.isActionDebugEnabled());
+                            return coOwner;
+                        })
+                        .collect(Collectors.toList()));
+            }
             doc.setOwner(owner);
         }
 

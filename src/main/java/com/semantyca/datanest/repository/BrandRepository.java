@@ -27,6 +27,7 @@ import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
@@ -220,6 +221,10 @@ public class BrandRepository extends AsyncRepository {
                                                     .onItem().transform(v -> id)
                                     )
                                     .onItem().transformToUni(id ->
+                                            insertCoOwnerRLSPermissions(tx, id, entityData, extractCoOwnerIds(station))
+                                                    .onItem().transform(v -> id)
+                                    )
+                                    .onItem().transformToUni(id ->
                                             updateBrandScripts(tx, id, station.getScripts())
                                                     .onItem().transform(v -> id)
                                     )
@@ -291,6 +296,7 @@ public class BrandRepository extends AsyncRepository {
                                         return updateBrandScripts(tx, id, station.getScripts())
                                                 .onItem().transformToUni(v -> upsertLabels(tx, id, station.getLabels()))
                                                 .onItem().transformToUni(v -> applyRlsActions(tx, id, rlsActions))
+                                                .onItem().transformToUni(v -> insertCoOwnerRLSPermissions(tx, id, entityData, extractCoOwnerIds(station)))
                                                 .onItem().transform(v -> id);
                                     })
                     ).onItem().transformToUni(stationId -> findById(stationId, user, true));
@@ -649,5 +655,18 @@ public class BrandRepository extends AsyncRepository {
         if (filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
             params.addString(filter.getSearchTerm());
         }
+    }
+
+    private List<Long> extractCoOwnerIds(Brand brand) {
+        if (brand.getOwner() == null || brand.getOwner().getCoOwners() == null) {
+            return List.of();
+        }
+        List<Long> ids = new ArrayList<>();
+        for (Owner co : brand.getOwner().getCoOwners()) {
+            if (co.getUserId() != null) {
+                ids.add(co.getUserId());
+            }
+        }
+        return ids;
     }
 }
