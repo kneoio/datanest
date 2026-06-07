@@ -172,7 +172,11 @@ public class PromptRepository extends AsyncRepository {
                     } else {
                         return Uni.createFrom().failure(new DocumentHasNotFoundException(id));
                     }
-                });
+                })
+                .chain(doc -> loadLabels(doc.getId()).map(labels -> {
+                    doc.setLabels(labels);
+                    return doc;
+                }));
     }
 
     public Uni<List<DjPrompt>> findByIds(List<UUID> ids, IUser user) {
@@ -267,6 +271,7 @@ public class PromptRepository extends AsyncRepository {
                                         .onItem().transformToUni(id ->
                                                 insertRLSPermissions(tx, id, entityData, user)
                                                         .onItem().transformToUni(ignored -> applyRlsActions(tx, id, rlsActions))
+                                                        .onItem().transformToUni(ignored -> upsertLabels(tx, id, prompt.getLabels()))
                                                         .onItem().transform(ignored -> id)
                                         )
                         )
@@ -325,6 +330,7 @@ public class PromptRepository extends AsyncRepository {
                                             return Uni.createFrom().failure(new DocumentHasNotFoundException(id));
                                         }
                                         return applyRlsActions(client, id, rlsActions)
+                                                .onItem().transformToUni(ignored -> upsertLabels(client, id, prompt.getLabels()))
                                                 .onItem().transformToUni(ignored -> findById(id, user, true));
                                     });
                         });
@@ -364,6 +370,28 @@ public class PromptRepository extends AsyncRepository {
                     }
                     return client.withTransaction(tx -> applyRlsActions(tx, entityId, actions));
                 });
+    }
+
+    private Uni<List<UUID>> loadLabels(UUID promptId) {
+        return client.preparedQuery("SELECT label_id FROM mixpla__prompt_labels WHERE id = $1")
+                .execute(Tuple.of(promptId))
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transform(row -> row.getUUID("label_id"))
+                .collect().asList();
+    }
+
+    private Uni<Void> upsertLabels(SqlClient tx, UUID promptId, List<UUID> labels) {
+        String deleteSql = "DELETE FROM mixpla__prompt_labels WHERE id = $1";
+        if (labels == null || labels.isEmpty()) {
+            return tx.preparedQuery(deleteSql).execute(Tuple.of(promptId)).replaceWithVoid();
+        }
+        String insertSql = "INSERT INTO mixpla__prompt_labels (id, label_id) VALUES ($1, $2) ON CONFLICT DO NOTHING";
+        return tx.preparedQuery(deleteSql).execute(Tuple.of(promptId))
+                .chain(() -> Multi.createFrom().iterable(labels)
+                        .onItem().transformToUni(labelId ->
+                                tx.preparedQuery(insertSql).execute(Tuple.of(promptId, labelId)))
+                        .merge().collect().asList())
+                .replaceWithVoid();
     }
 
     private Uni<Void> applyRlsActions(SqlClient tx, UUID entityId, List<RlsActionDTO> actions) {

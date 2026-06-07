@@ -190,6 +190,7 @@ public class PromptService extends AbstractService<DjPrompt, PromptDTO> {
             dto.setAllowAsOption(doc.getAllowAsOption());
             dto.setLocalizedOptionName(doc.getLocalizedOptionName());
             dto.setExposedVariables(doc.getExposedVariables());
+            dto.setLabels(doc.getLabels());
             return dto;
         });
     }
@@ -216,6 +217,7 @@ public class PromptService extends AbstractService<DjPrompt, PromptDTO> {
         doc.setAllowAsOption(dto.getAllowAsOption());
         doc.setLocalizedOptionName(dto.getLocalizedOptionName());
         doc.setExposedVariables(dto.getExposedVariables() != null ? dto.getExposedVariables() : new io.vertx.core.json.JsonArray());
+        doc.setLabels(dto.getLabels());
         return doc;
     }
 

@@ -37,4 +37,5 @@ public class PromptDTO extends AbstractDTO {
     private List<RlsActionDTO> rlsActions = new ArrayList<>();
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<PromptDTO> children = new ArrayList<>();
+    private List<UUID> labels;
 }
