@@ -1,6 +1,7 @@
 package com.semantyca.datanest.repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.model.embedded.DocumentAccessInfo;
 import com.semantyca.core.model.user.IUser;
@@ -8,8 +9,8 @@ import com.semantyca.core.repository.AsyncRepository;
 import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.exception.DocumentModificationAccessException;
 import com.semantyca.core.repository.rls.RLSRepository;
+import com.semantyca.core.repository.rls.RlsActionUtil;
 import com.semantyca.core.repository.table.EntityData;
-import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.mixpla.model.aiagent.AiAgent;
 import com.semantyca.mixpla.model.aiagent.LanguagePreference;
 import com.semantyca.mixpla.model.aiagent.TTSSetting;
@@ -23,16 +24,13 @@ import io.vertx.mutiny.sqlclient.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
-import com.semantyca.core.repository.rls.RlsActionUtil;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import com.semantyca.core.repository.rls.RlsActionUtil;
 
 import static com.semantyca.mixpla.repository.MixplaNameResolver.AI_AGENT;
-import com.semantyca.core.repository.rls.RlsActionUtil;
 
 
 @ApplicationScoped
