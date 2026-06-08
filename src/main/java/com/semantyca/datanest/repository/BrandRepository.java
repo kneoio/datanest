@@ -2,6 +2,9 @@ package com.semantyca.datanest.repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.semantyca.core.dto.rls.RlsActionDTO;
+import com.semantyca.core.model.FileMetadata;
+import com.semantyca.core.model.cnst.FileStorageType;
+import com.semantyca.core.model.cnst.FileType;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.embedded.DocumentAccessInfo;
 import com.semantyca.core.model.user.IUser;
@@ -27,6 +30,8 @@ import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -393,8 +398,13 @@ public class BrandRepository extends AsyncRepository {
                 d.setLabels(labels);
                 return d;
             }));
+            uni = uni.chain(d -> loadLogoFiles(d.getId()).onItem().transform(files -> {
+                d.setFileMetadataList(files);
+                return d;
+            }));
         } else {
             doc.setLabels(List.of());
+            doc.setFileMetadataList(List.of());
         }
 
         return uni;
@@ -407,6 +417,84 @@ public class BrandRepository extends AsyncRepository {
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
                 .onItem().transform(row -> row.getUUID("label_id"))
                 .collect().asList();
+    }
+
+    private Uni<List<FileMetadata>> loadLogoFiles(UUID brandId) {
+        String sql = "SELECT id, reg_date, last_mod_date, parent_table, parent_id, archived, archived_date, " +
+                "storage_type, mime_type, file_type, slug_name, file_original_name, file_key " +
+                "FROM _files WHERE parent_table = '" + entityData.getTableName() + "' AND parent_id = $1 AND archived = 0";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(brandId))
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transform(row -> {
+                    FileMetadata meta = new FileMetadata();
+                    meta.setId(row.getLong("id"));
+                    meta.setRegDate(row.getOffsetDateTime("reg_date").toZonedDateTime());
+                    meta.setLastModifiedDate(row.getOffsetDateTime("last_mod_date").toZonedDateTime());
+                    meta.setParentTable(row.getString("parent_table"));
+                    meta.setParentId(row.getUUID("parent_id"));
+                    meta.setArchived(row.getInteger("archived"));
+                    if (row.getOffsetDateTime("archived_date") != null)
+                        meta.setArchivedDate(row.getOffsetDateTime("archived_date"));
+                    meta.setFileStorageType(FileStorageType.valueOf(row.getString("storage_type")));
+                    meta.setMimeType(row.getString("mime_type"));
+                    Integer fileTypeCode = row.getInteger("file_type");
+                    if (fileTypeCode != null && fileTypeCode != 0) {
+                        try { meta.setFileType(FileType.fromCode(fileTypeCode)); } catch (IllegalArgumentException ignored) {}
+                    }
+                    meta.setSlugName(row.getString("slug_name"));
+                    meta.setFileOriginalName(row.getString("file_original_name"));
+                    meta.setFileKey(row.getString("file_key"));
+                    return meta;
+                })
+                .collect().asList();
+    }
+
+    public Uni<Void> upsertLogoFile(UUID brandId, FileMetadata meta) {
+        String deleteSql = "DELETE FROM _files WHERE parent_id = $1 AND parent_table = '" + entityData.getTableName() + "'";
+        OffsetDateTime now = ZonedDateTime.now(ZoneOffset.UTC).toOffsetDateTime();
+        String insertSql = "INSERT INTO _files (parent_table, parent_id, storage_type, mime_type, file_type, " +
+                "file_original_name, file_key, slug_name, reg_date, last_mod_date) " +
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)";
+        Tuple params = Tuple.of(
+                        entityData.getTableName(),
+                        brandId,
+                        FileStorageType.HETZNER.name(),
+                        meta.getMimeType(),
+                        FileType.BRAND_LOGO.getCode()
+                )
+                .addString(meta.getFileOriginalName())
+                .addString(meta.getFileKey())
+                .addString(meta.getSlugName())
+                .addOffsetDateTime(now)
+                .addOffsetDateTime(now);
+        return client.withTransaction(tx ->
+                tx.preparedQuery(deleteSql).execute(Tuple.of(brandId))
+                        .onItem().transformToUni(ignored -> tx.preparedQuery(insertSql).execute(params))
+                        .replaceWithVoid()
+        );
+    }
+
+    public Uni<FileMetadata> getLogoFileBySlugName(UUID brandId, String slugName) {
+        String sql = "SELECT id, mime_type, file_key, slug_name, file_original_name, storage_type, file_type " +
+                "FROM _files WHERE parent_id = $1 AND slug_name = $2 AND parent_table = '" + entityData.getTableName() + "' AND archived = 0";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(brandId, slugName))
+                .onItem().transformToUni(rows -> {
+                    if (!rows.iterator().hasNext()) {
+                        return Uni.createFrom().failure(new DocumentHasNotFoundException(brandId));
+                    }
+                    Row row = rows.iterator().next();
+                    FileMetadata meta = new FileMetadata();
+                    meta.setId(row.getLong("id"));
+                    meta.setMimeType(row.getString("mime_type"));
+                    meta.setFileKey(row.getString("file_key"));
+                    meta.setSlugName(row.getString("slug_name"));
+                    meta.setFileOriginalName(row.getString("file_original_name"));
+                    meta.setFileStorageType(FileStorageType.valueOf(row.getString("storage_type")));
+                    meta.setFileType(FileType.BRAND_LOGO);
+                    return Uni.createFrom().item(meta);
+                });
     }
 
     private Uni<Void> upsertLabels(io.vertx.mutiny.sqlclient.SqlClient tx, UUID brandId, List<UUID> labels) {
@@ -509,10 +597,14 @@ public class BrandRepository extends AsyncRepository {
 
                     return client.withTransaction(tx -> {
                         String deleteRlsSql = String.format("DELETE FROM %s WHERE entity_id = $1", entityData.getRlsName());
+                        String deleteFilesSql = "DELETE FROM _files WHERE parent_id = $1 AND parent_table = '" + entityData.getTableName() + "'";
                         String deleteDocSql = String.format("DELETE FROM %s WHERE id = $1", entityData.getTableName());
 
                         return tx.preparedQuery(deleteRlsSql)
                                 .execute(Tuple.of(id))
+                                .onItem().transformToUni(ignored ->
+                                        tx.preparedQuery(deleteFilesSql).execute(Tuple.of(id))
+                                )
                                 .onItem().transformToUni(ignored ->
                                         tx.preparedQuery(deleteDocSql)
                                                 .execute(Tuple.of(id))

@@ -6,6 +6,7 @@ import com.semantyca.core.dto.AbstractDTO;
 import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.dto.validation.ValidCountry;
 import com.semantyca.core.dto.validation.ValidLocalizedName;
+import com.semantyca.core.model.FileMetadata;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.datanest.dto.script.BrandScriptEntryDTO;
 import com.semantyca.datanest.dto.script.CustomScriptDTO;
@@ -74,6 +75,8 @@ public class BrandDTO extends AbstractDTO {
     private OwnerDTO owner;
     private List<UUID> labels;
     private List<UUID> genres;
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    private List<FileMetadata> logoFiles;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<RlsActionDTO> rlsActions = new ArrayList<>();
 

@@ -6,6 +6,7 @@
     import com.semantyca.core.dto.form.FormPage;
     import com.semantyca.core.dto.view.View;
     import com.semantyca.core.dto.view.ViewPage;
+    import com.semantyca.core.model.FileMetadata;
     import com.semantyca.core.model.cnst.LanguageCode;
     import com.semantyca.core.service.UserService;
     import com.semantyca.core.util.ProblemDetailsUtil;
@@ -13,6 +14,7 @@
     import com.semantyca.core.util.WebHelper;
     import com.semantyca.datanest.dto.actionbars.SoundFragmentActionsFactory;
     import com.semantyca.datanest.dto.brand.BrandDTO;
+    import com.semantyca.datanest.service.BrandLogoService;
     import com.semantyca.datanest.service.BrandPubService;
     import com.semantyca.datanest.service.BrandService;
     import com.semantyca.mixpla.model.brand.Brand;
@@ -21,6 +23,7 @@
     import com.semantyca.officeframe.model.cnst.CountryCode;
     import io.smallrye.mutiny.Uni;
     import io.smallrye.mutiny.tuples.Tuple2;
+    import io.vertx.core.buffer.Buffer;
     import io.vertx.core.json.JsonArray;
     import io.vertx.core.json.JsonObject;
     import io.vertx.ext.web.Router;
@@ -42,6 +45,7 @@
 
         private BrandService service;
         private BrandPubService pubService;
+        private BrandLogoService logoService;
         private Validator validator;
 
         public BrandController() {
@@ -49,28 +53,31 @@
         }
 
         @Inject
-        public BrandController(UserService userService, BrandService service, BrandPubService pubService, Validator validator) {
+        public BrandController(UserService userService, BrandService service, BrandPubService pubService,
+                               BrandLogoService logoService, Validator validator) {
             super(userService);
             this.service = service;
             this.pubService = pubService;
+            this.logoService = logoService;
             this.validator = validator;
         }
 
         public void setupRoutes(Router router) {
             String path = "/datanest/brands";
-            router.route(path + "*").handler(BodyHandler.create());
+            BodyHandler jsonBodyHandler = BodyHandler.create().setHandleFileUploads(false);
             router.get(path).handler(this::getAll);
             router.get(path + "/discover").handler(this::getOpenForSubmission);
             router.get(path + "/:id").handler(this::getById);
-            router.post(path + "/:id?").handler(this::upsert);
+            router.post(path + "/:id?").handler(jsonBodyHandler).handler(this::upsert);
 
             String pubPath = "/datanest/pub/brands";
-            router.route(pubPath + "*").handler(BodyHandler.create());
             router.get(pubPath + "/:id").handler(this::getPubById);
-            router.post(pubPath + "/:id").handler(this::upsertBySlug);
-            router.delete(path + "/:id").handler(this::delete);
-            router.post(path + "/:id/close").handler(this::closeBrand);
+            router.post(pubPath + "/:id").handler(jsonBodyHandler).handler(this::upsertBySlug);
+            router.delete(path + "/:id").handler(jsonBodyHandler).handler(this::delete);
+            router.post(path + "/:id/close").handler(jsonBodyHandler).handler(this::closeBrand);
             router.get(path + "/:id/access").handler(this::getDocumentAccess);
+            router.post(path + "/:id/logo").handler(this::uploadLogo);
+            router.get(path + "/files/:id/:slug").handler(this::getLogo);
         }
 
         private void getAll(RoutingContext rc) {
@@ -319,6 +326,61 @@
                         );
             } catch (IllegalArgumentException e) {
                 rc.fail(400, new IllegalArgumentException("Invalid document ID format"));
+            }
+        }
+
+        private void uploadLogo(RoutingContext rc) {
+            String id = rc.pathParam("id");
+            try {
+                UUID brandId = UUID.fromString(id);
+                getContextUser(rc, false, true)
+                        .chain(user -> logoService.uploadLogo(rc, brandId, user))
+                        .subscribe().with(
+                                meta -> rc.response()
+                                        .setStatusCode(200)
+                                        .putHeader("Content-Type", "application/json")
+                                        .end(io.vertx.core.json.Json.encode(meta)),
+                                throwable -> {
+                                    LOGGER.error("Failed to upload logo for brand: {}", id, throwable);
+                                    if (throwable instanceof IllegalArgumentException) {
+                                        rc.fail(400, throwable);
+                                    } else {
+                                        rc.fail(throwable);
+                                    }
+                                }
+                        );
+            } catch (IllegalArgumentException e) {
+                rc.fail(400, new IllegalArgumentException("Invalid brand ID"));
+            }
+        }
+
+        private void getLogo(RoutingContext rc) {
+            String id = rc.pathParam("id");
+            String slug = rc.pathParam("slug");
+            try {
+                UUID brandId = UUID.fromString(id);
+                getContextUser(rc, false, true)
+                        .chain(user -> logoService.getLogoMetadata(brandId, slug)
+                                .chain(meta -> logoService.getLogo(brandId, slug, user)
+                                        .map(bytes -> new Object[]{meta, bytes})))
+                        .subscribe().with(
+                                result -> {
+                                    FileMetadata meta = (FileMetadata) result[0];
+                                    byte[] bytes = (byte[]) result[1];
+                                    rc.response()
+                                            .setStatusCode(200)
+                                            .putHeader("Content-Type", meta.getMimeType() != null ? meta.getMimeType() : "application/octet-stream")
+                                            .putHeader("Content-Disposition", "inline; filename=\"" + meta.getFileOriginalName() + "\"")
+                                            .putHeader("Content-Length", String.valueOf(bytes.length))
+                                            .end(Buffer.buffer(bytes));
+                                },
+                                throwable -> {
+                                    LOGGER.error("Failed to get logo for brand: {}", id, throwable);
+                                    rc.fail(throwable);
+                                }
+                        );
+            } catch (IllegalArgumentException e) {
+                rc.fail(400, new IllegalArgumentException("Invalid brand ID"));
             }
         }
 

@@ -24,6 +24,14 @@
     "engineType": "fishaudio"
   },
   {
+    "id": "02f2bdaf3830498088246a16f184b4cf",
+    "name": "성우",
+    "gender": "female",
+    "language": "ko-KR",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
     "id": "5196af35f6ff4a0dbf541793fc9f2157",
     "name": "Donald J. Trump",
     "gender": "male",

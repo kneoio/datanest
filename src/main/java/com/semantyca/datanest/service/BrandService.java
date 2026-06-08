@@ -330,6 +330,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             }
             dto.setLabels(doc.getLabels());
             dto.setGenres(doc.getGenres());
+            dto.setLogoFiles(doc.getFileMetadataList().isEmpty() ? null : doc.getFileMetadataList());
 
             ScriptMode mode = ScriptMode.valueOf(doc.getScriptMode());
             dto.setScriptMode(mode);
