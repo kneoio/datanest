@@ -11,6 +11,7 @@ import com.semantyca.mixpla.model.filter.UserAdFilter;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.semantyca.mixpla.model.PlayHistory;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -22,7 +23,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -191,34 +191,22 @@ public class UserAdRepository extends AsyncRepository {
         if (list == null || list.isEmpty()) {
             return new JsonArray();
         }
-        JsonArray array = new JsonArray();
-        for (PlayHistory entry : list) {
-            JsonObject obj = new JsonObject();
-            if (entry.playedAt() != null) obj.put("playedAt", entry.playedAt().toString());
-            if (entry.duration() != null) obj.put("duration", entry.duration());
-            if (entry.speechText() != null) obj.put("speechText", entry.speechText());
-            if (entry.djName() != null) obj.put("djName", entry.djName());
-            array.add(obj);
+        try {
+            return new JsonArray(mapper.writeValueAsString(list));
+        } catch (Exception e) {
+            return new JsonArray();
         }
-        return array;
     }
 
     private List<PlayHistory> fromPlayHistoryJson(JsonArray json) {
         if (json == null || json.isEmpty()) {
             return Collections.emptyList();
         }
-        List<PlayHistory> list = new ArrayList<>();
-        for (int i = 0; i < json.size(); i++) {
-            JsonObject obj = json.getJsonObject(i);
-            String playedAtStr = obj.getString("playedAt");
-            list.add(new PlayHistory(
-                    playedAtStr != null ? OffsetDateTime.parse(playedAtStr) : null,
-                    obj.getInteger("duration"),
-                    obj.getString("speechText"),
-                    obj.getString("djName")
-            ));
+        try {
+            return mapper.readValue(json.encode(), new TypeReference<>() {});
+        } catch (Exception e) {
+            return Collections.emptyList();
         }
-        return list;
     }
 
     private UserData fromUserDataJson(JsonObject json) {
