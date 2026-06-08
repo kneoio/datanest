@@ -105,10 +105,11 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     }
 
     public Uni<Integer> rejectByReceiver(UUID shareId, long userId) {
-        String selectSql = "SELECT id FROM " + entityData.getTableName() +
+        String selectSql = "SELECT id, sound_fragment_id, target_brand_id FROM " + entityData.getTableName() +
                 " WHERE id = $1 AND id IN (SELECT entity_id FROM " + entityData.getRlsName() + " WHERE reader = $2)";
         String deleteRlsSql = "DELETE FROM " + entityData.getRlsName() + " WHERE entity_id = $1";
         String updateStatusSql = "UPDATE " + entityData.getTableName() + " SET status = " + ApprovalStatus.CANCELLED.value() + ", last_mod_date = NOW() WHERE id = $1";
+        String deleteBsfSql = "DELETE FROM mixpla__brand_sound_fragments WHERE sound_fragment_id = $1 AND brand_id = $2";
         return client.withTransaction(tx ->
                 tx.preparedQuery(selectSql)
                         .execute(Tuple.of(shareId, userId))
@@ -116,9 +117,13 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                             if (!rows.iterator().hasNext()) {
                                 return Uni.createFrom().item(0);
                             }
-                            UUID entityId = rows.iterator().next().getUUID("id");
+                            var row = rows.iterator().next();
+                            UUID entityId = row.getUUID("id");
+                            UUID soundFragmentId = row.getUUID("sound_fragment_id");
+                            UUID targetBrandId = row.getUUID("target_brand_id");
                             return tx.preparedQuery(deleteRlsSql).execute(Tuple.of(entityId))
                                     .chain(() -> tx.preparedQuery(updateStatusSql).execute(Tuple.of(entityId)))
+                                    .chain(() -> tx.preparedQuery(deleteBsfSql).execute(Tuple.of(soundFragmentId, targetBrandId)))
                                     .replaceWith(1);
                         })
         );
