@@ -107,9 +107,32 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         return repository.getAllCount(user, false, filter);
     }
 
+    public Uni<Integer> getAllNonCustomCount(final IUser user, final ScriptFilter filter) {
+        assert repository != null;
+        ScriptFilter nonCustomFilter = filter != null ? filter : new ScriptFilter();
+        nonCustomFilter.setCustom(false);
+        return repository.getAllCount(user, false, nonCustomFilter);
+    }
+
     public Uni<List<ScriptFlatDTO>> getAllFlat(final int limit, final int offset, final IUser user, ScriptFilter filter) {
         assert repository != null;
         return repository.getAll(limit, offset, false, user, filter)
+                .chain(list -> {
+                    if (list.isEmpty()) {
+                        return Uni.createFrom().item(List.of());
+                    }
+                    List<Uni<ScriptFlatDTO>> unis = list.stream()
+                            .map(this::mapToFlatDTO)
+                            .collect(Collectors.toList());
+                    return Uni.join().all(unis).andFailFast();
+                });
+    }
+
+    public Uni<List<ScriptFlatDTO>> getAllFlatNonCustom(final int limit, final int offset, final IUser user, ScriptFilter filter) {
+        assert repository != null;
+        ScriptFilter nonCustomFilter = filter != null ? filter : new ScriptFilter();
+        nonCustomFilter.setCustom(false);
+        return repository.getAll(limit, offset, false, user, nonCustomFilter)
                 .chain(list -> {
                     if (list.isEmpty()) {
                         return Uni.createFrom().item(List.of());

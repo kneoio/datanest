@@ -106,8 +106,8 @@ public class RefController extends BaseController {
                 ScriptFilter scriptFilter = new ScriptFilter();
                 scriptFilter.setTimingMode(SceneTimingMode.ABSOLUTE_TIME);
                 Uni.combine().all().unis(
-                                scriptService.getAllCount(superUser, scriptFilter),
-                                scriptService.getAllFlat(size, (page - 1) * size, superUser, scriptFilter)
+                                scriptService.getAllNonCustomCount(superUser, scriptFilter),
+                                scriptService.getAllFlatNonCustom(size, (page - 1) * size, superUser, scriptFilter)
                         )
                         .asTuple()
                         .map(tuple -> {
