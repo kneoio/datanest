@@ -40,7 +40,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.semantyca.core.util.RuntimeUtil.countMaxPage;
@@ -104,7 +103,7 @@ public class RefController extends BaseController {
                 break;
 
             case "scripts":
-                ScriptFilter scriptFilter = parseScriptFilter(rc);
+                ScriptFilter scriptFilter = new ScriptFilter();
                 scriptFilter.setTimingMode(SceneTimingMode.ABSOLUTE_TIME);
                 Uni.combine().all().unis(
                                 scriptService.getAllCount(superUser, scriptFilter),
@@ -277,32 +276,6 @@ public class RefController extends BaseController {
             default:
                 rc.response().setStatusCode(404).end();
         }
-    }
-
-    private ScriptFilter parseScriptFilter(RoutingContext rc) {
-        ScriptFilter filter = new ScriptFilter();
-        String filterParam = rc.request().getParam("filter");
-        if (filterParam == null || filterParam.isBlank()) {
-            return filter;
-        }
-        try {
-            JsonObject json = new JsonObject(URLDecoder.decode(filterParam, StandardCharsets.UTF_8));
-            JsonArray l = json.getJsonArray("labels");
-            if (l != null && !l.isEmpty()) {
-                List<UUID> labels = new ArrayList<>();
-                for (Object o : l) {
-                    if (o instanceof String str) {
-                        try {
-                            labels.add(UUID.fromString(str));
-                        } catch (IllegalArgumentException ignored) {
-                        }
-                    }
-                }
-                filter.setLabels(labels);
-            }
-        } catch (Exception ignored) {
-        }
-        return filter;
     }
 
     private VoiceFilter parseVoiceFilter(RoutingContext rc) {
