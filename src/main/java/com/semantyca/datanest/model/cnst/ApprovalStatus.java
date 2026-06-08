@@ -1,5 +1,6 @@
 package com.semantyca.datanest.model.cnst;
 
+@Deprecated
 public enum ApprovalStatus {
     OPEN(500),
     CANCELLED(501),
