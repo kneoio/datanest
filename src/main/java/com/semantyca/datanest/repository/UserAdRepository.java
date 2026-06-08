@@ -46,7 +46,7 @@ public class UserAdRepository extends AsyncRepository {
         return client.query(sql)
                 .execute()
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
-                .onItem().transform(this::from)
+                .onItem().transform(row -> from(row, false))
                 .collect().asList();
     }
 
@@ -68,7 +68,7 @@ public class UserAdRepository extends AsyncRepository {
                 .onItem().transform(RowSet::iterator)
                 .onItem().transformToUni(iterator -> {
                     if (iterator.hasNext()) {
-                        return Uni.createFrom().item(from(iterator.next()));
+                        return Uni.createFrom().item(from(iterator.next(), true));
                     } else {
                         return Uni.createFrom().failure(new DocumentHasNotFoundException(id));
                     }
@@ -164,7 +164,7 @@ public class UserAdRepository extends AsyncRepository {
         return sb.toString();
     }
 
-    private UserAd from(Row row) {
+    private UserAd from(Row row, boolean includeHistory) {
         UserAd doc = new UserAd();
         setDefaultFields(doc, row);
         doc.setUserId(row.getLong("user_id"));
@@ -173,9 +173,40 @@ public class UserAdRepository extends AsyncRepository {
         doc.setDescription(row.getString("description"));
         doc.setContacts(row.getString("contacts"));
         doc.setArchived(row.getInteger("archived"));
-        doc.setUserData(fromUserDataJson(row.getJsonObject("user_data")));
-        doc.setPlayHistory(fromPlayHistoryJson(row.getJsonArray("play_history")));
+        Object rawUserData = row.getValue("user_data");
+        if (rawUserData instanceof JsonObject) {
+            doc.setUserData(fromUserDataJson((JsonObject) rawUserData));
+        } else if (rawUserData instanceof String) {
+            doc.setUserData(fromUserDataJson(new JsonObject((String) rawUserData)));
+        }
+        if (includeHistory) {
+            Object rawHistory = row.getValue("play_history");
+            if (rawHistory instanceof JsonArray) {
+                doc.setPlayHistory(fromPlayHistoryJson((JsonArray) rawHistory));
+            } else if (rawHistory instanceof String) {
+                doc.setPlayHistory(fromPlayHistoryJson(new JsonArray((String) rawHistory)));
+            }
+        }
         return doc;
+    }
+
+    private List<PlayHistory> fromPlayHistoryJson(JsonArray json) {
+        if (json == null || json.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<PlayHistory> list = new ArrayList<>();
+        for (int i = 0; i < json.size(); i++) {
+            Object raw = json.getValue(i);
+            JsonObject obj = raw instanceof JsonObject ? (JsonObject) raw : new JsonObject(raw.toString());
+            String playedAtStr = obj.getString("playedAt");
+            list.add(new PlayHistory(
+                    playedAtStr != null ? OffsetDateTime.parse(playedAtStr) : null,
+                    obj.getInteger("duration"),
+                    obj.getString("speechText"),
+                    obj.getString("djName")
+            ));
+        }
+        return list;
     }
 
     private JsonObject toUserDataJson(UserData userData) {
@@ -201,24 +232,6 @@ public class UserAdRepository extends AsyncRepository {
             array.add(obj);
         }
         return array;
-    }
-
-    private List<PlayHistory> fromPlayHistoryJson(JsonArray json) {
-        if (json == null || json.isEmpty()) {
-            return Collections.emptyList();
-        }
-        List<PlayHistory> list = new ArrayList<>();
-        for (int i = 0; i < json.size(); i++) {
-            JsonObject obj = json.getJsonObject(i);
-            String playedAtStr = obj.getString("playedAt");
-            list.add(new PlayHistory(
-                    playedAtStr != null ? OffsetDateTime.parse(playedAtStr) : null,
-                    obj.getInteger("duration"),
-                    obj.getString("speechText"),
-                    obj.getString("djName")
-            ));
-        }
-        return list;
     }
 
     private UserData fromUserDataJson(JsonObject json) {
