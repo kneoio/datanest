@@ -28,6 +28,7 @@ import com.semantyca.datanest.dto.AudioMetadataDTO;
 import com.semantyca.datanest.dto.sharing.ShareDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
 import com.semantyca.datanest.dto.UploadFileDTO;
+import com.semantyca.datanest.repository.soundfragment.SoundFragmentBrandRepository;
 import com.semantyca.datanest.repository.soundfragment.SoundFragmentRepository;
 import com.semantyca.datanest.service.BrandService;
 import com.semantyca.datanest.service.RefService;
@@ -41,6 +42,7 @@ import com.semantyca.mixpla.model.cnst.SourceType;
 import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
 import com.semantyca.mixpla.model.soundfragment.SoundFragment;
 import com.semantyca.officeframe.service.GenreService;
+import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -58,8 +60,10 @@ import java.util.stream.Collectors;
 @ApplicationScoped
 public class SoundFragmentService extends AbstractService<SoundFragment, SoundFragmentDTO> {
     private static final Logger LOGGER = Logger.getLogger(SoundFragmentService.class);
+    private static final int FREE_PLAN_SONG_LIMIT = 500;
 
     private final SoundFragmentRepository repository;
+    private final SoundFragmentBrandRepository brandRepository;
     private final BrandService brandService;
     private final GenreService genreService;
     private final LocalFileCleanupService localFileCleanupService;
@@ -75,6 +79,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         this.genreService = genreService;
         this.localFileCleanupService = null;
         this.repository = null;
+        this.brandRepository = null;
         this.brandService = null;
         this.refService = null;
         this.sharedSoundFragmentService = null;
@@ -88,6 +93,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                 LocalFileCleanupService localFileCleanupService,
                                 Validator validator,
                                 SoundFragmentRepository repository,
+                                SoundFragmentBrandRepository brandRepository,
                                 DatanestConfig config,
                                 RefService refService,
                                 SharedSoundFragmentService sharedSoundFragmentService,
@@ -98,6 +104,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         this.localFileCleanupService = localFileCleanupService;
         this.validator = validator;
         this.repository = repository;
+        this.brandRepository = brandRepository;
         this.brandService = brandService;
         this.refService = refService;
         this.sharedSoundFragmentService = sharedSoundFragmentService;
@@ -247,18 +254,20 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
 
         if ("new".equalsIgnoreCase(id) || id == null) {
             entity.setSource(SourceType.USER_UPLOAD);
-            return buildRlsActionsWithCoOwners(dto.getRepresentedInBrands(), dto.getRlsActions())
-                    .chain(rlsActions -> repository.insert(entity, dto.getRepresentedInBrands(), rlsActions, user))
-                    .chain(doc -> moveFilesForNewEntity(doc, fileMetadataList, user))
-                    .chain(doc -> mapToDTO(doc, true, null, null))
-                    .onFailure().invoke(failure -> {
-                        LOGGER.warnf("Entity creation failed, cleaning up temp files for user: %s", user.getUserName());
-                        localFileCleanupService.cleanupTempFilesForUser(user.getUserName())
-                                .subscribe().with(
-                                        ignored -> LOGGER.debug("Temp files cleaned up after failure"),
-                                        cleanupError -> LOGGER.warn("Failed to cleanup temp files", cleanupError)
-                                );
-                    });
+            List<UUID> targetBrands = dto.getRepresentedInBrands() != null ? dto.getRepresentedInBrands() : List.of();
+            return checkBrandSongLimits(targetBrands, user)
+                    .chain(() -> buildRlsActionsWithCoOwners(dto.getRepresentedInBrands(), dto.getRlsActions())
+                            .chain(rlsActions -> repository.insert(entity, dto.getRepresentedInBrands(), rlsActions, user))
+                            .chain(doc -> moveFilesForNewEntity(doc, fileMetadataList, user))
+                            .chain(doc -> mapToDTO(doc, true, null, null))
+                            .onFailure().invoke(failure -> {
+                                LOGGER.warnf("Entity creation failed, cleaning up temp files for user: %s", user.getUserName());
+                                localFileCleanupService.cleanupTempFilesForUser(user.getUserName())
+                                        .subscribe().with(
+                                                ignored -> LOGGER.debug("Temp files cleaned up after failure"),
+                                                cleanupError -> LOGGER.warn("Failed to cleanup temp files", cleanupError)
+                                        );
+                            }));
         } else {
             List<UUID> brandIds = dto.getRepresentedInBrands() != null ? dto.getRepresentedInBrands() : List.of();
             UUID brandId = brandIds.isEmpty() ? null : brandIds.get(0);
@@ -276,6 +285,22 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                 );
                     });
         }
+    }
+
+    private Uni<Void> checkBrandSongLimits(List<UUID> brandIds, IUser user) {
+        if (brandIds.isEmpty()) {
+            return Uni.createFrom().voidItem();
+        }
+        assert brandRepository != null;
+        return Multi.createFrom().iterable(brandIds)
+                .onItem().transformToUniAndConcatenate(bId ->
+                        brandRepository.findForBrandCount(bId, user, null)
+                                .chain(count -> count >= FREE_PLAN_SONG_LIMIT
+                                        ? Uni.createFrom().<Integer>failure(new IllegalStateException(
+                                                "Song limit reached: brand has reached the free plan maximum of " + FREE_PLAN_SONG_LIMIT + " songs"))
+                                        : Uni.createFrom().item(count)))
+                .collect().asList()
+                .replaceWithVoid();
     }
 
     private Uni<SoundFragment> moveFilesForNewEntity(SoundFragment doc, List<FileMetadata> fileMetadataList, IUser user) {
@@ -628,14 +653,16 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
 
         assert refService != null;
         String genreIdentifier = metadata != null && metadata.getGenre() != null ? metadata.getGenre() : "other";
-        return genreService.getByFuzzyIdentifier(genreIdentifier)
-                .chain(genres -> {
-                    List<UUID> genreIds = genres.stream().map(DataEntity::getId).collect(Collectors.toList());
-                    fragment.setGenres(genreIds);
-                    assert repository != null;
-                    return repository.insert(fragment, brandIds, Collections.emptyList(), user);
-                })
-                .invoke(insertedFragment -> triggerOpusEncoding(insertedFragment, brandId, Paths.get(uploadFile.getFullPath())));
+        List<UUID> checkBrands = brandId != null ? List.of(brandId) : List.of();
+        return checkBrandSongLimits(checkBrands, user)
+                .chain(() -> genreService.getByFuzzyIdentifier(genreIdentifier)
+                        .chain(genres -> {
+                            List<UUID> genreIds = genres.stream().map(DataEntity::getId).collect(Collectors.toList());
+                            fragment.setGenres(genreIds);
+                            assert repository != null;
+                            return repository.insert(fragment, brandIds, Collections.emptyList(), user);
+                        })
+                        .invoke(insertedFragment -> triggerOpusEncoding(insertedFragment, brandId, Paths.get(uploadFile.getFullPath()))));
     }
 
     private void triggerOpusEncodingIfMissing(SoundFragment fragment, UUID brandId, List<FileMetadata> newlyUploadedFiles) {
