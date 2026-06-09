@@ -373,7 +373,7 @@ public class PromptRepository extends AsyncRepository {
     }
 
     private Uni<List<UUID>> loadLabels(UUID promptId) {
-        return client.preparedQuery("SELECT label_id FROM mixpla__prompt_labels WHERE id = $1")
+        return client.preparedQuery("SELECT label_id FROM mixpla__prompt_labels WHERE prompt_id = $1")
                 .execute(Tuple.of(promptId))
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
                 .onItem().transform(row -> row.getUUID("label_id"))
@@ -381,11 +381,11 @@ public class PromptRepository extends AsyncRepository {
     }
 
     private Uni<Void> upsertLabels(SqlClient tx, UUID promptId, List<UUID> labels) {
-        String deleteSql = "DELETE FROM mixpla__prompt_labels WHERE id = $1";
+        String deleteSql = "DELETE FROM mixpla__prompt_labels WHERE prompt_id = $1";
         if (labels == null || labels.isEmpty()) {
             return tx.preparedQuery(deleteSql).execute(Tuple.of(promptId)).replaceWithVoid();
         }
-        String insertSql = "INSERT INTO mixpla__prompt_labels (id, label_id) VALUES ($1, $2) ON CONFLICT DO NOTHING";
+        String insertSql = "INSERT INTO mixpla__prompt_labels (prompt_id, label_id) VALUES ($1, $2) ON CONFLICT DO NOTHING";
         return tx.preparedQuery(deleteSql).execute(Tuple.of(promptId))
                 .chain(() -> Multi.createFrom().iterable(labels)
                         .onItem().transformToUni(labelId ->
