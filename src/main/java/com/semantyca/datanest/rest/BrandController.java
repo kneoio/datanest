@@ -36,6 +36,9 @@
     import org.slf4j.Logger;
     import org.slf4j.LoggerFactory;
 
+    import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
+
+    import java.io.FileNotFoundException;
     import java.util.*;
     import java.util.stream.Collectors;
 
@@ -375,8 +378,12 @@
                                             .end(Buffer.buffer(bytes));
                                 },
                                 throwable -> {
-                                    LOGGER.error("Failed to get logo for brand: {}", id, throwable);
-                                    rc.fail(throwable);
+                                    if (throwable instanceof DocumentHasNotFoundException || throwable instanceof FileNotFoundException) {
+                                        rc.response().setStatusCode(204).end();
+                                    } else {
+                                        LOGGER.error("Failed to get logo for brand: {}", id, throwable);
+                                        rc.fail(throwable);
+                                    }
                                 }
                         );
             } catch (IllegalArgumentException e) {
