@@ -9,14 +9,13 @@ import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import java.util.UUID;
 
 @ApplicationScoped
 public class PublicSongSubmissionController {
-    private static final Logger LOGGER = LoggerFactory.getLogger(PublicSongSubmissionController.class);
+    private static final Logger LOGGER = Logger.getLogger(PublicSongSubmissionController.class);
     private static final String CONTROLLER_KEY = "public-submissions";
 
     private final OtpService otpService;
@@ -54,7 +53,7 @@ public class PublicSongSubmissionController {
                                 .putHeader("Content-Type", "application/json")
                                 .end(new JsonObject().put("message", "Confirmation code sent to " + email).encode()),
                         err -> {
-                            LOGGER.error("Failed to send OTP to {}: {}", email, err.getMessage());
+                            LOGGER.errorf("Failed to send OTP to %s: %s", email, err.getMessage());
                             fail(rc, 500, "Failed to send email");
                         }
                 );
@@ -68,7 +67,7 @@ public class PublicSongSubmissionController {
             fail(rc, 400, "email and code are required");
             return;
         }
-        if (!otpService.verify(email.trim(), code.trim())) {
+        if (otpService.isVerifyFail(email.trim(), code.trim())) {
             fail(rc, 401, "Invalid or expired confirmation code");
             return;
         }
@@ -86,7 +85,7 @@ public class PublicSongSubmissionController {
                                         .put("status", dto.getStatus())
                                         .encode()),
                         err -> {
-                            LOGGER.error("Public upload failed: {}", err.getMessage());
+                            LOGGER.errorf("Public upload failed: %s", err.getMessage());
                             int status = err instanceof IllegalArgumentException ? 400 : 500;
                             fail(rc, status, err.getMessage());
                         }
@@ -108,7 +107,7 @@ public class PublicSongSubmissionController {
         if (fileName == null || fileName.isBlank())  { fail(rc, 400, "fileName required"); return; }
         if (chunkIndexStr == null || totalChunksStr == null) { fail(rc, 400, "chunkIndex and totalChunks required"); return; }
 
-        if (!otpService.verify(email.trim(), code.trim())) {
+        if (otpService.isVerifyFail(email.trim(), code.trim())) {
             fail(rc, 401, "Invalid or expired confirmation code");
             return;
         }
@@ -129,7 +128,7 @@ public class PublicSongSubmissionController {
                                 .putHeader("Content-Type", "application/json")
                                 .end(io.vertx.core.json.Json.encode(dto)),
                         err -> {
-                            LOGGER.error("Public chunk upload failed: {}", err.getMessage());
+                            LOGGER.errorf("Public chunk upload failed: %s", err.getMessage());
                             int status = err instanceof IllegalArgumentException ? 400 : 500;
                             fail(rc, status, err.getMessage());
                         }

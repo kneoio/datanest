@@ -37,17 +37,17 @@ public class OtpService {
         ));
     }
 
-    public boolean verify(String email, String code) {
+    public boolean isVerifyFail(String email, String code) {
         OtpEntry entry = store.get(email.toLowerCase());
         if (entry == null || Instant.now().isAfter(entry.expiry())) {
             store.remove(email.toLowerCase());
-            return false;
+            return true;
         }
         if (!entry.code().equals(code)) {
-            return false;
+            return true;
         }
         store.remove(email.toLowerCase());
-        return true;
+        return false;
     }
 
     private String generateCode() {
