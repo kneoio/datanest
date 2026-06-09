@@ -6,7 +6,8 @@ public enum ApprovalStatus {
     CANCELLED(501),
     REJECTED_NOT_MEET_GENRE(502),
     REJECTED(503),
-    ACCEPTED(505);
+    ACCEPTED(505),
+    PENDING(506);
 
     private final int value;
 

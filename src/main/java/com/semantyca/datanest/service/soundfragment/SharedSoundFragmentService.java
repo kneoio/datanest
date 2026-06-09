@@ -98,7 +98,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
                             entity.setTargetBrandId(targetBrandId);
                             entity.setSoundFragmentId(fragment.getId());
                             entity.setStatus(genresMatch(fragment.getGenres(), targetBrand.getGenres())
-                                    ? ApprovalStatus.OPEN.value()
+                                    ? ApprovalStatus.PENDING.value()
                                     : ApprovalStatus.REJECTED_NOT_MEET_GENRE.value());
                             return Uni.createFrom().item(entity);
                         }))
