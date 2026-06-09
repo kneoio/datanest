@@ -5614,5 +5614,13 @@
     "language": "ru-RU",
     "labels": "premium",
     "engineType": "google"
+  },
+  {
+    "id": "nb-NO-Chirp3-HD-Callirrhoe",
+    "name": "Callirrhoe",
+    "gender": "female",
+    "language": "no-NO",
+    "labels": "premium",
+    "engineType": "google"
   }
 ]
