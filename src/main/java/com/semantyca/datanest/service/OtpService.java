@@ -15,8 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @ApplicationScoped
 public class OtpService {
     private static final Logger LOGGER = LoggerFactory.getLogger(OtpService.class);
-    private static final long OTP_TTL_SECONDS = 600; // 10 minutes
-    private static final int OTP_LENGTH = 6;
+    private static final long OTP_TTL_SECONDS = 600;
 
     private final ReactiveMailer mailer;
     private final ConcurrentHashMap<String, OtpEntry> store = new ConcurrentHashMap<>();
@@ -31,7 +30,6 @@ public class OtpService {
         String code = generateCode();
         store.put(email.toLowerCase(), new OtpEntry(code, Instant.now().plusSeconds(OTP_TTL_SECONDS)));
         LOGGER.info("OTP generated for {}", email);
-
         return mailer.send(Mail.withText(
                 email,
                 "Your upload confirmation code",
