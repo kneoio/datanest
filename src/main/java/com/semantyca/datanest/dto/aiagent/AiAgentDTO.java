@@ -3,6 +3,7 @@ package com.semantyca.datanest.dto.aiagent;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
 import com.semantyca.core.dto.rls.RlsActionDTO;
+import com.semantyca.mixpla.model.cnst.LlmType;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
@@ -19,6 +20,7 @@ public class AiAgentDTO extends AbstractDTO {
     private String name;
     private String description;
     private String manner;
+    private LlmType llmType;
     private List<LanguagePreferenceDTO> preferredLang;
     private UUID copilot;
     private TTSSettingDTO ttsSetting;

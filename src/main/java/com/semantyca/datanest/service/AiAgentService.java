@@ -141,6 +141,7 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
             dto.setName(doc.getName());
             dto.setDescription(doc.getDescription());
             dto.setManner(doc.getManner());
+            dto.setLlmType(doc.getLlmType());
 
             if (doc.getPreferredLang() != null && !doc.getPreferredLang().isEmpty()) {
                 List<LanguagePreferenceDTO> langPrefDTOs = doc.getPreferredLang().stream()
@@ -218,7 +219,7 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
             doc.setLabels(new ArrayList<>());
         }
 
-        doc.setLlmType(LlmType.CLAUDE);
+        doc.setLlmType(dto.getLlmType() != null ? dto.getLlmType() : LlmType.CLAUDE);
         
         if (dto.getPreferredLang() != null && !dto.getPreferredLang().isEmpty()) {
             List<LanguagePreference> langPrefs = dto.getPreferredLang().stream()
