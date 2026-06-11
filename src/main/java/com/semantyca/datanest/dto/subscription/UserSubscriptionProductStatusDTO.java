@@ -1,9 +1,8 @@
-package com.semantyca.datanest.dto;
+package com.semantyca.datanest.dto.subscription;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.model.SubscriptionProduct;
 import com.semantyca.core.model.cnst.LanguageCode;
-import com.semantyca.datanest.dto.subscription.UserSubscriptionDTO;
 import com.semantyca.mixpla.model.UserSubscription;
 import lombok.Getter;
 import lombok.Setter;
@@ -13,7 +12,7 @@ import java.util.UUID;
 @Getter
 @Setter
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class SubscriptionProductStatusDTO {
+public class UserSubscriptionProductStatusDTO {
     private UUID id;
     private String identifier;
     private String name;
@@ -24,8 +23,8 @@ public class SubscriptionProductStatusDTO {
     private boolean subscribed;
     private String subscriptionStatus;
 
-    public static SubscriptionProductStatusDTO from(SubscriptionProduct product, UserSubscription subscription) {
-        SubscriptionProductStatusDTO dto = new SubscriptionProductStatusDTO();
+    public static UserSubscriptionProductStatusDTO from(SubscriptionProduct product, UserSubscription subscription) {
+        UserSubscriptionProductStatusDTO dto = new UserSubscriptionProductStatusDTO();
         dto.setId(product.getId());
         dto.setIdentifier(product.getIdentifier());
         dto.setStripePriceId(product.getStripePriceId());

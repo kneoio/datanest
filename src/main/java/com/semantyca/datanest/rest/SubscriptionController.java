@@ -2,12 +2,12 @@ package com.semantyca.datanest.rest;
 
 import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.model.SubscriptionProduct;
+import com.semantyca.core.service.SubscriptionProductService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
-import com.semantyca.datanest.dto.SubscriptionProductStatusDTO;
+import com.semantyca.datanest.dto.subscription.UserSubscriptionProductStatusDTO;
 import com.semantyca.datanest.dto.subscription.SubscriptionProductDTO;
 import com.semantyca.datanest.dto.subscription.UserSubscriptionDTO;
-import com.semantyca.datanest.repository.SubscriptionProductRepository;
 import com.semantyca.datanest.repository.UserSubscriptionRepository;
 import com.semantyca.mixpla.model.UserSubscription;
 import io.smallrye.mutiny.Uni;
@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 @ApplicationScoped
 public class SubscriptionController extends AbstractSecuredController<SubscriptionProduct, SubscriptionProductDTO> {
 
-    private SubscriptionProductRepository productRepository;
+    private SubscriptionProductService productService;
     private UserSubscriptionRepository subscriptionRepository;
     private UserService userService;
 
@@ -37,19 +37,26 @@ public class SubscriptionController extends AbstractSecuredController<Subscripti
 
     @Inject
     public SubscriptionController(UserService userService,
-                                   SubscriptionProductRepository productRepository,
+                                   SubscriptionProductService productService,
                                    UserSubscriptionRepository subscriptionRepository) {
         super(userService);
         this.userService = userService;
-        this.productRepository = productRepository;
+        this.productService = productService;
         this.subscriptionRepository = subscriptionRepository;
     }
 
     public void setupRoutes(Router router) {
+        String productPath = "/datanest/subscription-products";
         String subPath = "/datanest/user_subscriptions";
         BodyHandler jsonBodyHandler = BodyHandler.create().setHandleFileUploads(false);
 
         router.get("/datanest/subscriptions/products").handler(this::getProducts);
+
+        router.route(productPath + "*").handler(requireRoles("admitp")).handler(this::addHeaders);
+        router.route(HttpMethod.GET, productPath).handler(this::getAllProducts);
+        router.route(HttpMethod.GET, productPath + "/:id").handler(this::getProduct);
+        router.route(HttpMethod.POST, productPath + "/:id?").handler(jsonBodyHandler).handler(this::upsertProduct);
+        router.route(HttpMethod.DELETE, productPath + "/:id").handler(this::deleteProduct);
 
         router.route(subPath + "*").handler(requireRoles("admitp")).handler(this::addHeaders);
         router.route(HttpMethod.GET, subPath).handler(this::getAll);
@@ -64,7 +71,7 @@ public class SubscriptionController extends AbstractSecuredController<Subscripti
 
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
-                        productRepository.getAll(size, (page - 1) * size),
+                        productService.getAll(size, (page - 1) * size),
                         subscriptionRepository.findByUserId(user.getId())
                 ).asTuple())
                 .map(tuple -> {
@@ -75,7 +82,7 @@ public class SubscriptionController extends AbstractSecuredController<Subscripti
                                     (a, b) -> a.isActive() ? a : b
                             ));
                     return tuple.getItem1().stream()
-                            .map(p -> SubscriptionProductStatusDTO.from(p, subsByType.get(p.getIdentifier())))
+                            .map(p -> UserSubscriptionProductStatusDTO.from(p, subsByType.get(p.getIdentifier())))
                             .collect(Collectors.toList());
                 })
                 .subscribe().with(
@@ -84,6 +91,93 @@ public class SubscriptionController extends AbstractSecuredController<Subscripti
                                 .putHeader("Content-Type", "application/json")
                                 .end(Json.encode(list)),
                         rc::fail
+                );
+    }
+
+    private void getAllProducts(RoutingContext rc) {
+        int page = Integer.parseInt(rc.request().getParam("page", "1"));
+        int size = Integer.parseInt(rc.request().getParam("size", "10"));
+
+        getContextUser(rc)
+                .chain(user -> Uni.combine().all().unis(
+                        productService.getAllCount(),
+                        productService.getAll(size, (page - 1) * size)
+                ).asTuple())
+                .map(tuple -> {
+                    var dtos = tuple.getItem2().stream().map(SubscriptionProductDTO::from).collect(Collectors.toList());
+                    var view = new com.semantyca.core.dto.view.View<>(dtos, tuple.getItem1(), page,
+                            RuntimeUtil.countMaxPage(tuple.getItem1(), size), size);
+                    var viewPage = new com.semantyca.core.dto.view.ViewPage();
+                    viewPage.addPayload(com.semantyca.core.dto.cnst.PayloadType.VIEW_DATA, view);
+                    return viewPage;
+                })
+                .subscribe().with(
+                        vp -> rc.response().setStatusCode(200).end(JsonObject.mapFrom(vp).encode()),
+                        rc::fail
+                );
+    }
+
+    private void getProduct(RoutingContext rc) {
+        String id = rc.pathParam("id");
+
+        getContextUser(rc)
+                .chain(user -> {
+                    if ("new".equals(id)) {
+                        return Uni.createFrom().item(new SubscriptionProductDTO());
+                    }
+                    return productService.findById(UUID.fromString(id)).map(SubscriptionProductDTO::from);
+                })
+                .subscribe().with(
+                        dto -> {
+                            var page = new com.semantyca.core.dto.form.FormPage();
+                            page.addPayload(com.semantyca.core.dto.cnst.PayloadType.DOC_DATA, dto);
+                            rc.response().setStatusCode(200).end(JsonObject.mapFrom(page).encode());
+                        },
+                        rc::fail
+                );
+    }
+
+    private void upsertProduct(RoutingContext rc) {
+        try {
+            JsonObject json = rc.body().asJsonObject();
+            if (json == null) {
+                rc.response().setStatusCode(400).end("Request body must be a valid JSON object");
+                return;
+            }
+            SubscriptionProductDTO dto = json.mapTo(SubscriptionProductDTO.class);
+            String id = rc.pathParam("id");
+
+            SubscriptionProduct doc = new SubscriptionProduct();
+            doc.setIdentifier(dto.getIdentifier());
+            doc.setLocalizedName(dto.getLocalizedName());
+            doc.setLocalizedDescription(dto.getLocalizedDescription());
+            doc.setStripePriceId(dto.getStripePriceId());
+            doc.setStripeProductId(dto.getStripeProductId());
+            doc.setActive(dto.isActive());
+            doc.setDefaultValues(dto.getDefaultValues());
+
+            getContextUser(rc, false, false)
+                    .chain(user -> productService.upsert(id, doc, user))
+                    .map(SubscriptionProductDTO::from)
+                    .subscribe().with(
+                            result -> rc.response()
+                                    .setStatusCode(id == null ? 201 : 200)
+                                    .end(JsonObject.mapFrom(result).encode()),
+                            throwable -> handleFailure(rc, throwable)
+                    );
+        } catch (Exception e) {
+            rc.response().setStatusCode(400).end("Invalid JSON payload");
+        }
+    }
+
+    private void deleteProduct(RoutingContext rc) {
+        String id = rc.pathParam("id");
+
+        getContextUser(rc, false, false)
+                .chain(user -> productService.delete(UUID.fromString(id)))
+                .subscribe().with(
+                        count -> rc.response().setStatusCode(count > 0 ? 204 : 404).end(),
+                        throwable -> handleFailure(rc, throwable)
                 );
     }
 
