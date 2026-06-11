@@ -9,6 +9,7 @@ import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.datanest.dto.GenreFlatDTO;
+import com.semantyca.datanest.dto.StationFlatDTO;
 import com.semantyca.datanest.dto.LabelFlatDTO;
 import com.semantyca.datanest.dto.ProfileFlatDTO;
 import com.semantyca.datanest.dto.script.ScriptFlatDTO;

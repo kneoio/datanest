@@ -1,8 +1,14 @@
 package com.semantyca.datanest.rest;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.semantyca.core.model.user.SuperUser;
+import com.semantyca.datanest.dto.GenreFlatDTO;
+import com.semantyca.datanest.dto.StationFlatDTO;
+import com.semantyca.datanest.service.BrandService;
 import com.semantyca.datanest.service.OtpService;
+import com.semantyca.datanest.service.RefService;
 import com.semantyca.datanest.service.util.FileUploadService;
+import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
@@ -11,7 +17,10 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class PublicSongSubmissionController {
@@ -20,18 +29,51 @@ public class PublicSongSubmissionController {
 
     private final OtpService otpService;
     private final FileUploadService fileUploadService;
+    private final BrandService brandService;
+    private final RefService refService;
+    private final ObjectMapper mapper;
 
     @Inject
-    public PublicSongSubmissionController(OtpService otpService, FileUploadService fileUploadService) {
+    public PublicSongSubmissionController(OtpService otpService, FileUploadService fileUploadService, BrandService brandService, RefService refService, ObjectMapper mapper) {
         this.otpService = otpService;
         this.fileUploadService = fileUploadService;
+        this.brandService = brandService;
+        this.refService = refService;
+        this.mapper = mapper;
     }
 
     public void setupRoutes(Router router) {
-        String base = "/datanest/public/songs";
-        router.post(base + "/request-code").handler(BodyHandler.create()).handler(this::requestCode);
-        router.post(base + "/upload").handler(this::upload);
-        router.post(base + "/chunk").handler(this::uploadChunk);
+        String base = "/datanest/public";
+        router.get(base + "/stations").handler(this::getStations);
+        router.post(base + "/songs/request-code").handler(BodyHandler.create()).handler(this::requestCode);
+        router.post(base + "/songs/upload").handler(this::upload);
+        router.post(base + "/songs/chunk").handler(this::uploadChunk);
+    }
+
+    private void getStations(RoutingContext rc) {
+        int page = Integer.parseInt(rc.request().getParam("page", "1"));
+        int size = Integer.parseInt(rc.request().getParam("size", "10"));
+        SuperUser superUser = SuperUser.build();
+
+        Uni.combine().all().unis(
+                        brandService.getAllOpenForSubmissionDTO(size, (page - 1) * size, superUser),
+                        refService.getAllGenresFlat(1000, 0)
+                )
+                .asTuple()
+                .map(tuple -> {
+                    Map<UUID, GenreFlatDTO> genreMap = tuple.getItem2().stream()
+                            .collect(Collectors.toMap(GenreFlatDTO::getId, Function.identity()));
+                    return tuple.getItem1().stream()
+                            .map(b -> StationFlatDTO.from(b, genreMap))
+                            .toList();
+                })
+                .subscribe().with(
+                        list -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(io.vertx.core.json.Json.encode(list)),
+                        err -> fail(rc, 500, "Failed to load stations")
+                );
     }
 
     private void requestCode(RoutingContext rc) {

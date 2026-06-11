@@ -80,12 +80,12 @@ public class DatanestApplication {
         sharedSoundFragmentController.setupRoutes(router);
         soundFragmentController.setupRoutes(router);
         soundFragmentBulkUploadController.setupRoutes(router);
+        publicSongSubmissionController.setupRoutes(router);
         refController.setupRoutes(router);
         aiAgentController.setupRoutes(router);
         chatSummaryController.setupRoutes(router);
         bulkACLController.setupRoutes(router);
         userAdController.setupRoutes(router);
-        publicSongSubmissionController.setupRoutes(router);
         subscriptionController.setupRoutes(router);
     }
 }

@@ -1,5 +1,6 @@
 package com.semantyca.datanest.rest;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.cnst.PayloadType;
@@ -30,16 +31,18 @@ public class AiAgentController extends AbstractSecuredController<AiAgent, AiAgen
 
     private AiAgentService service;
     private Validator validator;
+    private ObjectMapper mapper;
 
     public AiAgentController() {
         super(null);
     }
 
     @Inject
-    public AiAgentController(UserService userService, AiAgentService service, Validator validator) {
+    public AiAgentController(UserService userService, AiAgentService service, Validator validator, ObjectMapper mapper) {
         super(userService);
         this.service = service;
         this.validator = validator;
+        this.mapper = mapper;
     }
 
     public void setupRoutes(Router router) {
@@ -72,10 +75,15 @@ public class AiAgentController extends AbstractSecuredController<AiAgent, AiAgen
                     return viewPage;
                 }))
                 .subscribe().with(
-                        viewPage -> rc.response()
-                                .setStatusCode(200)
-                                .putHeader("Content-Type", "application/json")
-                                .end(io.vertx.core.json.Json.encode(viewPage)),
+                        viewPage -> {
+                            try {
+                                rc.response().setStatusCode(200)
+                                        .putHeader("Content-Type", "application/json")
+                                        .end(mapper.writeValueAsString(viewPage));
+                            } catch (Exception e) {
+                                rc.fail(e);
+                            }
+                        },
                         rc::fail
                 );
     }
@@ -100,10 +108,13 @@ public class AiAgentController extends AbstractSecuredController<AiAgent, AiAgen
                             FormPage page = new FormPage();
                             page.addPayload(PayloadType.DOC_DATA, owner);
                             page.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());
-                            rc.response()
-                                    .setStatusCode(200)
-                                    .putHeader("Content-Type", "application/json")
-                                    .end(io.vertx.core.json.Json.encode(page));
+                            try {
+                                rc.response().setStatusCode(200)
+                                        .putHeader("Content-Type", "application/json")
+                                        .end(mapper.writeValueAsString(page));
+                            } catch (Exception e) {
+                                rc.fail(e);
+                            }
                         },
                         rc::fail
                 );
