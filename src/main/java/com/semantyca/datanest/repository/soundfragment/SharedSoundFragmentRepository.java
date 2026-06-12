@@ -129,6 +129,31 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         );
     }
 
+    public Uni<Integer> acceptByReceiver(UUID shareId, long userId) {
+        String selectSql = "SELECT id, sound_fragment_id, target_brand_id FROM " + entityData.getTableName() +
+                " WHERE id = $1 AND id IN (SELECT entity_id FROM " + entityData.getRlsName() + " WHERE reader = $2)";
+        String updateStatusSql = "UPDATE " + entityData.getTableName() + " SET status = " + ApprovalStatus.OPEN.value() + ", last_mod_date = NOW() WHERE id = $1";
+        String insertBsfSql = "INSERT INTO mixpla__brand_sound_fragments " +
+                "(brand_id, sound_fragment_id, played_by_brand_count, last_time_played_by_brand) " +
+                "VALUES ($1, $2, 0, NULL) ON CONFLICT DO NOTHING";
+        return client.withTransaction(tx ->
+                tx.preparedQuery(selectSql)
+                        .execute(Tuple.of(shareId, userId))
+                        .onItem().transformToUni(rows -> {
+                            if (!rows.iterator().hasNext()) {
+                                return Uni.createFrom().item(0);
+                            }
+                            var row = rows.iterator().next();
+                            UUID entityId = row.getUUID("id");
+                            UUID soundFragmentId = row.getUUID("sound_fragment_id");
+                            UUID targetBrandId = row.getUUID("target_brand_id");
+                            return tx.preparedQuery(updateStatusSql).execute(Tuple.of(entityId))
+                                    .chain(() -> tx.preparedQuery(insertBsfSql).execute(Tuple.of(targetBrandId, soundFragmentId)))
+                                    .replaceWith(1);
+                        })
+        );
+    }
+
     public Uni<Integer> archive(UUID shareId) {
         String sql = "UPDATE " + entityData.getTableName() + " SET archived = 1, last_mod_date = NOW() WHERE id = $1";
         return client.preparedQuery(sql)

@@ -52,6 +52,8 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
         router.route(HttpMethod.GET,    path + "/received").handler(this::getReceived);
         // receiver: get a single received share by id
         router.route(HttpMethod.GET,    path + "/received/:id").handler(this::getReceivedDoc);
+        // receiver: accept a received share — sets status 500 (OPEN) and adds song to brand playlist
+        router.route(HttpMethod.PATCH,  path + "/received/:id/accept").handler(this::acceptShareByReceiver);
         // receiver: reject a received share — removes RLS access, marks status 501, main record stays
         router.route(HttpMethod.DELETE, path + "/received/:id").handler(this::rejectShareByReceiver);
 
@@ -96,6 +98,16 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
                                 .setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")
                                 .end(JsonObject.mapFrom(dto).encode()),
+                        t -> handleFailure(rc, t)
+                );
+    }
+
+    private void acceptShareByReceiver(RoutingContext rc) {
+        UUID shareId = UUID.fromString(rc.pathParam("id"));
+        getContextUser(rc, false, true)
+                .chain(user -> sharedSoundFragmentService.acceptShareByReceiver(shareId, user))
+                .subscribe().with(
+                        count -> rc.response().setStatusCode(204).end(),
                         t -> handleFailure(rc, t)
                 );
     }
