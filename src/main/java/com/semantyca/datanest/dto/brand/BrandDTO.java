@@ -11,6 +11,7 @@ import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.datanest.dto.script.BrandScriptEntryDTO;
 import com.semantyca.datanest.dto.script.CustomScriptDTO;
 import com.semantyca.datanest.model.cnst.ScriptMode;
+import com.semantyca.mixpla.model.brand.StreamingOptions;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
@@ -71,6 +72,7 @@ public class BrandDTO extends AbstractDTO {
     private ProfileOverridingDTO profileOverriding;
     private List<BrandScriptEntryDTO> scripts;
     private ScriptMode scriptMode = ScriptMode.PREDEFINED;
+    private StreamingOptions streamingOptions;
     private CustomScriptDTO customScript;
     private OwnerDTO owner;
     private List<UUID> labels;

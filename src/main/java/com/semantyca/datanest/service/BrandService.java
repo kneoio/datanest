@@ -336,6 +336,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
             ScriptMode mode = ScriptMode.valueOf(doc.getScriptMode());
             dto.setScriptMode(mode);
+            dto.setStreamingOptions(doc.getStreamingOptions());
 
             if (ScriptMode.CUSTOM.equals(mode)) {
                 List<BrandScriptEntry> entries = tuple.getItem3();
@@ -493,6 +494,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             doc.setScripts(List.of(new BrandScriptEntry(first.getScriptId(), first.getUserVariables())));
         }
         doc.setScriptMode(dto.getScriptMode() != null ? dto.getScriptMode().name() : ScriptMode.PREDEFINED.name());
+        doc.setStreamingOptions(dto.getStreamingOptions());
 
         return doc;
     }
