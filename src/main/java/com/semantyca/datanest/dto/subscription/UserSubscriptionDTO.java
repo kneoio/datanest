@@ -1,6 +1,11 @@
 package com.semantyca.datanest.dto.subscription;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.semantyca.core.dto.AbstractDTO;
 import com.semantyca.mixpla.model.MixplaUserSubscription;
 import lombok.AllArgsConstructor;
@@ -9,6 +14,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
+import java.io.IOException;
 import java.time.ZonedDateTime;
 
 @Setter
@@ -39,6 +45,7 @@ public class UserSubscriptionDTO extends AbstractDTO {
     private ZonedDateTime cancelAt;
     private ZonedDateTime canceledAt;
     private boolean active;
+    @JsonDeserialize(using = FlexibleIntegerDeserializer.class)
     private Integer streamDurationMinutes;
     private boolean otsAllowed;
     private Integer maxSongs;
@@ -46,6 +53,24 @@ public class UserSubscriptionDTO extends AbstractDTO {
     private String djTypeId;
     private short supportLevel;
     private boolean customScriptAllowed;
+    private Integer maxStations;
+    private boolean bulkUploadAllowed;
+    @JsonAlias("price")
+    private java.math.BigDecimal priceEur;
+
+    static class FlexibleIntegerDeserializer extends StdDeserializer<Integer> {
+        FlexibleIntegerDeserializer() { super(Integer.class); }
+
+        @Override
+        public Integer deserialize(JsonParser p, DeserializationContext ctx) throws IOException {
+            String text = p.getText().trim();
+            try {
+                return Integer.parseInt(text);
+            } catch (NumberFormatException e) {
+                return 0;
+            }
+        }
+    }
 
     public static UserSubscriptionDTO from(MixplaUserSubscription s) {
         return UserSubscriptionDTO.builder()
@@ -68,6 +93,9 @@ public class UserSubscriptionDTO extends AbstractDTO {
                 .djTypeId(s.getDjTypeId() != null ? s.getDjTypeId().toString() : null)
                 .supportLevel(s.getSupportLevel())
                 .customScriptAllowed(s.isCustomScriptAllowed())
+                .maxStations(s.getMaxStations())
+                .bulkUploadAllowed(s.isBulkUploadAllowed())
+                .priceEur(s.getPriceEur())
                 .build();
     }
 }

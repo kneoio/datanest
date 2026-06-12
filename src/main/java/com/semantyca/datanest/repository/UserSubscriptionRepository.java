@@ -65,8 +65,8 @@ public class UserSubscriptionRepository extends AsyncRepository {
 
     public Uni<MixplaUserSubscription> insert(MixplaUserSubscription doc, IUser user) {
         String sql = String.format(
-                "INSERT INTO %s (author, reg_date, last_mod_user, last_mod_date, user_id, stripe_customer_id, stripe_subscription_id, subscription_type, subscription_status, trial_end, current_period_start, current_period_end, cancel_at, canceled_at, active, stream_duration_minutes, ots_allowed, max_songs, stream_quality_kbps, dj_type_id, support_level, custom_script_allowed) " +
-                "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) RETURNING id", TABLE);
+                "INSERT INTO %s (author, reg_date, last_mod_user, last_mod_date, user_id, stripe_customer_id, stripe_subscription_id, subscription_type, subscription_status, trial_end, current_period_start, current_period_end, cancel_at, canceled_at, active, stream_duration_minutes, ots_allowed, max_songs, stream_quality_kbps, dj_type_id, support_level, custom_script_allowed, max_stations, bulk_upload_allowed, price_eur) " +
+                "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25) RETURNING id", TABLE);
         OffsetDateTime now = OffsetDateTime.now();
         Tuple params = Tuple.of(user.getId())
                 .addOffsetDateTime(now)
@@ -89,7 +89,10 @@ public class UserSubscriptionRepository extends AsyncRepository {
                 .addValue(doc.getStreamQualityKbps())
                 .addValue(doc.getDjTypeId())
                 .addShort(doc.getSupportLevel())
-                .addBoolean(doc.isCustomScriptAllowed());
+                .addBoolean(doc.isCustomScriptAllowed())
+                .addValue(doc.getMaxStations())
+                .addBoolean(doc.isBulkUploadAllowed())
+                .addValue(doc.getPriceEur());
         return client.preparedQuery(sql)
                 .execute(params)
                 .onItem().transformToUni(result -> findById(result.iterator().next().getUUID("id")));
@@ -97,7 +100,7 @@ public class UserSubscriptionRepository extends AsyncRepository {
 
     public Uni<MixplaUserSubscription> update(UUID id, MixplaUserSubscription doc, IUser user) {
         String sql = String.format(
-                "UPDATE %s SET last_mod_user=$1, last_mod_date=$2, stripe_customer_id=$3, subscription_type=$4, subscription_status=$5, trial_end=$6, current_period_start=$7, current_period_end=$8, cancel_at=$9, canceled_at=$10, active=$11, stream_duration_minutes=$12, ots_allowed=$13, max_songs=$14, stream_quality_kbps=$15, dj_type_id=$16, support_level=$17, custom_script_allowed=$18 WHERE id=$19", TABLE);
+                "UPDATE %s SET last_mod_user=$1, last_mod_date=$2, stripe_customer_id=$3, subscription_type=$4, subscription_status=$5, trial_end=$6, current_period_start=$7, current_period_end=$8, cancel_at=$9, canceled_at=$10, active=$11, stream_duration_minutes=$12, ots_allowed=$13, max_songs=$14, stream_quality_kbps=$15, dj_type_id=$16, support_level=$17, custom_script_allowed=$18, max_stations=$19, bulk_upload_allowed=$20, price_eur=$21 WHERE id=$22", TABLE);
         Tuple params = Tuple.of(user.getId())
                 .addOffsetDateTime(OffsetDateTime.now())
                 .addString(doc.getStripeCustomerId())
@@ -116,6 +119,9 @@ public class UserSubscriptionRepository extends AsyncRepository {
                 .addValue(doc.getDjTypeId())
                 .addShort(doc.getSupportLevel())
                 .addBoolean(doc.isCustomScriptAllowed())
+                .addValue(doc.getMaxStations())
+                .addBoolean(doc.isBulkUploadAllowed())
+                .addValue(doc.getPriceEur())
                 .addUUID(id);
         return client.preparedQuery(sql)
                 .execute(params)
@@ -180,6 +186,9 @@ public class UserSubscriptionRepository extends AsyncRepository {
         s.setDjTypeId(row.getUUID("dj_type_id"));
         s.setSupportLevel(row.getShort("support_level"));
         s.setCustomScriptAllowed(Boolean.TRUE.equals(row.getBoolean("custom_script_allowed")));
+        s.setMaxStations(row.getInteger("max_stations"));
+        s.setBulkUploadAllowed(Boolean.TRUE.equals(row.getBoolean("bulk_upload_allowed")));
+        s.setPriceEur(row.getBigDecimal("price_eur"));
         return s;
     }
 }

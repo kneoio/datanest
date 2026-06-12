@@ -69,6 +69,9 @@ public class UserSubscriptionService {
         doc.setStreamQualityKbps(dto.getStreamQualityKbps());
         doc.setSupportLevel(dto.getSupportLevel());
         doc.setCustomScriptAllowed(dto.isCustomScriptAllowed());
+        doc.setMaxStations(dto.getMaxStations());
+        doc.setBulkUploadAllowed(dto.isBulkUploadAllowed());
+        doc.setPriceEur(dto.getPriceEur());
 
         boolean isNew = "new".equalsIgnoreCase(id) || id == null;
 
