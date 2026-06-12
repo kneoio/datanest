@@ -2,6 +2,7 @@ package com.semantyca.datanest.rest;
 
 import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.model.SubscriptionProduct;
+import com.semantyca.core.model.UserSubscription;
 import com.semantyca.core.service.SubscriptionProductService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
@@ -9,7 +10,7 @@ import com.semantyca.datanest.dto.subscription.UserSubscriptionProductStatusDTO;
 import com.semantyca.datanest.dto.subscription.SubscriptionProductDTO;
 import com.semantyca.datanest.dto.subscription.UserSubscriptionDTO;
 import com.semantyca.datanest.repository.UserSubscriptionRepository;
-import com.semantyca.mixpla.model.UserSubscription;
+import com.semantyca.datanest.service.UserSubscriptionService;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.Json;
@@ -29,6 +30,7 @@ public class SubscriptionController extends AbstractSecuredController<Subscripti
 
     private SubscriptionProductService productService;
     private UserSubscriptionRepository subscriptionRepository;
+    private UserSubscriptionService subscriptionService;
     private UserService userService;
 
     public SubscriptionController() {
@@ -38,11 +40,13 @@ public class SubscriptionController extends AbstractSecuredController<Subscripti
     @Inject
     public SubscriptionController(UserService userService,
                                    SubscriptionProductService productService,
-                                   UserSubscriptionRepository subscriptionRepository) {
+                                   UserSubscriptionRepository subscriptionRepository,
+                                   UserSubscriptionService subscriptionService) {
         super(userService);
         this.userService = userService;
         this.productService = productService;
         this.subscriptionRepository = subscriptionRepository;
+        this.subscriptionService = subscriptionService;
     }
 
     public void setupRoutes(Router router) {
@@ -187,32 +191,15 @@ public class SubscriptionController extends AbstractSecuredController<Subscripti
 
         getContextUser(rc)
                 .chain(user -> Uni.combine().all().unis(
-                        subscriptionRepository.getAllCount(),
-                        subscriptionRepository.getAll(size, (page - 1) * size)
+                        subscriptionService.getAllCount(),
+                        subscriptionService.getAll(size, (page - 1) * size)
                 ).asTuple())
-                .chain(tuple -> {
-                    var dtos = tuple.getItem2().stream().map(UserSubscriptionDTO::from).collect(Collectors.toList());
-                    if (dtos.isEmpty()) {
-                        var view = new com.semantyca.core.dto.view.View<>(dtos, tuple.getItem1(), page,
-                                RuntimeUtil.countMaxPage(tuple.getItem1(), size), size);
-                        var viewPage = new com.semantyca.core.dto.view.ViewPage();
-                        viewPage.addPayload(com.semantyca.core.dto.cnst.PayloadType.VIEW_DATA, view);
-                        return Uni.createFrom().item(viewPage);
-                    }
-                    var userUnis = dtos.stream()
-                            .map(dto -> userService.findById(dto.getUserId())
-                                    .map(opt -> {
-                                        opt.ifPresent(u -> dto.setUser(new UserSubscriptionDTO.UserRef(u.getLogin(), u.getEmail())));
-                                        return dto;
-                                    }))
-                            .collect(Collectors.toList());
-                    return Uni.join().all(userUnis).andFailFast().map(resolved -> {
-                        var view = new com.semantyca.core.dto.view.View<>(resolved, tuple.getItem1(), page,
-                                RuntimeUtil.countMaxPage(tuple.getItem1(), size), size);
-                        var viewPage = new com.semantyca.core.dto.view.ViewPage();
-                        viewPage.addPayload(com.semantyca.core.dto.cnst.PayloadType.VIEW_DATA, view);
-                        return viewPage;
-                    });
+                .map(tuple -> {
+                    var view = new com.semantyca.core.dto.view.View<>(tuple.getItem2(), tuple.getItem1(), page,
+                            RuntimeUtil.countMaxPage(tuple.getItem1(), size), size);
+                    var viewPage = new com.semantyca.core.dto.view.ViewPage();
+                    viewPage.addPayload(com.semantyca.core.dto.cnst.PayloadType.VIEW_DATA, view);
+                    return viewPage;
                 })
                 .subscribe().with(
                         vp -> rc.response().setStatusCode(200).end(JsonObject.mapFrom(vp).encode()),
@@ -224,18 +211,9 @@ public class SubscriptionController extends AbstractSecuredController<Subscripti
         String id = rc.pathParam("id");
 
         getContextUser(rc)
-                .chain(user -> {
-                    if ("new".equals(id)) {
-                        return Uni.createFrom().item(new UserSubscriptionDTO());
-                    }
-                    return subscriptionRepository.findById(UUID.fromString(id))
-                            .map(UserSubscriptionDTO::from)
-                            .chain(dto -> userService.findById(dto.getUserId())
-                                    .map(opt -> {
-                                        opt.ifPresent(u -> dto.setUser(new UserSubscriptionDTO.UserRef(u.getLogin(), u.getEmail())));
-                                        return dto;
-                                    }));
-                })
+                .chain(user -> "new".equals(id)
+                        ? Uni.createFrom().item(new UserSubscriptionDTO())
+                        : subscriptionService.findById(UUID.fromString(id)))
                 .subscribe().with(
                         dto -> {
                             var page = new com.semantyca.core.dto.form.FormPage();
@@ -256,31 +234,8 @@ public class SubscriptionController extends AbstractSecuredController<Subscripti
             UserSubscriptionDTO dto = json.mapTo(UserSubscriptionDTO.class);
             String id = rc.pathParam("id");
 
-            UserSubscription doc = new UserSubscription();
-            doc.setUserId(dto.getUserId());
-            doc.setStripeCustomerId(dto.getStripeCustomerId());
-            doc.setStripeSubscriptionId(dto.getStripeSubscriptionId());
-            doc.setSubscriptionType(dto.getSubscriptionType());
-            doc.setSubscriptionStatus(dto.getSubscriptionStatus());
-            doc.setTrialEnd(dto.getTrialEnd());
-            doc.setCurrentPeriodStart(dto.getCurrentPeriodStart());
-            doc.setCurrentPeriodEnd(dto.getCurrentPeriodEnd());
-            doc.setCancelAt(dto.getCancelAt());
-            doc.setCanceledAt(dto.getCanceledAt());
-            doc.setActive(dto.isActive());
-            doc.setStreamDurationMinutes(dto.getStreamDurationMinutes());
-            doc.setOtsAllowed(dto.isOtsAllowed());
-            doc.setMaxSongs(dto.getMaxSongs());
-            doc.setStreamQualityKbps(dto.getStreamQualityKbps());
-            doc.setDjTypeId(dto.getDjTypeId());
-            doc.setSupportLevel(dto.getSupportLevel());
-            doc.setCustomScriptAllowed(dto.isCustomScriptAllowed());
-
             getContextUser(rc, false, false)
-                    .chain(user -> "new".equalsIgnoreCase(id) || id == null
-                            ? subscriptionRepository.insert(doc, user)
-                            : subscriptionRepository.update(UUID.fromString(id), doc, user))
-                    .map(UserSubscriptionDTO::from)
+                    .chain(user -> subscriptionService.upsert(id, dto, user))
                     .subscribe().with(
                             result -> rc.response()
                                     .setStatusCode(id == null ? 201 : 200)

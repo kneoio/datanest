@@ -2,7 +2,7 @@ package com.semantyca.datanest.dto.subscription;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
-import com.semantyca.mixpla.model.UserSubscription;
+import com.semantyca.mixpla.model.MixplaUserSubscription;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -10,7 +10,6 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 import java.time.ZonedDateTime;
-import java.util.UUID;
 
 @Setter
 @Getter
@@ -44,11 +43,11 @@ public class UserSubscriptionDTO extends AbstractDTO {
     private boolean otsAllowed;
     private Integer maxSongs;
     private Integer streamQualityKbps;
-    private UUID djTypeId;
+    private String djTypeId;
     private short supportLevel;
     private boolean customScriptAllowed;
 
-    public static UserSubscriptionDTO from(UserSubscription s) {
+    public static UserSubscriptionDTO from(MixplaUserSubscription s) {
         return UserSubscriptionDTO.builder()
                 .id(s.getId())
                 .userId(s.getUserId())
@@ -66,7 +65,7 @@ public class UserSubscriptionDTO extends AbstractDTO {
                 .otsAllowed(s.isOtsAllowed())
                 .maxSongs(s.getMaxSongs())
                 .streamQualityKbps(s.getStreamQualityKbps())
-                .djTypeId(s.getDjTypeId())
+                .djTypeId(s.getDjTypeId() != null ? s.getDjTypeId().toString() : null)
                 .supportLevel(s.getSupportLevel())
                 .customScriptAllowed(s.isCustomScriptAllowed())
                 .build();

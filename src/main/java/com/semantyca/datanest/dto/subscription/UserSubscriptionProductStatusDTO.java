@@ -2,8 +2,8 @@ package com.semantyca.datanest.dto.subscription;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.model.SubscriptionProduct;
+import com.semantyca.core.model.UserSubscription;
 import com.semantyca.core.model.cnst.LanguageCode;
-import com.semantyca.mixpla.model.UserSubscription;
 import lombok.Getter;
 import lombok.Setter;
 

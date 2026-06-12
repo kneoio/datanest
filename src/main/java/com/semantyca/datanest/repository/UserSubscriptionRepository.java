@@ -5,7 +5,7 @@ import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.repository.AsyncRepository;
 import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.table.TableNameResolver;
-import com.semantyca.mixpla.model.UserSubscription;
+import com.semantyca.mixpla.model.MixplaUserSubscription;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.sqlclient.Pool;
@@ -31,7 +31,7 @@ public class UserSubscriptionRepository extends AsyncRepository {
         super(client, mapper, null);
     }
 
-    public Uni<List<UserSubscription>> getAll(int limit, int offset) {
+    public Uni<List<MixplaUserSubscription>> getAll(int limit, int offset) {
         String sql = String.format("SELECT * FROM %s ORDER BY reg_date DESC LIMIT %s OFFSET %s", TABLE, limit, offset);
         return client.query(sql)
                 .execute()
@@ -44,7 +44,7 @@ public class UserSubscriptionRepository extends AsyncRepository {
         return getAllCount(TABLE);
     }
 
-    public Uni<UserSubscription> findById(UUID id) {
+    public Uni<MixplaUserSubscription> findById(UUID id) {
         String sql = String.format("SELECT * FROM %s WHERE id=$1", TABLE);
         return client.preparedQuery(sql)
                 .execute(Tuple.of(id))
@@ -54,7 +54,7 @@ public class UserSubscriptionRepository extends AsyncRepository {
                 });
     }
 
-    public Uni<List<UserSubscription>> findByUserId(Long userId) {
+    public Uni<List<MixplaUserSubscription>> findByUserId(Long userId) {
         String sql = String.format("SELECT * FROM %s WHERE user_id=$1 ORDER BY reg_date DESC", TABLE);
         return client.preparedQuery(sql)
                 .execute(Tuple.of(userId))
@@ -63,7 +63,7 @@ public class UserSubscriptionRepository extends AsyncRepository {
                 .collect().asList();
     }
 
-    public Uni<UserSubscription> insert(UserSubscription doc, IUser user) {
+    public Uni<MixplaUserSubscription> insert(MixplaUserSubscription doc, IUser user) {
         String sql = String.format(
                 "INSERT INTO %s (author, reg_date, last_mod_user, last_mod_date, user_id, stripe_customer_id, stripe_subscription_id, subscription_type, subscription_status, trial_end, current_period_start, current_period_end, cancel_at, canceled_at, active, stream_duration_minutes, ots_allowed, max_songs, stream_quality_kbps, dj_type_id, support_level, custom_script_allowed) " +
                 "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) RETURNING id", TABLE);
@@ -95,7 +95,7 @@ public class UserSubscriptionRepository extends AsyncRepository {
                 .onItem().transformToUni(result -> findById(result.iterator().next().getUUID("id")));
     }
 
-    public Uni<UserSubscription> update(UUID id, UserSubscription doc, IUser user) {
+    public Uni<MixplaUserSubscription> update(UUID id, MixplaUserSubscription doc, IUser user) {
         String sql = String.format(
                 "UPDATE %s SET last_mod_user=$1, last_mod_date=$2, stripe_customer_id=$3, subscription_type=$4, subscription_status=$5, trial_end=$6, current_period_start=$7, current_period_end=$8, cancel_at=$9, canceled_at=$10, active=$11, stream_duration_minutes=$12, ots_allowed=$13, max_songs=$14, stream_quality_kbps=$15, dj_type_id=$16, support_level=$17, custom_script_allowed=$18 WHERE id=$19", TABLE);
         Tuple params = Tuple.of(user.getId())
@@ -125,6 +125,28 @@ public class UserSubscriptionRepository extends AsyncRepository {
                 });
     }
 
+    public Uni<UUID> resolveProductId(String value) {
+        if (value == null) return Uni.createFrom().nullItem();
+        String sql = "SELECT id FROM _subscription_products WHERE identifier=$1 LIMIT 1";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(value))
+                .onItem().transformToUni(rows -> {
+                    if (rows.rowCount() == 0) return Uni.createFrom().nullItem();
+                    return Uni.createFrom().item(rows.iterator().next().getUUID("id"));
+                });
+    }
+
+    public Uni<String> resolveIdentifier(UUID productId) {
+        if (productId == null) return Uni.createFrom().nullItem();
+        String sql = "SELECT identifier FROM _subscription_products WHERE id=$1 LIMIT 1";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(productId))
+                .onItem().transformToUni(rows -> {
+                    if (rows.rowCount() == 0) return Uni.createFrom().nullItem();
+                    return Uni.createFrom().item(rows.iterator().next().getString("identifier"));
+                });
+    }
+
     public Uni<Integer> delete(UUID id) {
         String sql = String.format("DELETE FROM %s WHERE id=$1", TABLE);
         return client.preparedQuery(sql)
@@ -132,8 +154,8 @@ public class UserSubscriptionRepository extends AsyncRepository {
                 .onItem().transform(RowSet::rowCount);
     }
 
-    private UserSubscription from(Row row) {
-        UserSubscription s = new UserSubscription();
+    private MixplaUserSubscription from(Row row) {
+        MixplaUserSubscription s = new MixplaUserSubscription();
         s.setId(row.getUUID("id"));
         s.setUserId(row.getLong("user_id"));
         s.setStripeCustomerId(row.getString("stripe_customer_id"));
