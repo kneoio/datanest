@@ -15,7 +15,9 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.ZonedDateTime;
+import java.util.List;
 
 @Setter
 @Getter
@@ -56,7 +58,8 @@ public class UserSubscriptionDTO extends AbstractDTO {
     private Integer maxStations;
     private boolean bulkUploadAllowed;
     @JsonAlias("price")
-    private java.math.BigDecimal priceEur;
+    private BigDecimal priceEur;
+    private List<String> codecs;
 
     static class FlexibleIntegerDeserializer extends StdDeserializer<Integer> {
         FlexibleIntegerDeserializer() { super(Integer.class); }

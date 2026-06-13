@@ -1,6 +1,5 @@
 package com.semantyca.datanest.rest;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.datanest.dto.GenreFlatDTO;
 import com.semantyca.datanest.dto.StationFlatDTO;
@@ -31,15 +30,13 @@ public class PublicSongSubmissionController {
     private final FileUploadService fileUploadService;
     private final BrandService brandService;
     private final RefService refService;
-    private final ObjectMapper mapper;
 
     @Inject
-    public PublicSongSubmissionController(OtpService otpService, FileUploadService fileUploadService, BrandService brandService, RefService refService, ObjectMapper mapper) {
+    public PublicSongSubmissionController(OtpService otpService, FileUploadService fileUploadService, BrandService brandService, RefService refService) {
         this.otpService = otpService;
         this.fileUploadService = fileUploadService;
         this.brandService = brandService;
         this.refService = refService;
-        this.mapper = mapper;
     }
 
     public void setupRoutes(Router router) {
