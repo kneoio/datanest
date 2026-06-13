@@ -292,7 +292,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 //https://mixpla.online/live/aye-aye-s-ear/master.m3u8
                 https://mixpla.online/aivox/aye-aye-s-ear/master.m3u8
                 //dto.setHlsUrl(URI.create(datanestConfig.getHost() + "/live/" + dto.getSlugName() + "/master.m3u8").toURL());
-                dto.setHlsUrl(URI.create(datanestConfig.getHost() + "/aivox/" + dto.getSlugName() + "/master.m3u8").toURL());
+                dto.setHlsUrl(URI.create(datanestConfig.getHost() + "/live/" + dto.getSlugName() + "/opus").toURL());
                 //dto.setIceCastUrl(URI.create(datanestConfig.getHost() + "/" + dto.getSlugName() + "/radio/icecast").toURL());
                 //dto.setMp3Url(URI.create(datanestConfig.getHost() + "/" + dto.getSlugName() + "/radio/stream.mp3").toURL());
                 dto.setMixplaUrl(URI.create("https://mixpla.online/" + dto.getSlugName()).toURL());

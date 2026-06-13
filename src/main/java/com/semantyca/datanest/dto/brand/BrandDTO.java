@@ -48,7 +48,7 @@ public class BrandDTO extends AbstractDTO {
     @ValidCountry(message = "It is not available for the country")
     private String country;
     private URL hlsUrl;
-    private URL iceCastUrl;
+    private URL hlsUrlAAC;
     private URL mp3Url;
     private URL mixplaUrl;
     @NotBlank
