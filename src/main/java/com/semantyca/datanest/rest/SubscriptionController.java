@@ -6,9 +6,9 @@ import com.semantyca.core.model.UserSubscription;
 import com.semantyca.core.service.SubscriptionProductService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
-import com.semantyca.datanest.dto.subscription.UserSubscriptionProductStatusDTO;
 import com.semantyca.datanest.dto.subscription.SubscriptionProductDTO;
 import com.semantyca.datanest.dto.subscription.UserSubscriptionDTO;
+import com.semantyca.datanest.dto.subscription.UserSubscriptionProductStatusDTO;
 import com.semantyca.datanest.repository.UserSubscriptionRepository;
 import com.semantyca.datanest.service.UserSubscriptionService;
 import io.smallrye.mutiny.Uni;
@@ -31,7 +31,6 @@ public class SubscriptionController extends AbstractSecuredController<Subscripti
     private SubscriptionProductService productService;
     private UserSubscriptionRepository subscriptionRepository;
     private UserSubscriptionService subscriptionService;
-    private UserService userService;
 
     public SubscriptionController() {
         super(null);
@@ -43,7 +42,6 @@ public class SubscriptionController extends AbstractSecuredController<Subscripti
                                    UserSubscriptionRepository subscriptionRepository,
                                    UserSubscriptionService subscriptionService) {
         super(userService);
-        this.userService = userService;
         this.productService = productService;
         this.subscriptionRepository = subscriptionRepository;
         this.subscriptionService = subscriptionService;
