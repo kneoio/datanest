@@ -59,7 +59,7 @@ public class DraftController extends AbstractSecuredController<Draft, DraftDTO> 
     public void setupRoutes(Router router) {
         String path = "/datanest/drafts";
         router.route(path + "*").handler(BodyHandler.create());
-        router.post(path + "/test").handler(this::testDraft);  // Must be before POST /datanest/drafts
+        //router.post(path + "/test").handler(this::testDraft);  // Must be before POST /datanest/drafts
         router.post(path + "/extract-variables").handler(this::extractVariables);
         router.get(path).handler(this::getAll);
         router.get(path + "/:id").handler(this::getById);
