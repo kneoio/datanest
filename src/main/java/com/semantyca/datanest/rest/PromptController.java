@@ -79,7 +79,7 @@ public class PromptController extends AbstractSecuredController<DjPrompt, Prompt
         router.get("/datanest/pub/actions/options").handler(this::getOptions);
         router.get(path).handler(this::getAll);
         router.get(path + "/grouped").handler(this::getAllGrouped);
-        router.post(path + "/test").handler(this::test);
+        //router.post(path + "/test").handler(this::test);
         router.get(path + "/:id").handler(this::getById);
         router.post(path + "/:id?").handler(this::upsert);
         router.delete(path + "/:id").handler(this::delete);
