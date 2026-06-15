@@ -1,9 +1,9 @@
 package com.semantyca.datanest.service.prompt;
 
+import com.semantyca.core.llm.AnthropicTextClient;
 import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.agentrest.AgentRespDTO;
 import com.semantyca.datanest.dto.agentrest.MasterPromptTranslateReqDTO;
-import com.semantyca.datanest.external.AnthropicMessagesClient;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -24,7 +24,7 @@ public class MasterPromptTranslateAnthropicService {
     private static final String TEMPLATE_SUFFIX = ".hbs";
 
     @Inject
-    AnthropicMessagesClient anthropicMessagesClient;
+    AnthropicTextClient anthropicTextClient;
 
     @Inject
     DatanestConfig config;
@@ -39,7 +39,8 @@ public class MasterPromptTranslateAnthropicService {
                     "outputRules", outputRules));
             Map<String, String> userVars = getMap(dto);
             String userMessage = renderForLocale(localeFolder, "master-prompt-translate-user", userVars);
-            return anthropicMessagesClient.createTextMessage(
+            return anthropicTextClient.createTextMessage(
+                            config.getAnthropicApiKey(),
                             config.getAnthropicModel(),
                             config.getAnthropicMasterPromptTranslateMaxTokens(),
                             system,
