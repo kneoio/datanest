@@ -112,7 +112,11 @@ public class BrandAgentStatsRepository extends AsyncRepository {
         stats.setAccessCount(row.getLong("access_count"));
         String st = row.getString("stream_type");
         if (st != null) {
-            stats.setStreamType(StreamType.valueOf(st));
+            try {
+                stats.setStreamType(StreamType.valueOf(st));
+            } catch (IllegalArgumentException e) {
+                LOGGER.warn("Unknown stream_type value: {}", st);
+            }
         }
         stats.setLastAccessTime(row.getOffsetDateTime("last_access_time"));
         return stats;
