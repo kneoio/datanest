@@ -11,7 +11,6 @@ import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.datanest.dto.BrandAgentStatsDTO;
 import com.semantyca.datanest.service.BrandAgentStatsService;
 import com.semantyca.mixpla.model.BrandAgentStats;
-import com.semantyca.mixpla.model.cnst.StreamType;
 import com.semantyca.mixpla.model.filter.BrandAgentStatsFilter;
 import com.semantyca.officeframe.model.cnst.CountryCode;
 import io.smallrye.mutiny.Uni;
@@ -115,12 +114,8 @@ public class BrandAgentStatsController extends AbstractSecuredController<BrandAg
 
         String streamTypeParam = rc.request().getParam("streamType");
         if (streamTypeParam != null && !streamTypeParam.isBlank()) {
-            try {
-                filter.setStreamType(StreamType.valueOf(streamTypeParam.trim()));
-                hasAny = true;
-            } catch (IllegalArgumentException e) {
-                LOGGER.warn("Invalid streamType: {}", streamTypeParam);
-            }
+            filter.setStreamType(streamTypeParam.trim());
+            hasAny = true;
         }
 
         return hasAny ? filter : null;

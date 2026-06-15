@@ -5,7 +5,6 @@ import com.semantyca.core.repository.AsyncRepository;
 import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.mixpla.model.BrandAgentStats;
-import com.semantyca.mixpla.model.cnst.StreamType;
 import com.semantyca.mixpla.model.filter.BrandAgentStatsFilter;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
 import com.semantyca.officeframe.model.cnst.CountryCode;
@@ -110,14 +109,7 @@ public class BrandAgentStatsRepository extends AsyncRepository {
             stats.setCountryCode(CountryCode.valueOf(cc));
         }
         stats.setAccessCount(row.getLong("access_count"));
-        String st = row.getString("stream_type");
-        if (st != null) {
-            try {
-                stats.setStreamType(StreamType.valueOf(st));
-            } catch (IllegalArgumentException e) {
-                LOGGER.warn("Unknown stream_type value: {}", st);
-            }
-        }
+        stats.setStreamType(row.getString("stream_type"));
         stats.setLastAccessTime(row.getOffsetDateTime("last_access_time"));
         return stats;
     }
