@@ -1,6 +1,5 @@
 package com.semantyca.datanest.config;
 
-import com.semantyca.core.config.LlmConfig;
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
@@ -8,7 +7,7 @@ import io.smallrye.config.WithName;
 import java.util.Optional;
 
 @ConfigMapping(prefix = "datanest")
-public interface DatanestConfig extends LlmConfig {
+public interface DatanestConfig {
     @WithName("host")
     @WithDefault("localhost")
     String getHost();
