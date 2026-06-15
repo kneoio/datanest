@@ -16,6 +16,7 @@ import com.semantyca.mixpla.model.Listener;
 import com.semantyca.mixpla.model.filter.ListenerFilter;
 import com.semantyca.officeframe.model.cnst.CountryCode;
 import io.smallrye.mutiny.Uni;
+import java.util.UUID;
 import io.smallrye.mutiny.tuples.Tuple2;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
@@ -289,6 +290,26 @@ public class ListenerController extends AbstractSecuredController<Listener, List
             }
             if (!countries.isEmpty()) {
                 filterDTO.setCountries(countries);
+                hasAnyFilter = true;
+            }
+        }
+
+        // Parse listenerOf filter (comma-separated UUIDs)
+        String listenerOfParam = rc.request().getParam("listenerOf");
+        if (listenerOfParam != null && !listenerOfParam.trim().isEmpty()) {
+            List<UUID> listenerOf = new ArrayList<>();
+            for (String id : listenerOfParam.split(",")) {
+                String trimmed = id.trim();
+                if (!trimmed.isEmpty()) {
+                    try {
+                        listenerOf.add(UUID.fromString(trimmed));
+                    } catch (IllegalArgumentException e) {
+                        LOGGER.warn("Invalid listenerOf UUID: {}", trimmed);
+                    }
+                }
+            }
+            if (!listenerOf.isEmpty()) {
+                filterDTO.setListenerOf(listenerOf);
                 hasAnyFilter = true;
             }
         }

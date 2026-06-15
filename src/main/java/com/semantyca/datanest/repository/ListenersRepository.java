@@ -512,6 +512,17 @@ public class ListenersRepository extends AsyncRepository {
             conditions.append(")");
         }
 
+        if (filter.getListenerOf() != null && !filter.getListenerOf().isEmpty()) {
+            conditions.append(" AND ").append(tableAlias).append(".id IN (SELECT listener_id FROM mixpla__listener_brands WHERE brand_id IN (");
+            for (int i = 0; i < filter.getListenerOf().size(); i++) {
+                if (i > 0) {
+                    conditions.append(", ");
+                }
+                conditions.append("'").append(filter.getListenerOf().get(i)).append("'");
+            }
+            conditions.append("))");
+        }
+
         return conditions.toString();
     }
 
