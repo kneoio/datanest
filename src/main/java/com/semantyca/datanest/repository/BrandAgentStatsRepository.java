@@ -91,7 +91,7 @@ public class BrandAgentStatsRepository extends AsyncRepository {
 
         if (filter.getStreamType() != null) {
             sb.append(" AND stream_type = '")
-              .append(filter.getStreamType().name())
+              .append(filter.getStreamType())
               .append("'");
         }
 
