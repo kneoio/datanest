@@ -64,6 +64,9 @@ public class DatanestApplication {
     @Inject
     PublicSongSubmissionController publicSongSubmissionController;
 
+    @Inject
+    BrandAgentStatsController brandAgentStatsController;
+
     void setupRoutes(@Observes Router router) {
         artistController.setupRoutes(router);
         brandController.setupRoutes(router);
@@ -83,5 +86,6 @@ public class DatanestApplication {
         chatSummaryController.setupRoutes(router);
         bulkACLController.setupRoutes(router);
         userAdController.setupRoutes(router);
+        brandAgentStatsController.setupRoutes(router);
     }
 }
