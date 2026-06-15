@@ -273,6 +273,29 @@ public class ListenerController extends AbstractSecuredController<Listener, List
         ListenerFilter filterDTO = new ListenerFilter();
         boolean hasAnyFilter = false;
 
+        String filterParam = rc.request().getParam("filter");
+        if (filterParam != null && !filterParam.trim().isEmpty()) {
+            try {
+                JsonObject filterJson = new JsonObject(filterParam);
+                if (filterJson.containsKey("listenerOf")) {
+                    List<UUID> listenerOf = new ArrayList<>();
+                    for (Object id : filterJson.getJsonArray("listenerOf").getList()) {
+                        try {
+                            listenerOf.add(UUID.fromString(id.toString()));
+                        } catch (IllegalArgumentException e) {
+                            LOGGER.warn("Invalid listenerOf UUID: {}", id);
+                        }
+                    }
+                    if (!listenerOf.isEmpty()) {
+                        filterDTO.setListenerOf(listenerOf);
+                        hasAnyFilter = true;
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.warn("Failed to parse filter param: {}", filterParam);
+            }
+        }
+
         // Parse countries filter (comma-separated enum values)
         String countriesParam = rc.request().getParam("country");
         if (countriesParam != null && !countriesParam.trim().isEmpty()) {
