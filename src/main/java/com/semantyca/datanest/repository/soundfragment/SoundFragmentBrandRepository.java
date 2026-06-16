@@ -6,7 +6,7 @@ import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.cnst.SourceType;
 import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
-import com.semantyca.mixpla.model.soundfragment.BrandSoundFragmentFlat;
+import com.semantyca.datanest.dto.BrandSoundFragmentFlatDTO;
 import com.semantyca.mixpla.model.soundfragment.SoundFragment;
 import com.semantyca.officeframe.dto.GenreDTO;
 import com.semantyca.officeframe.dto.LabelDTO;
@@ -33,19 +33,31 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
         this.queryBuilder = queryBuilder;
     }
 
-    public Uni<List<BrandSoundFragmentFlat>> findForBrandFlat(UUID brandId, final int limit, final int offset,
-                                                              IUser user, SoundFragmentFilter filter) {
+    public Uni<List<BrandSoundFragmentFlatDTO>> findForBrandFlat(UUID brandId, final int limit, final int offset,
+                                                                  IUser user, SoundFragmentFilter filter) {
         String sql = "SELECT t.id, t.title, t.artist, t.album, t.source, " +
                 "bsf.played_by_brand_count, bsf.boost, bsf.last_time_played_by_brand, " +
-                "EXISTS (SELECT 1 FROM mixpla__shared_sound_fragments ssf WHERE ssf.sound_fragment_id = t.id AND ssf.archived = 0) AS shared";
-        
+                "EXISTS (SELECT 1 FROM mixpla__shared_sound_fragments ssf WHERE ssf.sound_fragment_id = t.id AND ssf.archived = 0) AS shared, " +
+                "COALESCE(r.likes, 0) AS likes, COALESCE(r.dislikes, 0) AS dislikes";
+
         if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
             sql += ", similarity(t.search_name, $3) AS sim";
         }
-        
+
         sql += " FROM " + entityData.getTableName() + " t " +
                 "JOIN mixpla__brand_sound_fragments bsf ON t.id = bsf.sound_fragment_id " +
                 "JOIN " + entityData.getRlsName() + " rls ON t.id = rls.entity_id " +
+                "LEFT JOIN (" +
+                "  SELECT sound_fragment_id," +
+                "         COUNT(*) FILTER (WHERE rating = 1)  AS likes," +
+                "         COUNT(*) FILTER (WHERE rating = -1) AS dislikes" +
+                "  FROM (" +
+                "    SELECT DISTINCT ON (user_id, sound_fragment_id) user_id, sound_fragment_id, rating" +
+                "    FROM mixpla__sound_fragment_ratings_log" +
+                "    ORDER BY user_id, sound_fragment_id, created_at DESC" +
+                "  ) latest" +
+                "  GROUP BY sound_fragment_id" +
+                ") r ON r.sound_fragment_id = t.id " +
                 "WHERE bsf.brand_id = $1 AND rls.reader = $2 AND t.archived = 0";
 
         if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
@@ -73,7 +85,7 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
         return client.preparedQuery(sql)
                 .execute(params)
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
-                .onItem().transformToUni(row -> createBrandSoundFragmentFlat(row, brandId))
+                .onItem().transformToUni(row -> createFlatDTO(row, brandId))
                 .concatenate()
                 .collect().asList();
     }
@@ -123,31 +135,27 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
                 .collect().asList();
     }
 
-    private Uni<BrandSoundFragmentFlat> createBrandSoundFragmentFlat(Row row, UUID brandId) {
+    private Uni<BrandSoundFragmentFlatDTO> createFlatDTO(Row row, UUID brandId) {
         UUID soundFragmentId = row.getUUID("id");
-        
-        Uni<List<LabelDTO>> labelsUni = loadLabels(soundFragmentId);  //directly DTO
-        Uni<List<GenreDTO>> genresUni = loadGenres(soundFragmentId);  //directly DTO
-        
-        return Uni.combine().all().unis(labelsUni, genresUni).asTuple()
+
+        return Uni.combine().all().unis(loadLabels(soundFragmentId), loadGenres(soundFragmentId)).asTuple()
                 .onItem().transform(tuple -> {
-                    List<LabelDTO> labels = tuple.getItem1();
-                    List<GenreDTO> genres = tuple.getItem2();
-                    
-                    BrandSoundFragmentFlat flat = new BrandSoundFragmentFlat();
-                    flat.setId(soundFragmentId);
-                    flat.setDefaultBrandId(brandId);
-                    flat.setPlayedByBrandCount(row.getInteger("played_by_brand_count"));
-                    flat.setBoost(row.getInteger("boost") != null ? row.getInteger("boost") : 0);
-                    flat.setPlayedTime(row.getOffsetDateTime("last_time_played_by_brand"));
-                    flat.setTitle(row.getString("title"));
-                    flat.setArtist(row.getString("artist"));
-                    flat.setAlbum(row.getString("album"));
-                    flat.setSource(SourceType.valueOf(row.getString("source")));
-                    flat.setLabels(labels);
-                    flat.setGenres(genres);
-                    flat.setShared(Boolean.TRUE.equals(row.getBoolean("shared")));
-                    return flat;
+                    BrandSoundFragmentFlatDTO dto = new BrandSoundFragmentFlatDTO();
+                    dto.setId(soundFragmentId);
+                    dto.setDefaultBrandId(brandId);
+                    dto.setPlayedByBrandCount(row.getInteger("played_by_brand_count"));
+                    dto.setBoost(row.getInteger("boost") != null ? row.getInteger("boost") : 0);
+                    dto.setLastTimePlayedByBrand(row.getOffsetDateTime("last_time_played_by_brand"));
+                    dto.setTitle(row.getString("title"));
+                    dto.setArtist(row.getString("artist"));
+                    dto.setAlbum(row.getString("album"));
+                    dto.setSource(SourceType.valueOf(row.getString("source")));
+                    dto.setLabels(tuple.getItem1());
+                    dto.setGenres(tuple.getItem2());
+                    dto.setShared(Boolean.TRUE.equals(row.getBoolean("shared")));
+                    dto.setLikes(row.getInteger("likes"));
+                    dto.setDislikes(row.getInteger("dislikes"));
+                    return dto;
                 });
     }
 

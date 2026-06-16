@@ -739,6 +739,25 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract imp
                 .collect().asList();
     }
 
+    public Uni<int[]> getRatings(UUID fragmentId) {
+        String sql = "SELECT COUNT(*) FILTER (WHERE rating = 1) AS likes, " +
+                "COUNT(*) FILTER (WHERE rating = -1) AS dislikes " +
+                "FROM (" +
+                "  SELECT DISTINCT ON (user_id, sound_fragment_id) rating " +
+                "  FROM mixpla__sound_fragment_ratings_log " +
+                "  WHERE sound_fragment_id = $1 " +
+                "  ORDER BY user_id, sound_fragment_id, created_at DESC" +
+                ") latest";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(fragmentId))
+                .onItem().transform(rows -> {
+                    Row row = rows.iterator().next();
+                    int likes = row.getInteger("likes") != null ? row.getInteger("likes") : 0;
+                    int dislikes = row.getInteger("dislikes") != null ? row.getInteger("dislikes") : 0;
+                    return new int[]{likes, dislikes};
+                });
+    }
+
     public Uni<List<DocumentAccessInfo>> getDocumentAccessInfo(UUID documentId, IUser user) {
         return getDocumentAccessInfo(documentId, entityData, user);
     }

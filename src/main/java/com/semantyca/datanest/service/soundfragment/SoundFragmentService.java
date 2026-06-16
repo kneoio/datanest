@@ -165,14 +165,21 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         assert repository != null;
         Uni<SoundFragment> soundFragmentUni = repository.findById(uuid, user.getId(), false, true, true);
         Uni<List<UUID>> brandsUni = repository.getBrandsForSoundFragment(uuid, user);
+        Uni<int[]> ratingsUni = repository.getRatings(uuid);
 
-        return Uni.combine().all().unis(soundFragmentUni, brandsUni).asTuple()
+        return Uni.combine().all().unis(soundFragmentUni, brandsUni, ratingsUni).asTuple()
                 .chain(tuple -> {
                     SoundFragment doc = tuple.getItem1();
                     List<UUID> representedInBrands = tuple.getItem2();
+                    int[] ratings = tuple.getItem3();
                     assert sharedSoundFragmentService != null;
                     return sharedSoundFragmentService.listShareDTO(doc.getId())
-                            .chain(shared -> mapToDTO(doc, true, representedInBrands, shared));
+                            .chain(shared -> mapToDTO(doc, true, representedInBrands, shared))
+                            .map(dto -> {
+                                dto.setLikes(ratings[0]);
+                                dto.setDislikes(ratings[1]);
+                                return dto;
+                            });
                 });
     }
 

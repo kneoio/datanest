@@ -5,7 +5,6 @@ import com.semantyca.datanest.dto.BrandSoundFragmentFlatDTO;
 import com.semantyca.datanest.repository.soundfragment.SoundFragmentBrandRepository;
 import com.semantyca.datanest.service.BrandService;
 import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
-import com.semantyca.mixpla.model.soundfragment.BrandSoundFragmentFlat;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -13,7 +12,6 @@ import jakarta.inject.Inject;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class BrandSoundFragmentService {
@@ -36,14 +34,9 @@ public class BrandSoundFragmentService {
                     }
                     UUID brandId = brand.getId();
                     return repository.findForBrandFlat(brandId, limit, offset, user, filter)
-                            .onItem().transform(fragments -> {
-                                if (fragments.isEmpty()) {
-                                    return Collections.<BrandSoundFragmentFlatDTO>emptyList();
-                                }
-                                return fragments.stream()
-                                        .map(this::mapToDTO)
-                                        .collect(Collectors.toList());
-                            });
+                            .onItem().transform(fragments -> fragments.isEmpty()
+                                    ? Collections.<BrandSoundFragmentFlatDTO>emptyList()
+                                    : fragments);
                 });
     }
 
@@ -57,22 +50,5 @@ public class BrandSoundFragmentService {
                 });
     }
 
-    private BrandSoundFragmentFlatDTO mapToDTO(BrandSoundFragmentFlat flat) {
-        BrandSoundFragmentFlatDTO dto = new BrandSoundFragmentFlatDTO();
-        dto.setId(flat.getId());
-        dto.setDefaultBrandId(flat.getDefaultBrandId());
-        dto.setPlayedByBrandCount(flat.getPlayedByBrandCount());
-        dto.setBoost(flat.getBoost());
-        dto.setLastTimePlayedByBrand(flat.getPlayedTime());
-        dto.setTitle(flat.getTitle());
-        dto.setArtist(flat.getArtist());
-        dto.setAlbum(flat.getAlbum());
-        dto.setSource(flat.getSource());
-        dto.setLabels(flat.getLabels());
-        dto.setGenres(flat.getGenres());
-        dto.setRepresentedInBrands(flat.getRepresentedInBrands());
-        dto.setShared(flat.isShared());
-        return dto;
-    }
-
 }
+

@@ -57,6 +57,10 @@ public class SoundFragmentDTO extends AbstractDTO {
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private boolean shared;
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    private int likes;
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    private int dislikes;
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<ShareDTO> sharedWith;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)

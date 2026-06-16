@@ -102,27 +102,33 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     }
 
     public Uni<List<Brand>> getAll(final int limit, final int offset) {
+        assert repository != null;
         return repository.getAll(limit, offset, false, SuperUser.build(), null);
     }
 
     public Uni<List<Brand>> getAll(final int limit, final int offset, IUser user) {
+        assert repository != null;
         return repository.getAll(limit, offset, false, user, null);
     }
 
     public Uni<Brand> getById(UUID id, IUser user) {
+        assert repository != null;
         return repository.findById(id, user, true);
     }
 
     public Uni<Brand> getBySlugNameForUser(String name, IUser user) {
+        assert repository != null;
         return repository.getBySlugName(name, user, false);
     }
 
     public Uni<Brand> getBySlugName(String name) {
+        assert repository != null;
         return repository.getBySlugName(name)
                 .chain(brand -> {
                     if (brand == null) {
                         return Uni.createFrom().nullItem();
                     }
+                    assert scriptService != null;
                     return scriptService.getAllScriptsForBrandWithScenes(brand.getId(), SuperUser.build())
                             .map(brandScripts -> {
                                 List<BrandScriptEntry> entries = brandScripts.stream()
@@ -153,11 +159,11 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         assert repository != null;
         List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
 
-        Uni<String> slugUni = ("new".equalsIgnoreCase(id) || id == null || id.isBlank())
+        boolean isNew = "new".equalsIgnoreCase(id) || id == null || id.isBlank();
+        Uni<String> slugUni = isNew
                 ? Uni.createFrom().item(WebHelper.generateSlug(dto.getLocalizedName()))
                 : repository.findById(UUID.fromString(id), user, false).map(Brand::getSlugName);
 
-        boolean isNew = "new".equalsIgnoreCase(id) || id == null || id.isBlank();
         return slugUni
                 .chain(slug -> resolveOwnerUserIds(dto).map(resolvedDto -> buildEntity(resolvedDto, user, slug)))
                 .chain(entity -> {
@@ -168,11 +174,14 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                         return repository.update(UUID.fromString(id), entity, rlsActions, user);
                     }
                 })
-                .invoke(saved -> commandPublisher.publishCommand(
-                        CommandType.FLOW_RESTART,
-                        "brand_saved",
-                        Map.of("brandId", saved.getId().toString(), "slug", saved.getSlugName(), "savedBy", user.getUserName())
-                ))
+                .invoke(saved -> {
+                    assert commandPublisher != null;
+                    commandPublisher.publishCommand(
+                            CommandType.FLOW_RESTART,
+                            "brand_saved",
+                            Map.of("brandId", saved.getId().toString(), "slug", saved.getSlugName(), "savedBy", user.getUserName())
+                    );
+                })
                 .chain(saved -> {
                     if (!isNew) {
                         return Uni.createFrom().item(saved);
@@ -190,6 +199,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
 
     public Uni<List<BrandDTO>> getAllOpenForSubmissionDTO(int limit, int offset, IUser user) {
+        assert repository != null;
         return repository.getAllOpenForSubmission(limit, offset, user.getId())
                 .chain(list -> {
                     if (list.isEmpty()) {
@@ -203,6 +213,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     }
 
     public Uni<Integer> getAllOpenForSubmissionCount(IUser user) {
+        assert repository != null;
         return repository.getAllOpenForSubmissionCount(user.getId());
     }
 
@@ -226,6 +237,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 .chain(brand -> repository.closeBrand(brandId, user)
                         .invoke(count -> {
                             if (count > 0) {
+                                assert metricPublisher != null;
                                 metricPublisher.publishMetric(
                                         brand.getSlugName(),
                                         MetricEventType.WARNING,
@@ -239,6 +251,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     }
 
     Uni<BrandDTO> mapToDTO(Brand doc) {
+        assert repository != null;
         return Uni.combine().all().unis(
                 userService.getUserName(doc.getAuthor()),
                 userService.getUserName(doc.getLastModifier()),
@@ -290,6 +303,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
             try {
                 //https://mixpla.online/live/aye-aye-s-ear/master.m3u8
+                assert datanestConfig != null;
                 https://mixpla.online/aivox/aye-aye-s-ear/master.m3u8
                 //dto.setHlsUrl(URI.create(datanestConfig.getHost() + "/live/" + dto.getSlugName() + "/master.m3u8").toURL());
                 dto.setHlsUrl(URI.create(datanestConfig.getHost() + "/live/" + dto.getSlugName() + "/opus").toURL());
@@ -341,18 +355,22 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             if (ScriptMode.CUSTOM.equals(mode)) {
                 List<BrandScriptEntry> entries = tuple.getItem3();
                 if (!entries.isEmpty()) {
+                    assert scriptService != null;
                     return scriptService.getById(entries.getFirst().getScriptId(), SuperUser.build())
-                            .chain(customScript -> sceneService.getAllByScript(customScript.getId(), 1000, 0, SuperUser.build())
-                                    .map(sceneDTOs -> {
-                                        CustomScriptDTO customScriptDTO = new CustomScriptDTO();
-                                        customScriptDTO.setTitle(customScript.getName());
-                                        customScriptDTO.setColor(customScript.getColor());
-                                        customScriptDTO.setScenes(sceneDTOs.stream()
-                                                .map(this::toCustomSceneDTO)
-                                                .collect(Collectors.toList()));
-                                        dto.setCustomScript(customScriptDTO);
-                                        return dto;
-                                    }));
+                            .chain(customScript -> {
+                                assert sceneService != null;
+                                return sceneService.getAllByScript(customScript.getId(), 1000, 0, SuperUser.build())
+                                        .map(sceneDTOs -> {
+                                            CustomScriptDTO customScriptDTO = new CustomScriptDTO();
+                                            customScriptDTO.setTitle(customScript.getName());
+                                            customScriptDTO.setColor(customScript.getColor());
+                                            customScriptDTO.setScenes(sceneDTOs.stream()
+                                                    .map(this::toCustomSceneDTO)
+                                                    .collect(Collectors.toList()));
+                                            dto.setCustomScript(customScriptDTO);
+                                            return dto;
+                                        });
+                            });
                 }
             }
             return Uni.createFrom().item(dto);
