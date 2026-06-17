@@ -370,9 +370,9 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract imp
                                                         List<RlsActionDTO> rlsActions) {
         return fileUploadCompletionUni.onItem().transformToUni(v -> {
             String sql = String.format(
-                    "INSERT INTO %s (reg_date, author, last_mod_date, last_mod_user, source, status, type, " +
+                    "INSERT INTO %s (reg_date, author, last_mod_date, last_mod_user, source, stream_url, status, type, " +
                             "title, artist, artist_id, album, length, boost, description, slug_name, expires_at, scheduler) " +
-                            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id;",
+                            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING id;",
                     entityData.getTableName()
             );
 
@@ -380,6 +380,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract imp
 
             Tuple params = Tuple.of(regDate, user.getId(), regDate, user.getId())
                     .addString(doc.getSource().name())
+                    .addString(doc.getStreamUrl())
                     .addInteger(doc.getStatus())
                     .addString(doc.getType().name())
                     .addString(doc.getTitle())
@@ -700,7 +701,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract imp
     private Uni<RowSet<Row>> updateSoundFragmentRecord(SqlClient tx, UUID id, SoundFragment doc, IUser user, OffsetDateTime nowTime) {
         String updateSql = String.format("UPDATE %s SET last_mod_user=$1, last_mod_date=$2, " +
                         "status=$3, type=$4, title=$5, " +
-                        "artist=$6, artist_id=$7, album=$8, length=$9, boost=$10, description=$11, slug_name=$12, expires_at=$13, scheduler=$14 WHERE id=$15;",
+                        "artist=$6, artist_id=$7, album=$8, length=$9, boost=$10, description=$11, slug_name=$12, expires_at=$13, scheduler=$14, stream_url=$15 WHERE id=$16;",
                 entityData.getTableName());
 
         Tuple params = Tuple.of(user.getId(), nowTime)
@@ -718,6 +719,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract imp
                 .addValue(doc.getScheduler() != null
                         ? JsonObject.of("scheduler", JsonObject.mapFrom(doc.getScheduler()))
                         : null)
+                .addString(doc.getStreamUrl())
                 .addUUID(id);
 
         return tx.preparedQuery(updateSql).execute(params);

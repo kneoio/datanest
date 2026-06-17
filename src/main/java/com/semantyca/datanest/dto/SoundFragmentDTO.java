@@ -29,6 +29,7 @@ import java.util.UUID;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class SoundFragmentDTO extends AbstractDTO {
     private SourceType source;
+    private String streamUrl;
     private Integer status = -1;
     @NotNull
     private PlaylistItemType type;

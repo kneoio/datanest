@@ -260,7 +260,14 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         entity.setFileMetadataList(fileMetadataList);
 
         if ("new".equalsIgnoreCase(id) || id == null) {
-            entity.setSource(SourceType.USER_UPLOAD);
+            if (dto.getSource() == SourceType.STREAM) {
+                if (dto.getStreamUrl() == null || dto.getStreamUrl().isBlank()) {
+                    return Uni.createFrom().failure(new IllegalArgumentException("streamUrl is required when source is STREAM"));
+                }
+                entity.setSource(SourceType.STREAM);
+            } else {
+                entity.setSource(SourceType.USER_UPLOAD);
+            }
             List<UUID> targetBrands = dto.getRepresentedInBrands() != null ? dto.getRepresentedInBrands() : List.of();
             return checkBrandSongLimits(targetBrands, user)
                     .chain(() -> buildRlsActionsWithCoOwners(dto.getRepresentedInBrands(), dto.getRlsActions())
@@ -449,6 +456,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
             dto.setLastModifier(lastModifier);
             dto.setLastModifiedDate(doc.getLastModifiedDate());
             dto.setSource(doc.getSource());
+            dto.setStreamUrl(doc.getStreamUrl());
             dto.setStatus(doc.getStatus());
             dto.setType(doc.getType());
             dto.setTitle(doc.getTitle());
@@ -504,6 +512,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
 
     private SoundFragment buildEntity(SoundFragmentDTO dto) {
         SoundFragment doc = new SoundFragment();
+        doc.setStreamUrl(dto.getStreamUrl());
         doc.setStatus(dto.getStatus());
         doc.setType(dto.getType());
         doc.setTitle(dto.getTitle());
