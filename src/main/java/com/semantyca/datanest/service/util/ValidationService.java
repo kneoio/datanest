@@ -3,6 +3,7 @@ package com.semantyca.datanest.service.util;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
 import com.semantyca.datanest.dto.radio.MessageDTO;
 import com.semantyca.datanest.dto.radio.SubmissionDTO;
+import com.semantyca.mixpla.model.cnst.SourceType;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -34,7 +35,9 @@ public class ValidationService {
         Set<ConstraintViolation<SoundFragmentDTO>> violations = validator.validate(dto);
         Map<String, List<String>> fieldErrors = new HashMap<>();
 
-        if (("new".equalsIgnoreCase(id) || id == null) && (dto.getNewlyUploaded() == null || dto.getNewlyUploaded().isEmpty())) {
+        if (("new".equalsIgnoreCase(id) || id == null)
+                && dto.getSource() != SourceType.STREAM
+                && (dto.getNewlyUploaded() == null || dto.getNewlyUploaded().isEmpty())) {
             violations = new HashSet<>(violations);
             fieldErrors.computeIfAbsent("newlyUploaded", k -> new ArrayList<>())
                     .add("Music file is required - either provide an existing ID or upload new files");

@@ -129,7 +129,7 @@ public abstract class SoundFragmentRepositoryAbstract extends AsyncRepository {
                             files.add(fileMetadata);
                         }
                         d.setFileMetadataList(files);
-                        if (files.isEmpty()) markAsCorrupted(d.getId()).subscribe().with(r -> {}, e -> {});
+                        if (files.isEmpty() && d.getSource() != SourceType.STREAM) markAsCorrupted(d.getId()).subscribe().with(r -> {}, e -> {});
                         return d;
                     }));
         } else {
