@@ -8,6 +8,7 @@ import com.semantyca.core.dto.AbstractDTO;
 import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.dto.scheduler.ScheduleDTO;
 import com.semantyca.datanest.dto.sharing.ShareDTO;
+import com.semantyca.mixpla.model.PlayHistory;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.cnst.SourceType;
 import jakarta.validation.constraints.NotBlank;
@@ -61,6 +62,9 @@ public class SoundFragmentDTO extends AbstractDTO {
     private int likes;
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private int dislikes;
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    private List<PlayHistory> playHistory;
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<ShareDTO> sharedWith;

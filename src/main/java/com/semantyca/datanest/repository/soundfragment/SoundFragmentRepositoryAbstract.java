@@ -11,12 +11,14 @@ import com.semantyca.core.repository.AsyncRepository;
 import com.semantyca.core.repository.exception.DocumentModificationAccessException;
 import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.table.EntityData;
+import com.semantyca.mixpla.model.PlayHistory;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.cnst.SourceType;
 import com.semantyca.mixpla.model.soundfragment.SoundFragment;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
@@ -24,9 +26,11 @@ import io.vertx.mutiny.sqlclient.SqlResult;
 import io.vertx.mutiny.sqlclient.Tuple;
 
 import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -75,6 +79,15 @@ public abstract class SoundFragmentRepositoryAbstract extends AsyncRepository {
                 }
             } catch (Exception e) {
                 LOGGER.error("Failed to parse scheduler JSON for sound fragment: {}", row.getUUID("id"), e);
+            }
+        }
+
+        if (doc.getType() == PlaylistItemType.PRERECORDED_ADVERTISEMENT || doc.getType() == PlaylistItemType.PRERECORDED_PODCAST) {
+            Object rawHistory = row.getValue("play_history");
+            if (rawHistory instanceof JsonArray) {
+                doc.setPlayHistory(fromPlayHistoryJson((JsonArray) rawHistory));
+            } else if (rawHistory instanceof String) {
+                doc.setPlayHistory(fromPlayHistoryJson(new JsonArray((String) rawHistory)));
             }
         }
 
@@ -137,6 +150,25 @@ public abstract class SoundFragmentRepositoryAbstract extends AsyncRepository {
         }
 
         return uni;
+    }
+
+    private List<PlayHistory> fromPlayHistoryJson(JsonArray json) {
+        if (json == null || json.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<PlayHistory> list = new ArrayList<>();
+        for (int i = 0; i < json.size(); i++) {
+            Object raw = json.getValue(i);
+            JsonObject obj = raw instanceof JsonObject ? (JsonObject) raw : new JsonObject(raw.toString());
+            String playedAtStr = obj.getString("playedAt");
+            list.add(new PlayHistory(
+                    playedAtStr != null ? OffsetDateTime.parse(playedAtStr) : null,
+                    obj.getInteger("duration"),
+                    obj.getString("speechText"),
+                    obj.getString("djName")
+            ));
+        }
+        return list;
     }
 
     private Uni<List<UUID>> loadLabels(UUID soundFragmentId) {

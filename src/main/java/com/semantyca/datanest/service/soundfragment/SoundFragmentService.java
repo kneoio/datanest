@@ -469,6 +469,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
             dto.setBoost(doc.getBoost());
             dto.setDescription(doc.getDescription());
             dto.setExpiresAt(doc.getExpiresAt());
+            dto.setPlayHistory(doc.getPlayHistory());
             if (doc.getScheduler() != null) {
                 Scheduler scheduler = doc.getScheduler();
                 ScheduleDTO scheduleDTO = new ScheduleDTO();
