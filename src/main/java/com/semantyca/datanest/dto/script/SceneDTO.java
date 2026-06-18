@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
 import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.datanest.dto.PlaylistRequestDTO;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -24,9 +25,11 @@ public class SceneDTO extends AbstractDTO {
     private List<ScenePromptDTO> prompts;
     private List<CustomActionDTO> actions;
     private PlaylistRequestDTO playlistRequest;
+    @NotEmpty
     private List<LocalTime> startTime;
     private int durationSeconds;
     private int seqNum;
+    @NotEmpty
     private List<Integer> weekdays;
     private boolean oneTimeRun;
     private boolean allowJingles;
