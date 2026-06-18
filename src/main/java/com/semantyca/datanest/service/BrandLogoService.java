@@ -2,6 +2,8 @@ package com.semantyca.datanest.service;
 
 import com.semantyca.core.model.FileMetadata;
 import com.semantyca.core.model.user.IUser;
+import com.semantyca.core.repository.IFileStorage;
+import com.semantyca.core.service.external.hetzner.HetznerStorageService;
 import com.semantyca.core.util.FileSecurityUtils;
 import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.repository.BrandRepository;
@@ -34,11 +36,13 @@ public class BrandLogoService {
 
     private final String uploadDirectory;
     private final BrandRepository brandRepository;
+    private final IFileStorage fileStorage;
 
     @Inject
-    public BrandLogoService(DatanestConfig config, BrandRepository brandRepository) {
+    public BrandLogoService(DatanestConfig config, BrandRepository brandRepository, HetznerStorageService fileStorage) {
         this.uploadDirectory = config.getPathUploads();
         this.brandRepository = brandRepository;
+        this.fileStorage = fileStorage;
     }
 
     public Uni<FileMetadata> uploadLogo(RoutingContext rc, UUID brandId, IUser user) {
@@ -87,9 +91,13 @@ public class BrandLogoService {
                                 meta.setMimeType(contentType != null ? contentType : Files.probeContentType(destination));
                                 meta.setFileOriginalName(originalFileName);
                                 meta.setSlugName(slugName);
-                                meta.setFileKey(brandId + "/" + slugName);
 
-                                brandRepository.upsertLogoFile(brandId, meta)
+                                brandRepository.findById(brandId, user, false)
+                                        .chain(brand -> {
+                                            meta.setFileKey("logo/" + brand.getSlugName() + "/" + slugName);
+                                            return fileStorage.uploadFile(meta.getFileKey(), destination.toString(), meta.getMimeType());
+                                        })
+                                        .chain(ignored -> brandRepository.upsertLogoFile(brandId, meta))
                                         .subscribe().with(
                                                 ignored -> emitter.complete(meta),
                                                 emitter::fail
