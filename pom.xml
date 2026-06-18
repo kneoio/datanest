@@ -110,6 +110,12 @@
             <artifactId>ffmpeg</artifactId>
             <version>0.7.0</version>
         </dependency>
+        <dependency>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs-annotations</artifactId>
+            <version>4.8.3</version>
+            <optional>true</optional>
+        </dependency>
 
         <!-- Testing -->
         <dependency>

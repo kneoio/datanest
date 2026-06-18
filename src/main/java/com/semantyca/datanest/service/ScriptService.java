@@ -150,9 +150,6 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         dto.setName(script.getName());
         dto.setSlugName(script.getSlugName());
         dto.setDescription(script.getDescription());
-        if (script.getLanguageTag() != null) {
-            dto.setLanguageTag(script.getLanguageTag().tag());
-        }
         if (script.getTimingMode() != null) {
             dto.setTimingMode(script.getTimingMode().name());
         }
@@ -252,7 +249,6 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
             dto.setDefaultProfileId(script.getDefaultProfileId());
             dto.setDescription(script.getDescription());
             dto.setCustom(script.isCustom());
-            dto.setLanguageTag(script.getLanguageTag().tag());
             dto.setLabels(script.getLabels());
             dto.setTimingMode(script.getTimingMode().name());
             dto.setRequiredVariables(script.getRequiredVariables());
@@ -267,7 +263,6 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         entity.setDefaultProfileId(dto.getDefaultProfileId());
         entity.setDescription(dto.getDescription());
         entity.setCustom(dto.isCustom());
-        entity.setLanguageTag(LanguageTag.fromTag(dto.getLanguageTag()));
         entity.setTimingMode(SceneTimingMode.valueOf(dto.getTimingMode()));
         entity.setLabels(dto.getLabels());
         return entity;
@@ -767,7 +762,6 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                     clonedScript.setDescription(originalScript.getDescription());
                     clonedScript.setCustom(originalScript.isCustom());
                     clonedScript.setDefaultProfileId(originalScript.getDefaultProfileId());
-                    clonedScript.setLanguageTag(originalScript.getLanguageTag());
                     clonedScript.setTimingMode(originalScript.getTimingMode());
                     clonedScript.setLabels(originalScript.getLabels());
 

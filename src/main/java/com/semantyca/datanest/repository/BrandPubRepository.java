@@ -86,8 +86,8 @@ public class BrandPubRepository extends AsyncRepository {
 
     private Uni<UUID> insertScript(SqlClient tx, Script script, IUser user) {
         OffsetDateTime now = OffsetDateTime.now();
-        String sql = "INSERT INTO mixpla__scripts (author, reg_date, last_mod_user, last_mod_date, name, slug_name, description, language_tag, timing_mode, custom, color) " +
-                "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id";
+        String sql = "INSERT INTO mixpla__scripts (author, reg_date, last_mod_user, last_mod_date, name, slug_name, description, timing_mode, custom, color) " +
+                "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id";
         Tuple params = Tuple.tuple()
                 .addLong(user.getId())
                 .addOffsetDateTime(now)
@@ -96,7 +96,6 @@ public class BrandPubRepository extends AsyncRepository {
                 .addString(script.getName())
                 .addString(script.getSlugName())
                 .addString(script.getDescription())
-                .addString(script.getLanguageTag().tag())
                 .addString(script.getTimingMode().name())
                 .addBoolean(script.isCustom())
                 .addString(script.getColor());
@@ -108,12 +107,11 @@ public class BrandPubRepository extends AsyncRepository {
 
     private Uni<Void> updateScript(SqlClient tx, UUID scriptId, Script script, IUser user) {
         OffsetDateTime now = OffsetDateTime.now();
-        String sql = "UPDATE mixpla__scripts SET name=$1, slug_name=$2, description=$3, language_tag=$4, timing_mode=$5, custom=$6, color=$7, last_mod_user=$8, last_mod_date=$9 WHERE id=$10";
+        String sql = "UPDATE mixpla__scripts SET name=$1, slug_name=$2, description=$3, timing_mode=$4, custom=$5, color=$6, last_mod_user=$7, last_mod_date=$8 WHERE id=$9";
         Tuple params = Tuple.tuple()
                 .addString(script.getName())
                 .addString(script.getSlugName())
                 .addString(script.getDescription())
-                .addString(script.getLanguageTag().tag())
                 .addString(script.getTimingMode().name())
                 .addBoolean(script.isCustom())
                 .addString(script.getColor())

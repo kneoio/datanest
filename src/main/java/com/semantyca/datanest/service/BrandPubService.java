@@ -1,7 +1,6 @@
 package com.semantyca.datanest.service;
 
 import com.semantyca.core.model.cnst.LanguageCode;
-import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.ColorUtil;
@@ -150,7 +149,6 @@ public class BrandPubService extends BrandService {
         script.setSlugName(WebHelper.generateSlug(name));
         script.setDescription("Custom script for " + slug);
         script.setCustom(true);
-        script.setLanguageTag(LanguageTag.EN_US);
         script.setTimingMode(SceneTimingMode.ABSOLUTE_TIME);
         return script;
     }

@@ -23,8 +23,6 @@ public class ScriptDTO extends AbstractDTO {
     @NotBlank
     private String description;
     private boolean custom;
-    @NotBlank
-    private String languageTag;
     @NotNull
     private String timingMode;
     private List<UUID> labels;

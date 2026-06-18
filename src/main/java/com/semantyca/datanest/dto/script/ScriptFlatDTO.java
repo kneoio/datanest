@@ -16,7 +16,6 @@ public class ScriptFlatDTO {
     private String name;
     private String slugName;
     private String description;
-    private String languageTag;
     private String timingMode;
     private boolean custom;
     private List<LabelFlatDTO> tags;

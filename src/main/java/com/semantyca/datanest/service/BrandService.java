@@ -308,7 +308,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 //dto.setHlsUrl(URI.create(datanestConfig.getHost() + "/live/" + dto.getSlugName() + "/master.m3u8").toURL());
                 dto.setHlsUrl(URI.create(datanestConfig.getHost() + "/live/" + dto.getSlugName() + "/opus").toURL());
                 //dto.setIceCastUrl(URI.create(datanestConfig.getHost() + "/" + dto.getSlugName() + "/radio/icecast").toURL());
-                //dto.setMp3Url(URI.create(datanestConfig.getHost() + "/" + dto.getSlugName() + "/radio/stream.mp3").toURL());
+                dto.setMp3Url(URI.create(datanestConfig.getHost() + "/live/" + dto.getSlugName() + "/mp3").toURL());
                 dto.setMixplaUrl(URI.create("https://mixpla.online/" + dto.getSlugName()).toURL());
             } catch (MalformedURLException e) {
                 throw new RuntimeException(e);

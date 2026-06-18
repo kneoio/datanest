@@ -7,7 +7,6 @@ import com.semantyca.core.dto.form.FormPage;
 import com.semantyca.core.dto.view.View;
 import com.semantyca.core.dto.view.ViewPage;
 import com.semantyca.core.model.cnst.LanguageCode;
-import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.ProblemDetailsUtil;
 import com.semantyca.core.util.RuntimeUtil;
@@ -133,15 +132,6 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
             if (timingMode != null && !timingMode.trim().isEmpty()) {
                 try {
                     dto.setTimingMode(SceneTimingMode.valueOf(timingMode));
-                    any = true;
-                } catch (IllegalArgumentException ignored) {
-                }
-            }
-
-            String languageTag = json.getString("languageTag");
-            if (languageTag != null && !languageTag.trim().isEmpty()) {
-                try {
-                    dto.setLanguageTag(LanguageTag.fromTag(languageTag));
                     any = true;
                 } catch (IllegalArgumentException ignored) {
                 }
