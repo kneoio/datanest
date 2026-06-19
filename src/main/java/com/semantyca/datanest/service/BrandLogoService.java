@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -131,26 +132,23 @@ public class BrandLogoService {
             return Uni.createFrom().failure(new SecurityException("Invalid filename"));
         }
 
-        Path baseDir = Paths.get(uploadDirectory, CONTROLLER_KEY, user.getUserName(), brandId.toString());
-        Path filePath = FileSecurityUtils.secureResolve(baseDir, safeFileName);
-
-        if (!FileSecurityUtils.isPathWithinBase(baseDir, filePath)) {
-            return Uni.createFrom().failure(new SecurityException("Invalid file path"));
-        }
-
-        if (filePath.toFile().exists()) {
-            return Uni.createFrom().item(() -> {
-                try {
-                    return Files.readAllBytes(filePath.toRealPath());
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }).runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
-        }
-
         return brandRepository.getLogoFileBySlugName(brandId, safeFileName)
-                .onItem().transformToUni(meta -> Uni.createFrom().failure(
-                        new java.io.FileNotFoundException("Logo file not found on filesystem: " + slugName)));
+                .onItem().transformToUni(meta -> {
+                    String fileKey = meta.getFileKey();
+                    if (fileKey == null || fileKey.isBlank()) {
+                        return Uni.createFrom().failure(
+                                new java.io.FileNotFoundException("Logo file key missing for: " + slugName));
+                    }
+                    return fileStorage.getFileStream(fileKey)
+                            .onItem().transform(stored -> {
+                                try (InputStream in = stored.getInputStream()) {
+                                    return in.readAllBytes();
+                                } catch (IOException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            })
+                            .runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
+                });
     }
 
     public Uni<FileMetadata> getLogoMetadata(UUID brandId, String slugName) {
