@@ -25,6 +25,8 @@ import com.semantyca.core.util.FileSecurityUtils;
 import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.AudioMetadataDTO;
+import com.semantyca.datanest.messaging.CommandPublisher;
+import com.semantyca.mixpla.dto.queue.command.CommandType;
 import com.semantyca.datanest.dto.sharing.ShareDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
 import com.semantyca.datanest.dto.UploadFileDTO;
@@ -71,6 +73,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
     private final SharedSoundFragmentService sharedSoundFragmentService;
     private final OpusEncodingService opusEncodingService;
     private final HetznerStorageService fileStorage;
+    private final CommandPublisher commandPublisher;
     private String uploadDir;
     Validator validator;
 
@@ -85,6 +88,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         this.sharedSoundFragmentService = null;
         this.opusEncodingService = null;
         this.fileStorage = null;
+        this.commandPublisher = null;
     }
 
     @Inject
@@ -98,7 +102,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                 RefService refService,
                                 SharedSoundFragmentService sharedSoundFragmentService,
                                 OpusEncodingService opusEncodingService,
-                                HetznerStorageService fileStorage) {
+                                HetznerStorageService fileStorage,
+                                CommandPublisher commandPublisher) {
         super(userService);
         this.genreService = genreService;
         this.localFileCleanupService = localFileCleanupService;
@@ -110,6 +115,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         this.sharedSoundFragmentService = sharedSoundFragmentService;
         this.opusEncodingService = opusEncodingService;
         this.fileStorage = fileStorage;
+        this.commandPublisher = commandPublisher;
         uploadDir = config.getPathUploads() + "/sound-fragments-controller";
     }
 
@@ -610,7 +616,14 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
 
     public Uni<Void> updateBoost(String id, String brandId, int boost) {
         assert repository != null;
-        return repository.updateBoost(UUID.fromString(id), UUID.fromString(brandId), boost);
+        assert commandPublisher != null;
+        UUID brandUUID = UUID.fromString(brandId);
+        return repository.updateBoost(UUID.fromString(id), brandUUID, boost)
+                .invoke(() -> commandPublisher.publishCommand(
+                        CommandType.REBUILD_AGENDA,
+                        "boost_updated",
+                        Map.of("brandId", brandUUID.toString(), "soundFragmentId", id, "boost", boost)
+                ));
     }
 
     public Uni<Integer> revokeMyAccess(UUID id, IUser user) {
