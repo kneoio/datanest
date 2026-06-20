@@ -89,6 +89,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         router.route(HttpMethod.GET, path + "/files/:id/:slug").handler(this::getBySlugName);
         router.route(HttpMethod.POST, path + "/bulk-brand-update").handler(jsonBodyHandler).handler(this::bulkBrandUpdate);
         router.route(HttpMethod.POST, path + "/:id?").handler(jsonBodyHandler).handler(this::upsert);
+        router.route(HttpMethod.PATCH, path + "/:id/boost").handler(jsonBodyHandler).handler(this::updateBoost);
         router.route(HttpMethod.DELETE, path + "/:id").handler(this::delete);
         router.route(HttpMethod.DELETE, path + "/:id/access").handler(this::revokeMyAccess);
         router.route(HttpMethod.GET, path + "/:id/access").handler(this::getDocumentAccess);
@@ -341,6 +342,29 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                         },
                         t -> handleFailure(rc, t)
                 );
+    }
+
+    private void updateBoost(RoutingContext rc) {
+        String id = rc.pathParam("id");
+        try {
+            Integer boost = rc.body().asJsonObject().getInteger("boost");
+            if (boost == null) {
+                rc.fail(400, new IllegalArgumentException("'boost' field is required"));
+                return;
+            }
+            if (boost < -1 || boost > 2) {
+                rc.fail(400, new IllegalArgumentException("boost must be between -1 and 2"));
+                return;
+            }
+            getContextUser(rc, false, true)
+                    .chain(user -> service.updateBoost(id, boost, user))
+                    .subscribe().with(
+                            ignored -> rc.response().setStatusCode(204).end(),
+                            t -> handleFailure(rc, t)
+                    );
+        } catch (IllegalArgumentException e) {
+            rc.fail(400, new IllegalArgumentException("Invalid document ID format"));
+        }
     }
 
     private void revokeMyAccess(RoutingContext rc) {
