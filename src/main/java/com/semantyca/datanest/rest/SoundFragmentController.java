@@ -220,16 +220,6 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
             if (dto.getType() != null && !PlaylistItemType.SONG.equals(dto.getType())) {
                 config.getOtherGenreId().ifPresent(genreId ->
                         dto.setGenres(List.of(UUID.fromString(genreId))));
-                if (rc.user() != null) {
-                    JsonObject principal = rc.user().principal();
-                    String username = principal.getString("username");
-                    if (username == null || username.isEmpty()) {
-                        username = principal.getString("preferred_username");
-                    }
-                    if (username != null && !username.isEmpty()) {
-                        dto.setArtist(username);
-                    }
-                }
             }
 
             ValidationResult validationResult = validationService.validateSoundFragmentDTO(id, dto);
