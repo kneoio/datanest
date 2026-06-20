@@ -73,13 +73,13 @@ public class UserSubscriptionService {
         doc.setBulkUploadAllowed(dto.isBulkUploadAllowed());
         doc.setPriceEur(dto.getPriceEur());
 
+        doc.setDjType(dto.getDjType());
+
         boolean isNew = "new".equalsIgnoreCase(id) || id == null;
 
-        return repository.resolveProductId(dto.getDjTypeId())
-                .invoke(doc::setDjTypeId)
-                .chain(() -> isNew
-                        ? repository.insert(doc, user)
-                        : repository.update(UUID.fromString(id), doc, user))
+        return (isNew
+                ? repository.insert(doc, user)
+                : repository.update(UUID.fromString(id), doc, user))
                 .chain(this::mapToDTO);
     }
 
@@ -92,12 +92,6 @@ public class UserSubscriptionService {
                     opt.ifPresent(u -> dto.setUser(new UserSubscriptionDTO.UserRef(u.getLogin(), u.getEmail())));
                     return dto;
                 });
-        Uni<UserSubscriptionDTO> withIdentifier = s.getDjTypeId() != null
-                ? repository.resolveIdentifier(s.getDjTypeId()).map(identifier -> {
-                    dto.setDjTypeId(identifier);
-                    return dto;
-                })
-                : Uni.createFrom().item(dto);
-        return Uni.combine().all().unis(withUser, withIdentifier).asTuple().map(t -> dto);
+        return withUser;
     }
 }

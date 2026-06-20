@@ -52,7 +52,7 @@ public class UserSubscriptionDTO extends AbstractDTO {
     private boolean otsAllowed;
     private Integer maxSongs;
     private Integer streamQualityKbps;
-    private String djTypeId;
+    private List<String> djType;
     private short supportLevel;
     private boolean customScriptAllowed;
     private Integer maxStations;
@@ -93,7 +93,7 @@ public class UserSubscriptionDTO extends AbstractDTO {
                 .otsAllowed(s.isOtsAllowed())
                 .maxSongs(s.getMaxSongs())
                 .streamQualityKbps(s.getStreamQualityKbps())
-                .djTypeId(s.getDjType() != null ? s.getDjType().toString() : null)
+                .djType(s.getDjType())
                 .supportLevel(s.getSupportLevel())
                 .customScriptAllowed(s.isCustomScriptAllowed())
                 .maxStations(s.getMaxStations())
