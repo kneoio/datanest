@@ -89,7 +89,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         router.route(HttpMethod.GET, path + "/files/:id/:slug").handler(this::getBySlugName);
         router.route(HttpMethod.POST, path + "/bulk-brand-update").handler(jsonBodyHandler).handler(this::bulkBrandUpdate);
         router.route(HttpMethod.POST, path + "/:id?").handler(jsonBodyHandler).handler(this::upsert);
-        router.route(HttpMethod.PATCH, path + "/:id/boost").handler(jsonBodyHandler).handler(this::updateBoost);
+        router.route(HttpMethod.PATCH, path + "/:id/boost/:brandId").handler(jsonBodyHandler).handler(this::updateBoost);
         router.route(HttpMethod.DELETE, path + "/:id").handler(this::delete);
         router.route(HttpMethod.DELETE, path + "/:id/access").handler(this::revokeMyAccess);
         router.route(HttpMethod.GET, path + "/:id/access").handler(this::getDocumentAccess);
@@ -346,6 +346,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
 
     private void updateBoost(RoutingContext rc) {
         String id = rc.pathParam("id");
+        String brandId = rc.pathParam("brandId");
         try {
             Integer boost = rc.body().asJsonObject().getInteger("boost");
             if (boost == null) {
@@ -356,14 +357,13 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                 rc.fail(400, new IllegalArgumentException("boost must be between -1 and 2"));
                 return;
             }
-            getContextUser(rc, false, true)
-                    .chain(user -> service.updateBoost(id, boost, user))
+            service.updateBoost(id, brandId, boost)
                     .subscribe().with(
                             ignored -> rc.response().setStatusCode(204).end(),
                             t -> handleFailure(rc, t)
                     );
         } catch (IllegalArgumentException e) {
-            rc.fail(400, new IllegalArgumentException("Invalid document ID format"));
+            rc.fail(400, new IllegalArgumentException("Invalid ID format"));
         }
     }
 

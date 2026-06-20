@@ -371,8 +371,8 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract imp
         return fileUploadCompletionUni.onItem().transformToUni(v -> {
             String sql = String.format(
                     "INSERT INTO %s (reg_date, author, last_mod_date, last_mod_user, source, stream_url, status, type, " +
-                            "title, artist, artist_id, album, length, boost, description, slug_name, expires_at, scheduler) " +
-                            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING id;",
+                            "title, artist, artist_id, album, length, description, slug_name, expires_at, scheduler) " +
+                            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id;",
                     entityData.getTableName()
             );
 
@@ -388,7 +388,6 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract imp
                     .addUUID(doc.getArtistId())
                     .addString(doc.getAlbum())
                     .addLong(lengthMillis)
-                    .addInteger(doc.getBoost())
                     .addString(doc.getDescription())
                     .addString(doc.getSlugName())
                     .addOffsetDateTime(doc.getExpiresAt())
@@ -698,10 +697,17 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract imp
         return client.preparedQuery(sql).execute(params).onItem().ignore().andContinueWithNull();
     }
 
+    public Uni<Void> updateBoost(UUID soundFragmentId, UUID brandId, int boost) {
+        String sql = "UPDATE mixpla__brand_sound_fragments SET boost=$1 WHERE sound_fragment_id=$2 AND brand_id=$3";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(boost, soundFragmentId, brandId))
+                .onItem().ignore().andContinueWithNull();
+    }
+
     private Uni<RowSet<Row>> updateSoundFragmentRecord(SqlClient tx, UUID id, SoundFragment doc, IUser user, OffsetDateTime nowTime) {
         String updateSql = String.format("UPDATE %s SET last_mod_user=$1, last_mod_date=$2, " +
                         "status=$3, type=$4, title=$5, " +
-                        "artist=$6, artist_id=$7, album=$8, length=$9, boost=$10, description=$11, slug_name=$12, expires_at=$13, scheduler=$14, stream_url=$15 WHERE id=$16;",
+                        "artist=$6, artist_id=$7, album=$8, length=$9, description=$10, slug_name=$11, expires_at=$12, scheduler=$13, stream_url=$14 WHERE id=$15;",
                 entityData.getTableName());
 
         Tuple params = Tuple.of(user.getId(), nowTime)
@@ -712,7 +718,6 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract imp
                 .addUUID(doc.getArtistId())
                 .addString(doc.getAlbum())
                 .addLong(doc.getLength() != null ? doc.getLength().toMillis() : null)
-                .addInteger(doc.getBoost())
                 .addString(doc.getDescription())
                 .addString(doc.getSlugName())
                 .addOffsetDateTime(doc.getExpiresAt())
