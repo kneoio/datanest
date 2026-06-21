@@ -52,6 +52,7 @@ public class DefaultSoundFragmentProvisionService {
         String sql = "SELECT id, source, status, type, title, album, length, boost, description, slug_name, expires_at " +
                 "FROM " + SF_TABLE + " WHERE artist = $1 AND archived = 0";
 
+        assert client != null;
         return client.preparedQuery(sql)
                 .execute(Tuple.of(DEFAULT_ARTIST))
                 .invoke(rows -> LOGGER.infof("Found %d default_mixpla fragments to provision for brand %s", rows.size(), brandSlug))
@@ -61,6 +62,7 @@ public class DefaultSoundFragmentProvisionService {
                     return copyFragment(row, originalId, brandId, brandSlug, registeredUser)
                             .onFailure().invoke(ex -> {
                                 LOGGER.errorf(ex, "Failed to provision default fragment %s for brand %s", originalId, brandId);
+                                assert metricPublisher != null;
                                 metricPublisher.publishMetric(
                                         brandSlug,
                                         MetricEventType.ERROR,
@@ -91,6 +93,7 @@ public class DefaultSoundFragmentProvisionService {
     private Uni<String[]> fetchAndCopyFile(UUID originalId, String brandSlug, UUID newId) {
         String sql = "SELECT file_key, mime_type, file_original_name, slug_name FROM _files " +
                 "WHERE parent_table = $1 AND parent_id = $2 LIMIT 1";
+        assert client != null;
         return client.preparedQuery(sql)
                 .execute(Tuple.of(SF_TABLE, originalId))
                 .onItem().transformToUni(rows -> {
@@ -102,6 +105,7 @@ public class DefaultSoundFragmentProvisionService {
                     String originalKey = fileRow.getString("file_key");
                     String newKey = "music/" + brandSlug + "/default_mixpla/" + newId;
                     LOGGER.infof("Copying Hetzner file: %s -> %s", originalKey, newKey);
+                    assert fileStorage != null;
                     return fileStorage.copyFile(originalKey, newKey)
                             .invoke(v -> LOGGER.infof("Hetzner file copy done: %s", newKey))
                             .replaceWith(new String[]{
@@ -136,6 +140,7 @@ public class DefaultSoundFragmentProvisionService {
                 .addString(newSlug)
                 .addOffsetDateTime(originalRow.getOffsetDateTime("expires_at"));
 
+        assert client != null;
         return client.withTransaction(tx ->
                 tx.preparedQuery(insertSql).execute(params)
                         .invoke(v -> LOGGER.infof("Fragment row inserted: %s", newId))
