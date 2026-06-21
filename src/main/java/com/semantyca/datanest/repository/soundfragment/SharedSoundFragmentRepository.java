@@ -356,4 +356,11 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         e.setLastModDate(row.getOffsetDateTime("last_mod_date"));
         return e;
     }
+
+    public Uni<Void> updateBoost(UUID sharedFragmentId, int boost) {
+        String sql = "UPDATE mixpla__shared_sound_fragments SET boost=$1 WHERE id=$2";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(boost, sharedFragmentId))
+                .onItem().ignore().andContinueWithNull();
+    }
 }

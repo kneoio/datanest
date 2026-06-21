@@ -170,4 +170,8 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return dto;
     }
 
+    public Uni<Void> updateBoost(UUID sharedFragmentId, int boost) {
+        return repository.updateBoost(sharedFragmentId, boost);
+    }
+
 }

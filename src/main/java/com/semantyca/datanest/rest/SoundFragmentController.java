@@ -348,16 +348,22 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         String id = rc.pathParam("id");
         String brandId = rc.pathParam("brandId");
         try {
-            Integer boost = rc.body().asJsonObject().getInteger("boost");
+            var body = rc.body().asJsonObject();
+            Integer boost = body.getInteger("boost");
+            String type = body.getString("type");
             if (boost == null) {
                 rc.fail(400, new IllegalArgumentException("'boost' field is required"));
+                return;
+            }
+            if (type == null || (!type.equals("brand") && !type.equals("shared"))) {
+                rc.fail(400, new IllegalArgumentException("'type' must be 'brand' or 'shared'"));
                 return;
             }
             if (boost < -1 || boost > 2) {
                 rc.fail(400, new IllegalArgumentException("boost must be between -1 and 2"));
                 return;
             }
-            service.updateBoost(id, brandId, boost)
+            service.updateBoost(id, brandId, boost, type)
                     .subscribe().with(
                             ignored -> rc.response().setStatusCode(204).end(),
                             t -> handleFailure(rc, t)

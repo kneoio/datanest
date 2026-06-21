@@ -614,9 +614,13 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         return repository.archive(UUID.fromString(id), user);
     }
 
-    public Uni<Void> updateBoost(String id, String brandId, int boost) {
+    public Uni<Void> updateBoost(String id, String brandId, int boost, String type) {
         assert repository != null;
         assert commandPublisher != null;
+        if ("shared".equals(type)) {
+            assert sharedSoundFragmentService != null;
+            return sharedSoundFragmentService.updateBoost(UUID.fromString(id), boost);
+        }
         UUID brandUUID = UUID.fromString(brandId);
         return repository.updateBoost(UUID.fromString(id), brandUUID, boost)
                 .invoke(() -> commandPublisher.publishCommand(
