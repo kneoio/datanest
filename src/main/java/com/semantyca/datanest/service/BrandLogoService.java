@@ -61,7 +61,7 @@ public class BrandLogoService {
                             return;
                         }
 
-                        String safeFileName = FileSecurityUtils.sanitizeFilename(originalFileName);
+                        String safeFileName = appendVersion(FileSecurityUtils.sanitizeFilename(originalFileName));
                         Path entityDir = Files.createDirectories(
                                 Paths.get(uploadDirectory, CONTROLLER_KEY, user.getUserName(), brandId.toString()));
                         Path destination = FileSecurityUtils.secureResolve(entityDir, safeFileName);
@@ -153,6 +153,15 @@ public class BrandLogoService {
 
     public Uni<FileMetadata> getLogoMetadata(UUID brandId, String slugName) {
         return brandRepository.getLogoFileBySlugName(brandId, slugName);
+    }
+
+    private String appendVersion(String filename) {
+        int dot = filename.lastIndexOf('.');
+        String version = String.valueOf(System.currentTimeMillis());
+        if (dot > 0) {
+            return filename.substring(0, dot) + "_" + version + filename.substring(dot);
+        }
+        return filename + "_" + version;
     }
 
     private boolean isValidImageFile(String filename, String contentType) {
