@@ -195,7 +195,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
 
     public Uni<List<SharedSoundFragment>> getReceivedList(int limit, int offset, long userId) {
         String sql = "SELECT ssf.id AS ssf_id, sf.id AS sf_id, sf.title, sf.artist, sf.type, sf.album, " +
-                "ssf.source_user_name, ssf.source_user_email, b.loc_name AS target_brand_name " +
+                "ssf.source_user_name, ssf.source_user_email, ssf.boost, b.loc_name AS target_brand_name " +
                 "FROM " + SF_TABLE + " sf " +
                 "JOIN " + entityData.getTableName() + " ssf ON ssf.sound_fragment_id = sf.id " +
                 "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = ssf.id " +
@@ -222,7 +222,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
 
     public Uni<SharedSoundFragment> findById(UUID id, long userId) {
         String sql = "SELECT ssf.id AS ssf_id, sf.id AS sf_id, sf.title, sf.artist, sf.type, sf.album, " +
-                "ssf.source_user_name, ssf.source_user_email, b.loc_name AS target_brand_name " +
+                "ssf.source_user_name, ssf.source_user_email, ssf.boost, b.loc_name AS target_brand_name " +
                 "FROM " + SF_TABLE + " sf " +
                 "JOIN " + entityData.getTableName() + " ssf ON ssf.sound_fragment_id = sf.id " +
                 "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = ssf.id " +
@@ -270,6 +270,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         e.setAlbum(row.getString("album"));
         e.setSourceUserName(row.getString("source_user_name"));
         e.setSourceUserEmail(row.getString("source_user_email"));
+        e.setBoost(row.getInteger("boost") != null ? row.getInteger("boost") : 0);
         JsonObject locNameJson = row.getJsonObject("target_brand_name");
         if (locNameJson != null) {
             EnumMap<LanguageCode, String> targetBrandName = new EnumMap<>(LanguageCode.class);
