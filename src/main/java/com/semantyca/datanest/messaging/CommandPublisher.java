@@ -2,8 +2,8 @@ package com.semantyca.datanest.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.semantyca.core.dto.queue.command.CommandDTO;
 import com.semantyca.datanest.EnvConst;
-import com.semantyca.mixpla.dto.queue.command.CommandDTO;
 import com.semantyca.mixpla.dto.queue.command.CommandType;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
