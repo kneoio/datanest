@@ -291,6 +291,29 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         } else {
             List<UUID> brandIds = dto.getRepresentedInBrands() != null ? dto.getRepresentedInBrands() : List.of();
             UUID brandId = brandIds.isEmpty() ? null : brandIds.get(0);
+            boolean isPrerecorded = entity.getType() == PlaylistItemType.PRERECORDED_ADVERTISEMENT
+                    || entity.getType() == PlaylistItemType.PRERECORDED_PODCAST;
+            if (isPrerecorded) {
+                List<String> slugsToRemove = dto.getUploadedFiles() != null
+                        ? dto.getUploadedFiles().stream()
+                                .filter(f -> "removed".equals(f.getStatus()))
+                                .map(com.semantyca.datanest.dto.UploadFileDTO::getId)
+                                .filter(Objects::nonNull)
+                                .toList()
+                        : List.of();
+                return buildRlsActionsWithCoOwners(dto.getRepresentedInBrands(), dto.getRlsActions())
+                        .chain(rlsActions -> repository.update(UUID.fromString(id), entity, dto.getRepresentedInBrands(), rlsActions, user, slugsToRemove))
+                        .chain(doc -> mapToDTO(doc, true, null, null))
+                        .onFailure().invoke(failure -> {
+                            LOGGER.warnf("Entity update failed, cleaning up files for user: %s, entity: %s",
+                                    user.getUserName(), id);
+                            localFileCleanupService.cleanupEntityFiles(user.getUserName(), id)
+                                    .subscribe().with(
+                                            ignored -> LOGGER.debug("Entity files cleaned up after failure"),
+                                            cleanupError -> LOGGER.warn("Failed to cleanup entity files", cleanupError)
+                                    );
+                        });
+            }
             return buildRlsActionsWithCoOwners(dto.getRepresentedInBrands(), dto.getRlsActions())
                     .chain(rlsActions -> repository.update(UUID.fromString(id), entity, dto.getRepresentedInBrands(), rlsActions, user))
                     .invoke(doc -> triggerOpusEncodingIfMissing(doc, brandId, fileMetadataList))
