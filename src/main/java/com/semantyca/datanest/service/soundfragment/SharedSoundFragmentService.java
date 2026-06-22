@@ -152,6 +152,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         dto.setSharerUserName(e.getSourceUserName());
         dto.setSharerUserEmail(e.getSourceUserEmail());
         dto.setTargetBrandName(e.getTargetBrandName());
+        dto.setBoost(e.getBoost() != null ? e.getBoost() : 0);
         return dto;
     }
 

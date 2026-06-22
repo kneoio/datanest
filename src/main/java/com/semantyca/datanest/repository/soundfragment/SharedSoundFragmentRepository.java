@@ -350,6 +350,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         e.setExpiresAt(row.getOffsetDateTime("expires_at"));
         e.setPlayedCount(row.getInteger("played_count"));
         e.setRatedCount(row.getInteger("rated_count"));
+        e.setBoost(row.getInteger("boost") != null ? row.getInteger("boost") : 0);
         e.setStatus(row.getInteger("status"));
         e.setArchived(row.getInteger("archived"));
         e.setRegDate(row.getOffsetDateTime("reg_date"));

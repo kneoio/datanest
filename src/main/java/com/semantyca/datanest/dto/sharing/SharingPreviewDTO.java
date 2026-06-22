@@ -27,4 +27,5 @@ public class SharingPreviewDTO extends AbstractDTO {
     private String sharerUserName;
     private String sharerUserEmail;
     private EnumMap<LanguageCode, String> targetBrandName;
+    private int boost;
 }

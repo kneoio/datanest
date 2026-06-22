@@ -25,6 +25,7 @@ public class SharedSoundFragment {
     private OffsetDateTime expiresAt;
     private Integer playedCount;
     private Integer ratedCount;
+    private Integer boost;
     private Integer status;
     private Integer archived;
 
