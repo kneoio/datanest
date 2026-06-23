@@ -43,6 +43,7 @@ import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.cnst.SourceType;
 import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
 import com.semantyca.mixpla.model.soundfragment.SoundFragment;
+import com.semantyca.mixpla.repository.UserSubscriptionRepository;
 import com.semantyca.officeframe.service.GenreService;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
@@ -74,6 +75,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
     private final OpusEncodingService opusEncodingService;
     private final HetznerStorageService fileStorage;
     private final CommandPublisher commandPublisher;
+    private final UserSubscriptionRepository userSubscriptionRepository;
     private String uploadDir;
     Validator validator;
 
@@ -89,6 +91,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         this.opusEncodingService = null;
         this.fileStorage = null;
         this.commandPublisher = null;
+        this.userSubscriptionRepository = null;
     }
 
     @Inject
@@ -103,7 +106,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                 SharedSoundFragmentService sharedSoundFragmentService,
                                 OpusEncodingService opusEncodingService,
                                 HetznerStorageService fileStorage,
-                                CommandPublisher commandPublisher) {
+                                CommandPublisher commandPublisher,
+                                UserSubscriptionRepository userSubscriptionRepository) {
         super(userService);
         this.genreService = genreService;
         this.localFileCleanupService = localFileCleanupService;
@@ -116,6 +120,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         this.opusEncodingService = opusEncodingService;
         this.fileStorage = fileStorage;
         this.commandPublisher = commandPublisher;
+        this.userSubscriptionRepository = userSubscriptionRepository;
         uploadDir = config.getPathUploads() + "/sound-fragments-controller";
     }
 
@@ -275,7 +280,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 entity.setSource(SourceType.USER_UPLOAD);
             }
             List<UUID> targetBrands = dto.getRepresentedInBrands() != null ? dto.getRepresentedInBrands() : List.of();
-            return checkBrandSongLimits(targetBrands, user)
+            return checkSubscriptionSongLimit(user)
+                    .chain(() -> checkBrandSongLimits(targetBrands, user))
                     .chain(() -> buildRlsActionsWithCoOwners(dto.getRepresentedInBrands(), dto.getRlsActions())
                             .chain(rlsActions -> repository.insert(entity, dto.getRepresentedInBrands(), rlsActions, user))
                             .chain(doc -> moveFilesForNewEntity(doc, fileMetadataList, user))
@@ -344,6 +350,26 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                         : Uni.createFrom().item(count)))
                 .collect().asList()
                 .replaceWithVoid();
+    }
+
+    private Uni<Void> checkSubscriptionSongLimit(IUser user) {
+        assert userSubscriptionRepository != null;
+        return userSubscriptionRepository.findActiveByUserId(user.getId())
+                .onItem().transformToUni(subscription -> {
+                    if (subscription == null || subscription.getMaxSongs() == null) {
+                        return Uni.createFrom().voidItem();
+                    }
+                    SoundFragmentFilter filter = new SoundFragmentFilter();
+                    filter.setSource(List.of(SourceType.USER_UPLOAD));
+                    filter.setAuthor(user.getId().intValue());
+                    filter.setActivated(true);
+                    assert repository != null;
+                    return repository.getAllCount(user, false, filter)
+                            .chain(count -> count >= subscription.getMaxSongs()
+                                    ? Uni.createFrom().failure(new IllegalStateException(
+                                            "Song upload limit reached: your subscription allows " + subscription.getMaxSongs() + " songs"))
+                                    : Uni.createFrom().voidItem());
+                });
     }
 
     private Uni<SoundFragment> moveFilesForNewEntity(SoundFragment doc, List<FileMetadata> fileMetadataList, IUser user) {
@@ -716,7 +742,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         assert refService != null;
         String genreIdentifier = metadata != null && metadata.getGenre() != null ? metadata.getGenre() : "other";
         List<UUID> checkBrands = brandId != null ? List.of(brandId) : List.of();
-        return checkBrandSongLimits(checkBrands, user)
+        return checkSubscriptionSongLimit(user)
+                .chain(() -> checkBrandSongLimits(checkBrands, user))
                 .chain(() -> genreService.getByFuzzyIdentifier(genreIdentifier)
                         .chain(genres -> {
                             List<UUID> genreIds = genres.stream().map(DataEntity::getId).collect(Collectors.toList());
