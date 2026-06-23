@@ -79,18 +79,6 @@ public class BrandPubService extends BrandService {
                             Map.of("brandId", saved.getId().toString(), "slug", saved.getSlugName(), "savedBy", user.getUserName())
                     );
                 })
-                .chain(saved -> {
-                    if (!isNew) {
-                        LOGGER.infof("BrandPubService.upsert: update path, skipping provisioning");
-                        return Uni.createFrom().item(saved);
-                    }
-                    LOGGER.infof("BrandPubService.upsert: new brand, calling provisionForBrand id=%s slug=%s", saved.getId(), saved.getSlugName());
-                    return provisionService.provisionForBrand(saved.getId(), saved.getSlugName(), user)
-                            .onFailure().invoke(ex -> LOGGER.errorf(ex,
-                                    "Default fragment provisioning failed for brand %s", saved.getId()))
-                            .onFailure().recoverWithItem((Void) null)
-                            .replaceWith(saved);
-                })
                 .chain(this::mapToDTO);
     }
 
