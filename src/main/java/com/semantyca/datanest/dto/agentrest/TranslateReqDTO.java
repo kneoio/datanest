@@ -2,6 +2,7 @@ package com.semantyca.datanest.dto.agentrest;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.model.cnst.TranslationType;
+import com.semantyca.mixpla.model.cnst.LlmType;
 import com.semantyca.officeframe.model.cnst.CountryCode;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -25,4 +26,5 @@ public class TranslateReqDTO {
     /** If null, the translate agent is called with {@code CountryCode.UNKNOWN}. */
     private CountryCode countryCode;
     private double version;
+    private LlmType llmType;
 }

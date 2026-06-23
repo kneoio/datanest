@@ -43,6 +43,17 @@ public interface DatanestConfig {
     @WithDefault("4096")
     long getAnthropicMasterPromptTranslateMaxTokens();
 
+    @WithName("openai.api-key")
+    Optional<String> getOpenAiApiKey();
+
+    @WithName("openai.model")
+    @WithDefault("gpt-4o")
+    String getOpenAiModel();
+
+    @WithName("openai.master-prompt-translate.max-tokens")
+    @WithDefault("4096")
+    long getOpenAiMasterPromptTranslateMaxTokens();
+
     @WithName("genre.other-id")
     Optional<String> getOtherGenreId();
 

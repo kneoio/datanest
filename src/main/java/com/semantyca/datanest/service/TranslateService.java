@@ -8,6 +8,7 @@ import com.semantyca.datanest.dto.agentrest.AgentRespDTO;
 import com.semantyca.datanest.dto.agentrest.MasterPromptTranslateReqDTO;
 import com.semantyca.datanest.dto.agentrest.TranslateReqDTO;
 import com.semantyca.datanest.service.prompt.MasterPromptTranslateAnthropicService;
+import com.semantyca.datanest.service.prompt.MasterPromptTranslateOpenAiService;
 import com.semantyca.mixpla.model.DjPrompt;
 import com.semantyca.mixpla.model.cnst.LlmType;
 import com.semantyca.officeframe.model.cnst.CountryCode;
@@ -29,6 +30,7 @@ import java.util.function.Consumer;
 public class TranslateService {
     private static final Logger LOGGER = LoggerFactory.getLogger(TranslateService.class);
     private final MasterPromptTranslateAnthropicService masterPromptTranslateAnthropicService;
+    private final MasterPromptTranslateOpenAiService masterPromptTranslateOpenAiService;
     private final PromptService promptService;
     private final Map<String, JobState> jobs = new ConcurrentHashMap<>();
     private final Map<String, List<Consumer<SseEvent>>> subscribers = new ConcurrentHashMap<>();
@@ -36,8 +38,11 @@ public class TranslateService {
     public record SseEvent(String type, JsonObject data) {}
 
     @Inject
-    public TranslateService(MasterPromptTranslateAnthropicService masterPromptTranslateAnthropicService, PromptService promptService) {
+    public TranslateService(MasterPromptTranslateAnthropicService masterPromptTranslateAnthropicService,
+                            MasterPromptTranslateOpenAiService masterPromptTranslateOpenAiService,
+                            PromptService promptService) {
         this.masterPromptTranslateAnthropicService = masterPromptTranslateAnthropicService;
+        this.masterPromptTranslateOpenAiService = masterPromptTranslateOpenAiService;
         this.promptService = promptService;
     }
 
@@ -149,7 +154,7 @@ public class TranslateService {
                         return Uni.createFrom().nullItem();
                     }
 
-                    return translateWithAnthropic(dto.getToTranslate(), dto.getTranslationType(), targetTranslation, dto.getCountryCode())
+                    return translateWithLlm(dto.getToTranslate(), dto.getTranslationType(), targetTranslation, dto.getCountryCode(), dto.getLlmType())
                             .chain(resp -> {
                                 String translatedContent = resp != null ? resp.getResult() : null;
                                 if (translatedContent == null || translatedContent.isBlank()) {
@@ -182,23 +187,24 @@ public class TranslateService {
                 });
     }
 
-    private Uni<AgentRespDTO> translateWithAnthropic(
+    private Uni<AgentRespDTO> translateWithLlm(
             String toTranslate,
             TranslationType translationType,
             LanguageTag languageTag,
-            CountryCode countryCode
+            CountryCode countryCode,
+            LlmType llmType
     ) {
         MasterPromptTranslateReqDTO req = new MasterPromptTranslateReqDTO();
         req.setPrompt(toTranslate);
         req.setTargetLanguageTag(languageTag.tag());
         req.setDraft("translationType: " + translationType + "\n"
                 + "country: " + (countryCode != null ? countryCode.name() : "UNKNOWN"));
-        req.setLlmType(resolveDefaultLlmType());
+        LlmType effective = llmType != null ? llmType : LlmType.CLAUDE;
+        req.setLlmType(effective);
+        if (effective == LlmType.OPENAI) {
+            return masterPromptTranslateOpenAiService.translateMasterPrompt(req);
+        }
         return masterPromptTranslateAnthropicService.translateMasterPrompt(req);
-    }
-
-    private LlmType resolveDefaultLlmType() {
-        return LlmType.values()[0];
     }
 
     private String updateTitleWithLanguage(String originalTitle, LanguageTag languageCode) {
