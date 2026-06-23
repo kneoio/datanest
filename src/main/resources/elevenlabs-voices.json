@@ -16,8 +16,8 @@
     "engineType": "elevenlabs"
   },
   {
-    "id": "xF681s0UeE04gsf0mVsJ",
-    "name": "Olaf",
+    "id": "gFW8Yrl1htOR6XcdLhWT",
+    "name": "Aslo Adrian",
     "gender": "male",
     "language": "no-NO",
     "labels": "premium",
@@ -26,6 +26,14 @@
   {
     "id": "b3jcIbyC3BSnaRu8avEk",
     "name": "Emma",
+    "gender": "female",
+    "language": "no-NO",
+    "labels": "premium",
+    "engineType": "elevenlabs"
+  },
+  {
+    "id": "BGEU6wFi2uNm6Kje1Yhk",
+    "name": "Maja",
     "gender": "female",
     "language": "no-NO",
     "labels": "premium",
