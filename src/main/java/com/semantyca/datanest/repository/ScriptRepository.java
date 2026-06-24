@@ -401,7 +401,15 @@ public class ScriptRepository extends AsyncRepository {
     }
 
     public Uni<Integer> archive(UUID id, IUser user) {
-        return archive(id, entityData, user);
+        String checkCustomSql = "SELECT custom FROM " + entityData.getTableName() + " WHERE id = $1";
+        return client.preparedQuery(checkCustomSql)
+                .execute(Tuple.of(id))
+                .onItem().transformToUni(rows -> {
+                    if (rows.iterator().hasNext() && Boolean.TRUE.equals(rows.iterator().next().getBoolean("custom"))) {
+                        return Uni.createFrom().failure(new IllegalStateException("Cannot delete a custom script directly"));
+                    }
+                    return archive(id, entityData, user);
+                });
     }
 
     public Uni<Integer> delete(UUID id, IUser user) {

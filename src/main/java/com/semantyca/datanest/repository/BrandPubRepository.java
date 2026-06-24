@@ -55,10 +55,9 @@ public class BrandPubRepository extends AsyncRepository {
         );
     }
 
-    public Uni<UUID> updateBrandWithScript(UUID brandId, UUID scriptId, Brand brand, Script script, List<Scene> scenes, List<RlsActionDTO> rlsActions, IUser user) {
+    public Uni<UUID> updateBrandWithScript(UUID brandId, UUID scriptId, Brand brand, Script script, List<RlsActionDTO> rlsActions, IUser user) {
         return client.withTransaction(tx ->
                 updateScript(tx, scriptId, script, user)
-                        .chain(v -> replaceScenes(tx, scriptId, scenes, user))
                         .chain(v -> {
                             brand.setScripts(List.of(new BrandScriptEntry(scriptId, Map.of())));
                             return updateBrand(tx, brandId, brand, rlsActions, user);
