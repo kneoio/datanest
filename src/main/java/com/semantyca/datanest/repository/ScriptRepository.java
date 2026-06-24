@@ -418,7 +418,7 @@ public class ScriptRepository extends AsyncRepository {
                     }
 
                     if (!cascade) {
-                        String checkScenesSql = "SELECT COUNT(*) FROM mixpla_script_scenes WHERE script_id = $1";
+                        String checkScenesSql = "SELECT COUNT(*) FROM mixpla_script_scenes WHERE script_id = $1 AND archived <> 1";
                         return client.preparedQuery(checkScenesSql)
                                 .execute(Tuple.of(id))
                                 .onItem().transform(rows -> rows.iterator().next().getInteger(0))
