@@ -29,6 +29,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static com.semantyca.mixpla.repository.MixplaNameResolver.AI_AGENT;
 
@@ -73,6 +74,64 @@ public class AiAgentRepository extends AsyncRepository {
     public Uni<Integer> getAllCount(IUser user, boolean includeArchived) {
         String sql = "SELECT COUNT(*) FROM " + entityData.getTableName() + " t, " + entityData.getRlsName() + " rls " +
                 "WHERE t.id = rls.entity_id AND rls.reader = " + user.getId();
+
+        if (!includeArchived) {
+            sql += " AND t.archived = 0";
+        }
+
+        return client.query(sql)
+                .execute()
+                .onItem().transform(rows -> rows.iterator().next().getInteger(0));
+    }
+
+    public Uni<List<AiAgent>> getAllByLabelIdentifiers(int limit, int offset, boolean includeArchived, IUser user, List<String> identifiers) {
+        String identifierList = identifiers.stream()
+                .map(id -> "'" + id.replace("'", "''") + "'")
+                .collect(Collectors.joining(","));
+
+        String sql = "SELECT DISTINCT t.* FROM " + entityData.getTableName() + " t " +
+                "JOIN " + entityData.getRlsName() + " rls ON t.id = rls.entity_id " +
+                "JOIN mixpla__ai_agent_labels al ON al.ai_agent_id = t.id " +
+                "JOIN __labels lbl ON lbl.id = al.label_id " +
+                "WHERE rls.reader = " + user.getId() +
+                " AND lbl.category = 'ai_agent'" +
+                " AND lbl.identifier IN (" + identifierList + ")";
+
+        if (!includeArchived) {
+            sql += " AND t.archived = 0";
+        }
+
+        sql += " ORDER BY t.last_mod_date DESC";
+
+        if (limit > 0) {
+            sql += String.format(" LIMIT %s OFFSET %s", limit, offset);
+        }
+
+        return client.query(sql)
+                .execute()
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transform(this::from)
+                .onItem().transformToUni(agent -> loadLabels(agent.getId())
+                        .onItem().transform(labels -> {
+                            agent.setLabels(labels);
+                            return agent;
+                        }))
+                .merge()
+                .collect().asList();
+    }
+
+    public Uni<Integer> getAllCountByLabelIdentifiers(IUser user, boolean includeArchived, List<String> identifiers) {
+        String identifierList = identifiers.stream()
+                .map(id -> "'" + id.replace("'", "''") + "'")
+                .collect(Collectors.joining(","));
+
+        String sql = "SELECT COUNT(DISTINCT t.id) FROM " + entityData.getTableName() + " t " +
+                "JOIN " + entityData.getRlsName() + " rls ON t.id = rls.entity_id " +
+                "JOIN mixpla__ai_agent_labels al ON al.ai_agent_id = t.id " +
+                "JOIN __labels lbl ON lbl.id = al.label_id " +
+                "WHERE rls.reader = " + user.getId() +
+                " AND lbl.category = 'ai_agent'" +
+                " AND lbl.identifier IN (" + identifierList + ")";
 
         if (!includeArchived) {
             sql += " AND t.archived = 0";

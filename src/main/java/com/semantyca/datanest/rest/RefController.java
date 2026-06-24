@@ -21,6 +21,7 @@ import com.semantyca.datanest.service.AiAgentService;
 import com.semantyca.datanest.service.ProfileService;
 import com.semantyca.datanest.service.RefService;
 import com.semantyca.datanest.service.ScriptService;
+import com.semantyca.datanest.service.UserSubscriptionService;
 import com.semantyca.mixpla.model.cnst.SceneTimingMode;
 import com.semantyca.mixpla.model.cnst.TTSEngineType;
 import com.semantyca.mixpla.model.filter.ScriptFilter;
@@ -62,6 +63,9 @@ public class RefController extends BaseController {
     @Inject
     ScriptService scriptService;
 
+    @Inject
+    UserSubscriptionService userSubscriptionService;
+
     public void setupRoutes(Router router) {
         router.route(HttpMethod.GET, "/datanest/dictionary/:type").handler(this::getDictionary);
         router.route(HttpMethod.GET, "/datanest/dictionary/:type/:category").handler(this::getDictionary);
@@ -75,32 +79,33 @@ public class RefController extends BaseController {
 
         switch (type) {
             case "agents":
-                Uni.combine().all().unis(
-                                aiAgentService.getAllCount(superUser),
-                                aiAgentService.getAllFlat(size, (page - 1) * size, superUser)
-                        )
-                        .asTuple()
-                        .map(tuple -> {
-                            ViewPage viewPage = new ViewPage();
-                            View<AiAgentFlatDTO> dtoEntries = new View<>(
-                                    tuple.getItem2(),
-                                    tuple.getItem1(),
-                                    page,
-                                    countMaxPage(tuple.getItem1(), size),
-                                    size);
-                            viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-
-                            ActionBox actions = AiAgentActionsFactory.getViewActions();
-                            viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, actions);
-                            return viewPage;
-                        })
-                        .subscribe().with(
-                                viewPage -> rc.response()
-                                        .setStatusCode(200)
-                                        .putHeader("Content-Type", "application/json")
-                                        .end(io.vertx.core.json.Json.encode(viewPage)),
-                                rc::fail
-                        );
+                String brand = rc.request().getParam("brand");
+                Uni<ViewPage> agentsUni;
+                if (brand != null && !brand.isBlank()) {
+                    agentsUni = userSubscriptionService.getActiveSubscriptionForBrand(brand)
+                            .chain(subscription -> {
+                                List<String> djTypes = (subscription != null && subscription.getDjType() != null)
+                                        ? subscription.getDjType() : List.of();
+                                if (djTypes.isEmpty()) {
+                                    return Uni.createFrom().item(buildEmptyAgentsPage(page, size));
+                                }
+                                return Uni.combine().all().unis(
+                                                aiAgentService.getAllCountByLabelIdentifiers(superUser, djTypes),
+                                                aiAgentService.getAllFlatByLabelIdentifiers(size, (page - 1) * size, superUser, djTypes)
+                                        )
+                                        .asTuple()
+                                        .map(tuple -> buildAgentsPage(tuple.getItem2(), tuple.getItem1(), page, size));
+                            });
+                } else {
+                    agentsUni = Uni.createFrom().item(buildEmptyAgentsPage(page, size));
+                }
+                agentsUni.subscribe().with(
+                        viewPage -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(io.vertx.core.json.Json.encode(viewPage)),
+                        rc::fail
+                );
                 break;
 
             case "scripts":
@@ -277,6 +282,22 @@ public class RefController extends BaseController {
             default:
                 rc.response().setStatusCode(404).end();
         }
+    }
+
+    private ViewPage buildAgentsPage(List<AiAgentFlatDTO> items, int count, int page, int size) {
+        ViewPage viewPage = new ViewPage();
+        View<AiAgentFlatDTO> dtoEntries = new View<>(items, count, page, countMaxPage(count, size), size);
+        viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
+        viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, AiAgentActionsFactory.getViewActions());
+        return viewPage;
+    }
+
+    private ViewPage buildEmptyAgentsPage(int page, int size) {
+        ViewPage viewPage = new ViewPage();
+        View<AiAgentFlatDTO> dtoEntries = new View<>(List.of(), 0, page, 0, size);
+        viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
+        viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, AiAgentActionsFactory.getViewActions());
+        return viewPage;
     }
 
     private VoiceFilter parseVoiceFilter(RoutingContext rc) {

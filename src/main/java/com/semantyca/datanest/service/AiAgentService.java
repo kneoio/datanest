@@ -92,6 +92,23 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
                 });
     }
 
+    public Uni<List<AiAgentFlatDTO>> getAllFlatByLabelIdentifiers(final int limit, final int offset, final IUser user, List<String> identifiers) {
+        return repository.getAllByLabelIdentifiers(limit, offset, false, user, identifiers)
+                .chain(list -> {
+                    if (list.isEmpty()) {
+                        return Uni.createFrom().item(List.of());
+                    }
+                    List<Uni<AiAgentFlatDTO>> unis = list.stream()
+                            .map(this::mapToFlatDTO)
+                            .collect(Collectors.toList());
+                    return Uni.join().all(unis).andFailFast();
+                });
+    }
+
+    public Uni<Integer> getAllCountByLabelIdentifiers(final IUser user, List<String> identifiers) {
+        return repository.getAllCountByLabelIdentifiers(user, false, identifiers);
+    }
+
     private Uni<AiAgentFlatDTO> mapToFlatDTO(AiAgent doc) {
         AiAgentFlatDTO dto = new AiAgentFlatDTO();
         dto.setId(doc.getId());
