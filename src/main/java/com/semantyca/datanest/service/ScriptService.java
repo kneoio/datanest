@@ -23,7 +23,6 @@ import static com.semantyca.datanest.dto.script.CustomActionDTO.AVAILABLE_CONTEX
 import com.semantyca.datanest.dto.script.ScriptFlatDTO;
 import com.semantyca.datanest.dto.PlaylistRequestDTO;
 import com.semantyca.datanest.repository.ScriptRepository;
-import com.semantyca.datanest.util.ScriptVariableExtractor;
 import com.semantyca.mixpla.model.BrandScript;
 import com.semantyca.mixpla.model.DjPrompt;
 import com.semantyca.mixpla.model.Draft;
@@ -41,7 +40,6 @@ import jakarta.inject.Inject;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -199,27 +197,17 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
 
     public Uni<ScriptDTO> upsert(String id, ScriptDTO dto, IUser user) {
         assert repository != null;
-        assert scriptSceneService != null;
-        
         List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
-        return extractRequiredVariables(dto.getScenes())
-                .chain(requiredVariables -> {
-                    Script entity = buildEntity(dto);
-                    entity.setRequiredVariables(requiredVariables);
-
-                    if ("new".equalsIgnoreCase(id) || id == null || id.isBlank()) {
-                        return repository.insert(entity, rlsActions, user)
-                                .chain(script -> processScenes(script.getId(), dto.getScenes(), user)
-                                        .replaceWith(script))
-                                .chain(script -> mapToDTO(script, user));
-                    } else {
-                        UUID scriptId = UUID.fromString(id);
-                        return repository.update(scriptId, entity, rlsActions, user)
-                                .chain(script -> processScenes(scriptId, dto.getScenes(), user)
-                                        .replaceWith(script))
-                                .chain(script -> mapToDTO(script, user));
-                    }
-                });
+        Script entity = buildEntity(dto);
+        entity.setRequiredVariables(dto.getRequiredVariables() != null ? dto.getRequiredVariables() : List.of());
+        if ("new".equalsIgnoreCase(id) || id == null || id.isBlank()) {
+            return repository.insert(entity, rlsActions, user)
+                    .chain(script -> mapToDTO(script, user));
+        } else {
+            UUID scriptId = UUID.fromString(id);
+            return repository.update(scriptId, entity, rlsActions, user)
+                    .chain(script -> mapToDTO(script, user));
+        }
     }
 
     public Uni<Integer> archive(String id, IUser user) {
@@ -268,52 +256,6 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         return entity;
     }
 
-    private Uni<List<ScriptVariable>> extractRequiredVariables(List<SceneDTO> scenes) {
-        if (scenes == null || scenes.isEmpty()) {
-            return Uni.createFrom().item(List.of());
-        }
-
-        List<UUID> draftIds = scenes.stream()
-                .filter(scene -> scene.getPrompts() != null)
-                .flatMap(scene -> scene.getPrompts().stream())
-                .map(ScenePromptDTO::getPromptId)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
-
-        if (draftIds.isEmpty()) {
-            return Uni.createFrom().item(List.of());
-        }
-
-        List<Uni<Draft>> draftUnis = draftIds.stream()
-                .map(promptId -> {
-                    assert promptService != null;
-                    return promptService.getById(promptId, SuperUser.build())
-                            .chain(prompt -> {
-                                if (prompt.getDraftId() == null) {
-                                    return Uni.createFrom().nullItem();
-                                }
-                                assert draftService != null;
-                                return draftService.getById(prompt.getDraftId(), SuperUser.build());
-                            })
-                            .onFailure().recoverWithNull();
-                })
-                .collect(Collectors.toList());
-
-        return Uni.join().all(draftUnis).andFailFast()
-                .map(drafts -> {
-                    Map<String, ScriptVariable> aggregated = new LinkedHashMap<>();
-                    for (Draft draft : drafts) {
-                        if (draft != null && draft.getContent() != null) {
-                            List<ScriptVariable> vars = ScriptVariableExtractor.extract(draft.getContent());
-                            for (ScriptVariable var : vars) {
-                                aggregated.putIfAbsent(var.getName(), var);
-                            }
-                        }
-                    }
-                    return new ArrayList<>(aggregated.values());
-                });
-    }
 
     public Uni<List<BrandScript>> getAllScriptsForBrandWithScenes(UUID brandId, IUser user) {
         assert repository != null;
@@ -381,45 +323,6 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                 );
     }
 
-    private Uni<Void> processScenes(UUID scriptId, List<SceneDTO> sceneDTOs, IUser user) {
-        assert scriptSceneService != null;
-        return scriptSceneService.getAllByScript(scriptId, 1000, 0, user)
-                .chain(existingScenes -> {
-                    List<UUID> incomingSceneIds = sceneDTOs != null ? sceneDTOs.stream()
-                            .map(SceneDTO::getId)
-                            .filter(Objects::nonNull)
-                            .toList() : List.of();
-
-                    List<UUID> scenesToDelete = existingScenes.stream()
-                            .map(SceneDTO::getId)
-                            .filter(id -> !incomingSceneIds.contains(id))
-                            .toList();
-
-                    Uni<Void> deleteUni = scenesToDelete.isEmpty()
-                            ? Uni.createFrom().voidItem()
-                            : Uni.join().all(scenesToDelete.stream()
-                                    .map(id -> scriptSceneService.delete(id.toString(), user))
-                                    .collect(Collectors.toList()))
-                                    .andFailFast()
-                                    .replaceWithVoid();
-
-                    if (sceneDTOs == null || sceneDTOs.isEmpty()) {
-                        return deleteUni;
-                    }
-
-                    List<Uni<SceneDTO>> upsertUnis = sceneDTOs.stream()
-                            .map(sceneDTO -> {
-                                String sceneId = sceneDTO.getId() != null ? sceneDTO.getId().toString() : null;
-                                if (sceneDTO.getScriptId() == null) {
-                                    sceneDTO.setScriptId(scriptId);
-                                }
-                                return scriptSceneService.upsert(sceneId, sceneDTO, user);
-                            })
-                            .collect(Collectors.toList());
-
-                    return deleteUni.chain(() -> Uni.join().all(upsertUnis).andFailFast().replaceWithVoid());
-                });
-    }
 
     public Uni<List<BrandScriptDTO>> getBrandScripts(String brandName, final int limit, final int offset, IUser user) {
         assert repository != null;
