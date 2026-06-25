@@ -15,6 +15,7 @@ import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.datanest.dto.BrandSoundFragmentFlatDTO;
 import com.semantyca.datanest.dto.BulkBrandUpdateDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
+import com.semantyca.datanest.dto.SoundFragmentFlatDTO;
 import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.actionbars.SoundFragmentActionsFactory;
 import com.semantyca.datanest.service.soundfragment.BrandSoundFragmentService;
@@ -104,10 +105,10 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
                         service.getAllCount(user, filter),
-                        service.getAllDTO(size, (page - 1) * size, user, filter)
+                        service.getAllFlatDTO(size, (page - 1) * size, user, filter)
                 ).asTuple().map(tuple -> {
                     ViewPage viewPage = new ViewPage();
-                    View<SoundFragmentDTO> dtoEntries = new View<>(tuple.getItem2(),
+                    View<SoundFragmentFlatDTO> dtoEntries = new View<>(tuple.getItem2(),
                             tuple.getItem1(), page,
                             RuntimeUtil.countMaxPage(tuple.getItem1(), size),
                             size);
@@ -133,10 +134,10 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
                         service.getAllCountWithoutBrandAssociation(user, filter),
-                        service.getAllDTOWithoutBrandAssociation(size, (page - 1) * size, user, filter)
+                        service.getAllFlatDTOWithoutBrandAssociation(size, (page - 1) * size, user, filter)
                 ).asTuple().map(tuple -> {
                     ViewPage viewPage = new ViewPage();
-                    View<SoundFragmentDTO> dtoEntries = new View<>(tuple.getItem2(),
+                    View<SoundFragmentFlatDTO> dtoEntries = new View<>(tuple.getItem2(),
                             tuple.getItem1(), page,
                             RuntimeUtil.countMaxPage(tuple.getItem1(), size),
                             size);
