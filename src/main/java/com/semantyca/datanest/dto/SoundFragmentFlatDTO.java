@@ -50,6 +50,8 @@ public class SoundFragmentFlatDTO extends AbstractDTO {
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private boolean shared;
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    private boolean scheduled;
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private int likes;
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private int dislikes;

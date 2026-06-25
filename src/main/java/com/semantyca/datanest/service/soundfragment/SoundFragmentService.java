@@ -533,6 +533,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
             dto.setBoost(doc.getBoost());
             dto.setDescription(doc.getDescription());
             dto.setExpiresAt(doc.getExpiresAt());
+            dto.setScheduled(doc.getScheduler() != null && doc.getScheduler().isEnabled());
             return dto;
         });
     }
