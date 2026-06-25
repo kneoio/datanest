@@ -25,9 +25,10 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.validation.Validator;
 
+import io.vertx.core.json.JsonArray;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class AiAgentController extends AbstractSecuredController<AiAgent, AiAgentDTO> {
@@ -62,15 +63,7 @@ public class AiAgentController extends AbstractSecuredController<AiAgent, AiAgen
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
 
-        AiAgentFilter filter = new AiAgentFilter();
-        List<String> labelParams = rc.request().params().getAll("label");
-        if (labelParams != null && !labelParams.isEmpty()) {
-            filter.setLabels(labelParams.stream().map(UUID::fromString).collect(Collectors.toList()));
-        }
-        String searchTerm = rc.request().getParam("search");
-        if (searchTerm != null && !searchTerm.isBlank()) {
-            filter.setSearchTerm(searchTerm);
-        }
+        AiAgentFilter filter = parseFilterDTO(rc);
 
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
@@ -197,5 +190,38 @@ public class AiAgentController extends AbstractSecuredController<AiAgent, AiAgen
         } catch (IllegalArgumentException e) {
             rc.fail(400, new IllegalArgumentException("Invalid document ID format"));
         }
+    }
+
+    private AiAgentFilter parseFilterDTO(RoutingContext rc) {
+        AiAgentFilter filter = new AiAgentFilter();
+        String filterParam = rc.request().getParam("filter");
+        if (filterParam == null || filterParam.trim().isEmpty()) {
+            return filter;
+        }
+        try {
+            JsonObject json = new JsonObject(filterParam);
+            JsonArray l = json.getJsonArray("labels");
+            if (l != null && !l.isEmpty()) {
+                List<UUID> labels = new ArrayList<>();
+                for (Object o : l) {
+                    if (o instanceof String s) {
+                        try {
+                            labels.add(UUID.fromString(s));
+                        } catch (IllegalArgumentException ignored) {
+                        }
+                    }
+                }
+                if (!labels.isEmpty()) {
+                    filter.setLabels(labels);
+                }
+            }
+            String searchTerm = json.getString("searchTerm");
+            if (searchTerm != null && !searchTerm.isBlank()) {
+                filter.setSearchTerm(searchTerm);
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Failed to parse filter param: {}", filterParam);
+        }
+        return filter;
     }
 }
