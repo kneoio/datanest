@@ -22,6 +22,7 @@ import com.semantyca.datanest.service.ProfileService;
 import com.semantyca.datanest.service.RefService;
 import com.semantyca.datanest.service.ScriptService;
 import com.semantyca.datanest.service.UserSubscriptionService;
+import com.semantyca.officeframe.service.LabelService;
 import com.semantyca.mixpla.model.cnst.SceneTimingMode;
 import com.semantyca.mixpla.model.cnst.TTSEngineType;
 import com.semantyca.mixpla.model.filter.ScriptFilter;
@@ -42,6 +43,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.semantyca.core.util.RuntimeUtil.countMaxPage;
@@ -65,6 +67,28 @@ public class RefController extends BaseController {
 
     @Inject
     UserSubscriptionService userSubscriptionService;
+
+    @Inject
+    LabelService labelService;
+
+    private volatile UUID freeLabelId;
+    private volatile long freeLabelCachedAt;
+    private static final long FREE_LABEL_TTL_MS = 6 * 60 * 60 * 1000L; // 6 hours
+
+    private Uni<UUID> getFreeLabelId() {
+        long now = System.currentTimeMillis();
+        if (freeLabelId != null && (now - freeLabelCachedAt) < FREE_LABEL_TTL_MS) {
+            return Uni.createFrom().item(freeLabelId);
+        }
+        return labelService.findByIdentifier("free")
+                .onItem().transform(label -> {
+                    if (label != null) {
+                        freeLabelId = label.getId();
+                        freeLabelCachedAt = System.currentTimeMillis();
+                    }
+                    return freeLabelId;
+                });
+    }
 
     public void setupRoutes(Router router) {
         router.route(HttpMethod.GET, "/datanest/dictionary/:type").handler(this::getDictionary);
@@ -109,24 +133,30 @@ public class RefController extends BaseController {
                 break;
 
             case "scripts":
-                ScriptFilter scriptFilter = new ScriptFilter();
-                scriptFilter.setTimingMode(SceneTimingMode.ABSOLUTE_TIME);
-                Uni.combine().all().unis(
-                                scriptService.getAllNonCustomCount(superUser, scriptFilter),
-                                scriptService.getAllFlatNonCustom(size, (page - 1) * size, superUser, scriptFilter)
-                        )
-                        .asTuple()
-                        .map(tuple -> {
-                            ViewPage viewPage = new ViewPage();
-                            View<ScriptFlatDTO> dtoEntries = new View<>(
-                                    tuple.getItem2(),
-                                    tuple.getItem1(),
-                                    page,
-                                    countMaxPage(tuple.getItem1(), size),
-                                    size);
-                            viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-                            viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());
-                            return viewPage;
+                getFreeLabelId()
+                        .chain(freeLabelUuid -> {
+                            ScriptFilter scriptFilter = new ScriptFilter();
+                            scriptFilter.setTimingMode(SceneTimingMode.ABSOLUTE_TIME);
+                            if (freeLabelUuid != null) {
+                                scriptFilter.setLabels(List.of(freeLabelUuid));
+                            }
+                            return Uni.combine().all().unis(
+                                            scriptService.getAllNonCustomCount(superUser, scriptFilter),
+                                            scriptService.getAllFlatNonCustom(size, (page - 1) * size, superUser, scriptFilter)
+                                    )
+                                    .asTuple()
+                                    .map(tuple -> {
+                                        ViewPage viewPage = new ViewPage();
+                                        View<ScriptFlatDTO> dtoEntries = new View<>(
+                                                tuple.getItem2(),
+                                                tuple.getItem1(),
+                                                page,
+                                                countMaxPage(tuple.getItem1(), size),
+                                                size);
+                                        viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
+                                        viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());
+                                        return viewPage;
+                                    });
                         })
                         .subscribe().with(
                                 viewPage -> rc.response()
