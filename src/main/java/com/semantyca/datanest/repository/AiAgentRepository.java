@@ -15,6 +15,7 @@ import com.semantyca.mixpla.model.aiagent.AiAgent;
 import com.semantyca.mixpla.model.aiagent.LanguagePreference;
 import com.semantyca.mixpla.model.aiagent.TTSSetting;
 import com.semantyca.mixpla.model.cnst.LlmType;
+import com.semantyca.mixpla.model.filter.AiAgentFilter;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
@@ -45,11 +46,19 @@ public class AiAgentRepository extends AsyncRepository {
     }
 
     public Uni<List<AiAgent>> getAll(int limit, int offset, boolean includeArchived, IUser user) {
+        return getAll(limit, offset, includeArchived, user, null);
+    }
+
+    public Uni<List<AiAgent>> getAll(int limit, int offset, boolean includeArchived, IUser user, AiAgentFilter filter) {
         String sql = "SELECT * FROM " + entityData.getTableName() + " t, " + entityData.getRlsName() + " rls " +
                 "WHERE t.id = rls.entity_id AND rls.reader = " + user.getId();
 
         if (!includeArchived) {
             sql += " AND t.archived = 0";
+        }
+
+        if (filter != null && filter.isActivated()) {
+            sql += buildFilterConditions(filter);
         }
 
         sql += " ORDER BY t.last_mod_date DESC";
@@ -72,6 +81,10 @@ public class AiAgentRepository extends AsyncRepository {
     }
 
     public Uni<Integer> getAllCount(IUser user, boolean includeArchived) {
+        return getAllCount(user, includeArchived, null);
+    }
+
+    public Uni<Integer> getAllCount(IUser user, boolean includeArchived, AiAgentFilter filter) {
         String sql = "SELECT COUNT(*) FROM " + entityData.getTableName() + " t, " + entityData.getRlsName() + " rls " +
                 "WHERE t.id = rls.entity_id AND rls.reader = " + user.getId();
 
@@ -79,9 +92,33 @@ public class AiAgentRepository extends AsyncRepository {
             sql += " AND t.archived = 0";
         }
 
+        if (filter != null && filter.isActivated()) {
+            sql += buildFilterConditions(filter);
+        }
+
         return client.query(sql)
                 .execute()
                 .onItem().transform(rows -> rows.iterator().next().getInteger(0));
+    }
+
+    private String buildFilterConditions(AiAgentFilter filter) {
+        StringBuilder conditions = new StringBuilder();
+
+        if (filter.getLabels() != null && !filter.getLabels().isEmpty()) {
+            conditions.append(" AND EXISTS (SELECT 1 FROM mixpla__ai_agent_labels al WHERE al.ai_agent_id = t.id AND al.label_id IN (");
+            for (int i = 0; i < filter.getLabels().size(); i++) {
+                if (i > 0) conditions.append(", ");
+                conditions.append("'").append(filter.getLabels().get(i)).append("'");
+            }
+            conditions.append("))");
+        }
+
+        if (filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
+            conditions.append(" AND t.search_keywords % lower('")
+                    .append(filter.getSearchTerm().replace("'", "''")).append("')");
+        }
+
+        return conditions.toString();
     }
 
     public Uni<List<AiAgent>> getAllByLabelIdentifiers(int limit, int offset, boolean includeArchived, IUser user, List<String> identifiers) {

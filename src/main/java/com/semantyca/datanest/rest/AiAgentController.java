@@ -14,6 +14,7 @@ import com.semantyca.datanest.dto.actionbars.AiAgentActionsFactory;
 import com.semantyca.datanest.dto.aiagent.AiAgentDTO;
 import com.semantyca.datanest.service.AiAgentService;
 import com.semantyca.mixpla.model.aiagent.AiAgent;
+import com.semantyca.mixpla.model.filter.AiAgentFilter;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.tuples.Tuple2;
 import io.vertx.core.json.JsonObject;
@@ -24,7 +25,9 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.validation.Validator;
 
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class AiAgentController extends AbstractSecuredController<AiAgent, AiAgentDTO> {
@@ -59,10 +62,20 @@ public class AiAgentController extends AbstractSecuredController<AiAgent, AiAgen
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
 
+        AiAgentFilter filter = new AiAgentFilter();
+        List<String> labelParams = rc.request().params().getAll("label");
+        if (labelParams != null && !labelParams.isEmpty()) {
+            filter.setLabels(labelParams.stream().map(UUID::fromString).collect(Collectors.toList()));
+        }
+        String searchTerm = rc.request().getParam("search");
+        if (searchTerm != null && !searchTerm.isBlank()) {
+            filter.setSearchTerm(searchTerm);
+        }
+
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
-                        service.getAllCount(user),
-                        service.getAll(size, (page - 1) * size, user)
+                        service.getAllCount(user, filter),
+                        service.getAll(size, (page - 1) * size, user, filter)
                 ).asTuple().map(tuple -> {
                     ViewPage viewPage = new ViewPage();
                     View<AiAgentDTO> dtoEntries = new View<>(tuple.getItem2(),

@@ -16,6 +16,7 @@ import com.semantyca.mixpla.model.aiagent.LanguagePreference;
 import com.semantyca.mixpla.model.aiagent.TTSSetting;
 import com.semantyca.mixpla.model.aiagent.Voice;
 import com.semantyca.mixpla.model.cnst.LlmType;
+import com.semantyca.mixpla.model.filter.AiAgentFilter;
 import com.semantyca.officeframe.dto.LabelDTO;
 import com.semantyca.officeframe.service.LabelService;
 import io.smallrye.mutiny.Uni;
@@ -47,7 +48,11 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
     }
 
     public Uni<List<AiAgentDTO>> getAll(final int limit, final int offset, final IUser user) {
-        return repository.getAll(limit, offset, false, user)
+        return getAll(limit, offset, user, null);
+    }
+
+    public Uni<List<AiAgentDTO>> getAll(final int limit, final int offset, final IUser user, AiAgentFilter filter) {
+        return repository.getAll(limit, offset, false, user, filter)
                 .chain(list -> {
                     if (list.isEmpty()) return Uni.createFrom().item(List.of());
                     List<Uni<AiAgentDTO>> unis = list.stream()
@@ -58,7 +63,11 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
     }
 
     public Uni<Integer> getAllCount(final IUser user) {
-        return repository.getAllCount(user, false);
+        return getAllCount(user, null);
+    }
+
+    public Uni<Integer> getAllCount(final IUser user, AiAgentFilter filter) {
+        return repository.getAllCount(user, false, filter);
     }
 
     public Uni<List<AiAgent>> getAll(final int limit, final int offset) {
