@@ -199,7 +199,7 @@ public class TranslateService {
         req.setTargetLanguageTag(languageTag.tag());
         req.setDraft("translationType: " + translationType + "\n"
                 + "country: " + (countryCode != null ? countryCode.name() : "UNKNOWN"));
-        LlmType effective = llmType != null ? llmType : LlmType.CLAUDE;
+        LlmType effective = llmType != null ? llmType : LlmType.OPENAI;
         req.setLlmType(effective);
         if (effective == LlmType.OPENAI) {
             return masterPromptTranslateOpenAiService.translateMasterPrompt(req);
