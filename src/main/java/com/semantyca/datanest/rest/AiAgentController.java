@@ -17,6 +17,7 @@ import com.semantyca.mixpla.model.aiagent.AiAgent;
 import com.semantyca.mixpla.model.filter.AiAgentFilter;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.tuples.Tuple2;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
@@ -24,14 +25,15 @@ import io.vertx.ext.web.handler.BodyHandler;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.validation.Validator;
+import org.jboss.logging.Logger;
 
-import io.vertx.core.json.JsonArray;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 @ApplicationScoped
 public class AiAgentController extends AbstractSecuredController<AiAgent, AiAgentDTO> {
+    private static final Logger LOGGER = Logger.getLogger(AiAgentController.class);
 
     private AiAgentService service;
     private Validator validator;
@@ -220,7 +222,7 @@ public class AiAgentController extends AbstractSecuredController<AiAgent, AiAgen
                 filter.setSearchTerm(searchTerm);
             }
         } catch (Exception e) {
-            LOGGER.warn("Failed to parse filter param: {}", filterParam);
+            LOGGER.warnf("Failed to parse filter param: %s", filterParam);
         }
         return filter;
     }
