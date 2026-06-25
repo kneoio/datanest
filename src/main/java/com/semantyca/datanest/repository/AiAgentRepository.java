@@ -113,6 +113,11 @@ public class AiAgentRepository extends AsyncRepository {
             conditions.append("))");
         }
 
+        if (filter.getLanguageTag() != null) {
+            conditions.append(" AND EXISTS (SELECT 1 FROM jsonb_array_elements(t.preferred_lang) elem WHERE elem->>'languageTag' LIKE '")
+                    .append(filter.getLanguageTag().tag().replace("'", "''")).append("%')");
+        }
+
         if (filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
             conditions.append(" AND t.search_keywords % lower('")
                     .append(filter.getSearchTerm().replace("'", "''")).append("')");

@@ -14,6 +14,7 @@ import com.semantyca.datanest.dto.actionbars.AiAgentActionsFactory;
 import com.semantyca.datanest.dto.aiagent.AiAgentDTO;
 import com.semantyca.datanest.service.AiAgentService;
 import com.semantyca.mixpla.model.aiagent.AiAgent;
+import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.mixpla.model.filter.AiAgentFilter;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.tuples.Tuple2;
@@ -215,6 +216,19 @@ public class AiAgentController extends AbstractSecuredController<AiAgent, AiAgen
                 }
                 if (!labels.isEmpty()) {
                     filter.setLabels(labels);
+                }
+            }
+            String langTag = json.getString("languageTag");
+            if (langTag != null && !langTag.isBlank()) {
+                try {
+                    filter.setLanguageTag(LanguageTag.fromTag(langTag));
+                } catch (IllegalArgumentException e) {
+                    for (LanguageTag lt : LanguageTag.values()) {
+                        if (lt.tag().startsWith(langTag)) {
+                            filter.setLanguageTag(lt);
+                            break;
+                        }
+                    }
                 }
             }
             String searchTerm = json.getString("searchTerm");
