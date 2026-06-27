@@ -230,8 +230,8 @@ public class ScriptRepository extends AsyncRepository {
         return Uni.createFrom().deferred(() -> {
             try {
                 String sql = "INSERT INTO " + entityData.getTableName() +
-                        " (author, reg_date, last_mod_user, last_mod_date, name, slug_name, default_profile_id, description, timing_mode, required_variables, custom) " +
-                        "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id";
+                        " (author, reg_date, last_mod_user, last_mod_date, name, slug_name, default_profile_id, description, timing_mode, required_variables, custom, color) " +
+                        "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id";
 
                 OffsetDateTime now = OffsetDateTime.now();
 
@@ -251,7 +251,8 @@ public class ScriptRepository extends AsyncRepository {
                         .addString(script.getDescription())
                         .addString(script.getTimingMode() != null ? script.getTimingMode().name() : SceneTimingMode.ABSOLUTE_TIME.name())
                         .addJsonArray(requiredVarsJson)
-                        .addBoolean(script.isCustom());
+                        .addBoolean(script.isCustom())
+                        .addString(script.getColor());
 
                 return client.withTransaction(tx ->
                         tx.preparedQuery(sql)
@@ -294,8 +295,8 @@ public class ScriptRepository extends AsyncRepository {
                             }
 
                             String sql = "UPDATE " + entityData.getTableName() +
-                                    " SET name=$1, slug_name=$2, default_profile_id=$3, description=$4, timing_mode=$5, custom=$6, last_mod_user=$7, last_mod_date=$8, required_variables=$9 " +
-                                    "WHERE id=$10";
+                                    " SET name=$1, slug_name=$2, default_profile_id=$3, description=$4, timing_mode=$5, custom=$6, last_mod_user=$7, last_mod_date=$8, required_variables=$9, color=$10 " +
+                                    "WHERE id=$11";
 
                             OffsetDateTime now = OffsetDateTime.now();
 
@@ -309,6 +310,7 @@ public class ScriptRepository extends AsyncRepository {
                                     .addLong(user.getId())
                                     .addOffsetDateTime(now)
                                     .addJsonArray(finalRequiredVarsJson)
+                                    .addString(script.getColor())
                                     .addUUID(id);
 
                             return client.withTransaction(tx ->
@@ -357,6 +359,7 @@ public class ScriptRepository extends AsyncRepository {
         doc.setDefaultProfileId(row.getUUID("default_profile_id"));
         doc.setDescription(row.getString("description"));
         doc.setCustom(row.getBoolean("custom"));
+        doc.setColor(row.getString("color"));
         doc.setArchived(row.getInteger("archived"));
         String timingMode = row.getString("timing_mode");
         if (timingMode != null) {
