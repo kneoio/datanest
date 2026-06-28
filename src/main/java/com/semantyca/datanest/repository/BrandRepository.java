@@ -394,7 +394,7 @@ public class BrandRepository extends AsyncRepository {
         }
         String scriptMode = row.getString("script_mode");
         doc.setScriptMode(scriptMode != null ? scriptMode : "PREDEFINED");
-        try { doc.setCustomScriptId(row.getUUID("custom_script_id")); } catch (Exception ignored) {}
+        doc.setCustomScriptId(row.getUUID("custom_script_id"));
 
         JsonObject streamingOptionsJson = row.getJsonObject("streaming_options");
         if (streamingOptionsJson != null && !streamingOptionsJson.isEmpty()) {
