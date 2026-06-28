@@ -237,6 +237,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
             dto.setDefaultProfileId(script.getDefaultProfileId());
             dto.setDescription(script.getDescription());
             dto.setCustom(script.isCustom());
+            dto.setColor(script.getColor());
             dto.setLabels(script.getLabels());
             dto.setTimingMode(script.getTimingMode().name());
             dto.setRequiredVariables(script.getRequiredVariables());
@@ -251,6 +252,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         entity.setDefaultProfileId(dto.getDefaultProfileId());
         entity.setDescription(dto.getDescription());
         entity.setCustom(dto.isCustom());
+        entity.setColor(dto.getColor());
         entity.setTimingMode(SceneTimingMode.valueOf(dto.getTimingMode()));
         entity.setLabels(dto.getLabels());
         return entity;
