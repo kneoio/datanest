@@ -5638,5 +5638,13 @@
     "language": "no-NO",
     "labels": "premium",
     "engineType": "google"
+  } ,
+  {
+    "id": "nb-NO-Standard-F",
+    "name": "nb-NO-Standard-F",
+    "gender": "female",
+    "language": "no-NO",
+    "labels": "standart",
+    "engineType": "google"
   }
 ]
