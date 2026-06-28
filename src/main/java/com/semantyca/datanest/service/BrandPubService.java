@@ -112,7 +112,7 @@ public class BrandPubService extends BrandService {
                                             return brandPubRepository.insertScriptAndUpdateBrand(existingBrand.getId(), brand, script, scenes, List.of(), user)
                                                     .chain(brandId -> repository.findById(brandId, user, true));
                                         }
-                                        return brandPubRepository.updateBrandWithScript(existingBrand.getId(), existingScriptId, brand, script, List.of(), user)
+                                        return brandPubRepository.updateBrandWithScript(existingBrand.getId(), existingScriptId, brand, script, scenes, List.of(), user)
                                                 .chain(brandId -> repository.findById(brandId, user, true));
                                     });
                         } else {
