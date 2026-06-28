@@ -5622,5 +5622,21 @@
     "language": "no-NO",
     "labels": "premium",
     "engineType": "google"
+  },
+  {
+    "id": "nb-NO-Chirp3-HD-Algieba",
+    "name": "Algieba",
+    "gender": "male",
+    "language": "no-NO",
+    "labels": "premium",
+    "engineType": "google"
+  } ,
+  {
+    "id": "nb-NO-Chirp3-HD-Schedar",
+    "name": "Schedar",
+    "gender": "male",
+    "language": "no-NO",
+    "labels": "premium",
+    "engineType": "google"
   }
 ]
