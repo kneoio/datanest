@@ -132,7 +132,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                                                 bs.getUserVariables()
                                         ))
                                         .collect(Collectors.toList());
-                                brand.setScripts(entries);
+                                brand.setScriptIds(entries);
                                 return brand;
                             });
                 });
@@ -297,15 +297,20 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             } catch (MalformedURLException e) {
                 throw new RuntimeException(e);
             }
-            List<BrandScriptEntryDTO> scriptDTOs = tuple.getItem3().stream()
-                    .map(entry -> {
-                        BrandScriptEntryDTO scriptDTO = new BrandScriptEntryDTO();
-                        scriptDTO.setScriptId(entry.getScriptId());
-                        scriptDTO.setUserVariables(entry.getUserVariables());
-                        return scriptDTO;
-                    })
-                    .collect(Collectors.toList());
-            dto.setScripts(scriptDTOs);
+            ScriptMode earlyMode = ScriptMode.valueOf(doc.getScriptMode() != null ? doc.getScriptMode() : ScriptMode.PREDEFINED.name());
+            if (!ScriptMode.CUSTOM.equals(earlyMode)) {
+                List<BrandScriptEntryDTO> scriptDTOs = tuple.getItem3().stream()
+                        .map(entry -> {
+                            BrandScriptEntryDTO scriptDTO = new BrandScriptEntryDTO();
+                            scriptDTO.setScriptId(entry.getScriptId());
+                            scriptDTO.setUserVariables(entry.getUserVariables());
+                            return scriptDTO;
+                        })
+                        .collect(Collectors.toList());
+                dto.setScriptIds(scriptDTOs);
+            } else {
+                dto.setCustomScriptId(doc.getCustomScriptId());
+            }
             if (doc.getOwner() != null) {
                 OwnerDTO ownerDTO = new OwnerDTO();
                 ownerDTO.setUserId(doc.getOwner().getUserId());
@@ -332,30 +337,26 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             dto.setGenres(doc.getGenres());
             dto.setLogoFiles(doc.getFileMetadataList().isEmpty() ? null : doc.getFileMetadataList());
 
-            ScriptMode mode = ScriptMode.valueOf(doc.getScriptMode());
-            dto.setScriptMode(mode);
+            dto.setScriptMode(earlyMode);
             dto.setStreamingOptions(doc.getStreamingOptions());
 
-            if (ScriptMode.CUSTOM.equals(mode)) {
-                List<BrandScriptEntry> entries = tuple.getItem3();
-                if (!entries.isEmpty()) {
-                    assert scriptService != null;
-                    return scriptService.getById(entries.getFirst().getScriptId(), SuperUser.build())
-                            .chain(customScript -> {
-                                assert sceneService != null;
-                                return sceneService.getAllByScript(customScript.getId(), 1000, 0, SuperUser.build())
-                                        .map(sceneDTOs -> {
-                                            CustomScriptDTO customScriptDTO = new CustomScriptDTO();
-                                            customScriptDTO.setTitle(customScript.getName());
-                                            customScriptDTO.setColor(customScript.getColor());
-                                            customScriptDTO.setScenes(sceneDTOs.stream()
-                                                    .map(this::toCustomSceneDTO)
-                                                    .collect(Collectors.toList()));
-                                            dto.setCustomScript(customScriptDTO);
-                                            return dto;
-                                        });
-                            });
-                }
+            if (ScriptMode.CUSTOM.equals(earlyMode) && doc.getCustomScriptId() != null) {
+                assert scriptService != null;
+                return scriptService.getById(doc.getCustomScriptId(), SuperUser.build())
+                        .chain(customScript -> {
+                            assert sceneService != null;
+                            return sceneService.getAllByScript(customScript.getId(), 1000, 0, SuperUser.build())
+                                    .map(sceneDTOs -> {
+                                        CustomScriptDTO customScriptDTO = new CustomScriptDTO();
+                                        customScriptDTO.setTitle(customScript.getName());
+                                        customScriptDTO.setColor(customScript.getColor());
+                                        customScriptDTO.setScenes(sceneDTOs.stream()
+                                                .map(this::toCustomSceneDTO)
+                                                .collect(Collectors.toList()));
+                                        dto.setCustomScript(customScriptDTO);
+                                        return dto;
+                                    });
+                        });
             }
             return Uni.createFrom().item(dto);
         });
@@ -491,9 +492,11 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             doc.setGenres(dto.getGenres());
         }
 
-        if (!ScriptMode.CUSTOM.equals(dto.getScriptMode()) && dto.getScripts() != null && !dto.getScripts().isEmpty()) {
-            BrandScriptEntryDTO first = dto.getScripts().getFirst();
-            doc.setScripts(List.of(new BrandScriptEntry(first.getScriptId(), first.getUserVariables())));
+        if (ScriptMode.CUSTOM.equals(dto.getScriptMode())) {
+            doc.setCustomScriptId(dto.getCustomScriptId());
+        } else if (dto.getScriptIds() != null && !dto.getScriptIds().isEmpty()) {
+            BrandScriptEntryDTO first = dto.getScriptIds().getFirst();
+            doc.setScriptIds(List.of(new BrandScriptEntry(first.getScriptId(), first.getUserVariables())));
         }
         doc.setScriptMode(dto.getScriptMode() != null ? dto.getScriptMode().name() : ScriptMode.PREDEFINED.name());
         doc.setStreamingOptions(dto.getStreamingOptions());

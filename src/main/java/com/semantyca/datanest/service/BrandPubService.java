@@ -116,7 +116,7 @@ public class BrandPubService extends BrandService {
                                                 .chain(brandId -> repository.findById(brandId, user, true));
                                     });
                         } else {
-                            brand.setScripts(null);
+                            brand.setScriptIds(null);
                             return repository.update(existingBrand.getId(), brand, List.of(), user)
                                     .map(Brand::getId)
                                     .chain(brandId -> repository.findById(brandId, user, true));
@@ -126,8 +126,7 @@ public class BrandPubService extends BrandService {
     }
 
     private Uni<UUID> resolveExistingCustomScriptId(Brand existing) {
-        return repository.getScriptEntriesForBrand(existing.getId())
-                .map(entries -> entries.isEmpty() ? null : entries.getFirst().getScriptId());
+        return Uni.createFrom().item(existing.getCustomScriptId());
     }
 
     private Script buildScript(String slug, String title) {

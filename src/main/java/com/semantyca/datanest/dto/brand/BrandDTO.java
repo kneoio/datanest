@@ -70,7 +70,8 @@ public class BrandDTO extends AbstractDTO {
     private boolean profileOverridingEnabled;
     private AiOverridingDTO aiOverriding;
     private ProfileOverridingDTO profileOverriding;
-    private List<BrandScriptEntryDTO> scripts;
+    private List<BrandScriptEntryDTO> scriptIds;
+    private UUID customScriptId;
     private ScriptMode scriptMode = ScriptMode.PREDEFINED;
     private StreamingOptions streamingOptions;
     private CustomScriptDTO customScript;
@@ -81,11 +82,18 @@ public class BrandDTO extends AbstractDTO {
     private List<FileMetadata> logoFiles;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<RlsActionDTO> rlsActions = new ArrayList<>();
+    private boolean skipScriptValidation = false;
 
     @JsonIgnore
     @AssertTrue(message = "Custom script must have at least one scene, and each scene must have at least one prompt or action")
     public boolean isCustomScriptValid() {
+        if (skipScriptValidation) {
+            return true;
+        }
         if (!ScriptMode.CUSTOM.equals(scriptMode)) {
+            return true;
+        }
+        if (customScriptId != null) {
             return true;
         }
         if (customScript == null || customScript.getScenes() == null || customScript.getScenes().isEmpty()) {
