@@ -10,16 +10,28 @@ datanest is a CRUD backend; it works with the `Mixdeck` (user) and `42next` (adm
 
 ## Documentation Map
 
-- _(none yet)_ — candidates: CRUD/RLS provisioning, sound-fragment & shared-fragment handling,
-  one-time-stream data flow.
+- `src/main/java/com/semantyca/datanest/repository/RLS_WORKFLOW.md` — how Row-Level Security scopes
+  every read/write to the caller (ACL tables, grant-on-insert, sharing).
+- _(candidates)_ — sound-fragment & shared-fragment handling, one-time-stream data flow.
+
+## datanest Conventions
+
+- **CRUD structure (always the same).** For every entity: a **Repository** (DB access), a **Service**
+  (business logic + orchestration), a **Model** class for the entity, and a **DTO** for anything that
+  crosses the boundary (REST / FE). Never expose the model outside — map to a DTO.
+- **Repositories are private to their Service.** A repository is accessed **only** through its own
+  service; never call another feature's repository directly from elsewhere.
+- **RLS is always on** in datanest (it backs the Mixdeck subscriber FE) — every query is user-scoped.
+  See `RLS_WORKFLOW.md`. Do not carry this into jesoos/aivox, which skip RLS for performance.
 
 ## Database
 
-PostgreSQL. DDL definitions:
-- Mixpla: `/home/aidazi/git/mxpldb/Scripts/mixpla_ddl.sql`
-- 2next: `/home/aidazi/git/mxpldb/Scripts/2next_ddl.sql`
+PostgreSQL. DDL lives in the **`mxpldb`** repo:
+- Mixpla schema: `Scripts/mixpla_ddl.sql`
+- 2next schema: `Scripts/2next_ddl.sql`
 
-Do not update database structure; if needed, only show the ALTERs for the change.
+Do not change the database structure without Aida's permission; when proposing one, show the `ALTER`s
+(see the Database-changes rule in Engineering Conventions).
 
 
 ## Behavior Rules
@@ -52,6 +64,49 @@ Do not update database structure; if needed, only show the ALTERs for the change
 
 ---
 
+## Engineering Conventions (all Mixpla services)
+
+- **Reactive first.** Use the Quarkus reactive stack (Mutiny `Uni`/`Multi`, Vert.x). Never block the
+  event loop; offload blocking work to a worker pool.
+- **Performance is a priority**, especially the audio path in `jesoos` and `aivox`. Avoid expensive
+  re-initialization on hot paths.
+- **Shared / reused FFmpeg.** FFmpeg startup is expensive — reuse a single shared/pooled FFmpeg
+  (executor) instance instead of spawning/initializing per call. `jesoos` and `aivox` follow the same
+  approach for audio processing.
+- **Keep libraries current.** Upgrading a dependency to use its latest features is encouraged (shared
+  `2next` bumps still follow the 2Next Change Policy above).
+- **Database changes need approval.** Schema / DDL changes are fine in general, but only **after
+  Aida's explicit permission**. Propose the change (show the `ALTER`s) and wait for approval — never
+  alter the database structure on your own initiative.
+- **Consistent design patterns.** Match the structure the surrounding code already uses; don't invent
+  per-feature variations for the same kind of work.
+- **Observability = metrics + logs.** Publish **important events as metrics** (RabbitMQ → metriq),
+  which metriq renders in its own frontend (`metriq/frontend`). Metrics **complement** logs, they do
+  not replace them — keep meaningful logs too. Use **JBoss logging** (`org.jboss.logging.Logger`),
+  Quarkus-native, as the standard logging API.
+- **Data access / RLS.** Row-Level Security is a **datanest** concern (CRUD backend for the
+  Mixdeck/42next SPAs — every query is user-scoped). Backend services (`jesoos`, `aivox`) run as a
+  trusted system user and **skip RLS for performance**.
+
+---
+
+## Inter-service Messaging (all Mixpla services)
+
+Services talk over **RabbitMQ**, not REST. Three logical channels, DTOs shared from `2next`
+(`com.semantyca.mixpla.dto.queue.*`):
+
+- **Streaming / entities** — `jesoos → aivox`, one `SongQueueMessageDTO` per timeline entry
+  (channel `streaming`, routing key = brand slug).
+- **Metrics** — every service → `metriq`, `MetricEventDTO` (channel `metrics`).
+- **Commands** — control messages between services, `CommandDTO` (command channels).
+
+**Prefer async messaging over REST.** The platform targets **Kubernetes-native horizontal scaling** —
+any service may run as **many pods** (aivox is the first/primary candidate). Synchronous REST between
+services does not scale cleanly across pods, so **new inter-service calls should go through the queues,
+not REST**. Some REST calls still exist (legacy) and should be migrated to messaging when touched.
+
+---
+
 ## Project Purpose (whole Mixpla platform)
 
 Mixpla is **one system**; the split into microservices is a deployment/scalability choice
@@ -77,7 +132,7 @@ Core packages:
 - `com.semantyca.mixpla.*`
 - `com.semantyca.officeframe.*`
 
-Location: `/home/aidazi/IdeaProjects/2next/`
+The shared **`2next`** repo — consumed as the Maven artifact `com.semantyca:2next` (GitHub Packages).
 
 ### What 2Next shares
 
@@ -119,5 +174,5 @@ Because these are shared, a change here is a change to **every** service's contr
 
 ## Legacy System
 
-`/home/aidazi/IdeaProjects/KneoBroadcaster/` — the original monolith Mixpla was split out of.
-Reference only; not a build target.
+The **`KneoBroadcaster`** repo — the original monolith Mixpla was split out of. Reference only; not a
+build target.
