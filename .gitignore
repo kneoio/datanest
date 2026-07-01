@@ -25,7 +25,6 @@ target/
 
 .DS_Store
 /.claude/
-CLAUDE.md
 
 application-dev.properties
 application-prod.properties
