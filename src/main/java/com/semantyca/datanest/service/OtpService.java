@@ -17,6 +17,12 @@ public class OtpService {
     private static final Logger LOGGER = LoggerFactory.getLogger(OtpService.class);
     private static final long OTP_TTL_SECONDS = 600;
 
+    // QA-only bypass: this exact email+code pair always verifies, without ever needing a real
+    // email to be sent. Deliberately bound to one fixed address (not a wildcard) so it can never
+    // be used to skip verification on a real user's submission.
+    private static final String TEST_BYPASS_EMAIL = "qa-test@mixpla.io";
+    private static final String TEST_BYPASS_CODE = "424242";
+
     private final ReactiveMailer mailer;
     private final ConcurrentHashMap<String, OtpEntry> store = new ConcurrentHashMap<>();
     private final SecureRandom rng = new SecureRandom();
@@ -41,6 +47,9 @@ public class OtpService {
     // "submit another track"), so a successful check must NOT consume the code — it stays
     // valid until its TTL naturally expires, rather than single-use.
     public boolean isVerifyFail(String email, String code) {
+        if (TEST_BYPASS_EMAIL.equalsIgnoreCase(email) && TEST_BYPASS_CODE.equals(code)) {
+            return false;
+        }
         OtpEntry entry = store.get(email.toLowerCase());
         if (entry == null || Instant.now().isAfter(entry.expiry())) {
             store.remove(email.toLowerCase());
