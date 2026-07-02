@@ -28,6 +28,7 @@ import com.semantyca.core.util.FileSecurityUtils;
 import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.AudioMetadataDTO;
+import com.semantyca.datanest.dto.PublicSubmissionMetaDTO;
 import com.semantyca.datanest.messaging.CommandPublisher;
 import com.semantyca.mixpla.dto.queue.command.CommandType;
 import com.semantyca.datanest.dto.sharing.ShareDTO;
@@ -769,13 +770,15 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 });
     }
 
-    public Uni<SoundFragment> createFromBulkUpload(UploadFileDTO uploadFile, UUID brandId, IUser user, boolean requiresApproval, String submitterEmail) {
+    public Uni<SoundFragment> createFromBulkUpload(UploadFileDTO uploadFile, UUID brandId, IUser user, boolean requiresApproval, PublicSubmissionMetaDTO meta) {
         if (uploadFile.getFullPath() == null) {
             return Uni.createFrom().failure(new IllegalArgumentException("Upload file has no fullPath"));
         }
 
         AudioMetadataDTO metadata = uploadFile.getMetadata();
         String fallbackTitleArtist = baseNameWithoutExtension(uploadFile.getName());
+        String submitterArtistName = meta != null && meta.artistName() != null && !meta.artistName().isBlank()
+                ? meta.artistName().trim() : null;
 
         SoundFragment fragment = new SoundFragment();
         // requiresApproval distinguishes public/anonymous submissions (need station-owner review,
@@ -786,16 +789,18 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         fragment.setType(PlaylistItemType.SONG);
         if (metadata != null) {
             fragment.setTitle(metadata.getTitle() != null ? metadata.getTitle() : uploadFile.getName());
-            fragment.setArtist(metadata.getArtist() != null ? metadata.getArtist() : "Unknown Artist");
+            fragment.setArtist(submitterArtistName != null ? submitterArtistName
+                    : metadata.getArtist() != null ? metadata.getArtist() : "Unknown Artist");
             fragment.setAlbum(metadata.getAlbum());
             fragment.setLength(metadata.getLength());
         } else {
             LOGGER.infof("Bulk upload: no audio metadata; using file base name for title and artist: %s", fallbackTitleArtist);
             fragment.setTitle(fallbackTitleArtist);
-            fragment.setArtist(fallbackTitleArtist);
+            fragment.setArtist(submitterArtistName != null ? submitterArtistName : fallbackTitleArtist);
             fragment.setAlbum(null);
             fragment.setLength(null);
         }
+        fragment.setDescription(meta != null ? meta.description() : null);
         fragment.setSlugName(WebHelper.generateSlug(fragment.getArtist(), fragment.getTitle()));
 
         FileMetadata fileMetadata = new FileMetadata();
@@ -816,6 +821,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                             if (!requiresApproval) {
                                 return repository.insert(fragment, brandIds, Collections.emptyList(), user);
                             }
+                            String submitterEmail = meta != null ? meta.submitterEmail() : null;
                             return resolveSubmitterGrant(submitterEmail)
                                     .chain(submitterGrant -> buildRlsActionsWithCoOwners(brandIds,
                                             submitterGrant != null ? List.of(superUserGrant(), submitterGrant) : List.of(superUserGrant())))

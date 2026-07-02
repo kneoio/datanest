@@ -2,6 +2,7 @@ package com.semantyca.datanest.rest;
 
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.datanest.dto.GenreFlatDTO;
+import com.semantyca.datanest.dto.PublicSubmissionMetaDTO;
 import com.semantyca.datanest.dto.StationFlatDTO;
 import com.semantyca.datanest.service.BrandService;
 import com.semantyca.datanest.service.OtpService;
@@ -102,6 +103,8 @@ public class PublicSongSubmissionController {
         String email = rc.request().getParam("email");
         String code  = rc.request().getParam("code");
         String stationSlug = rc.request().getParam("stationSlug");
+        String artistName = rc.request().getParam("artistName");
+        String description = rc.request().getParam("description");
 
         if (email == null || code == null) {
             fail(rc, 400, "email and code are required");
@@ -114,8 +117,9 @@ public class PublicSongSubmissionController {
 
         String batchId = UUID.randomUUID().toString();
         String fileId  = UUID.randomUUID().toString();
+        PublicSubmissionMetaDTO meta = new PublicSubmissionMetaDTO(email.trim(), artistName, description);
 
-        fileUploadService.processDirectBulkStreamAsync(rc, batchId, fileId, stationSlug, CONTROLLER_KEY, SuperUser.build(), email.trim())
+        fileUploadService.processDirectBulkStreamAsync(rc, batchId, fileId, stationSlug, CONTROLLER_KEY, SuperUser.build(), meta)
                 .subscribe().with(
                         dto -> rc.response().setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")
@@ -141,6 +145,8 @@ public class PublicSongSubmissionController {
         String chunkIndexStr  = rc.request().getParam("chunkIndex");
         String totalChunksStr = rc.request().getParam("totalChunks");
         String stationSlug    = rc.request().getParam("stationSlug");
+        String artistName     = rc.request().getParam("artistName");
+        String description    = rc.request().getParam("description");
 
         if (email == null || code == null)           { fail(rc, 400, "email and code are required"); return; }
         if (batchId == null || batchId.isBlank())    { fail(rc, 400, "batchId required"); return; }
@@ -163,7 +169,8 @@ public class PublicSongSubmissionController {
         }
 
         final int ci = chunkIndex, tc = totalChunks;
-        fileUploadService.processChunkUpload(rc, batchId, fileId, ci, tc, fileName, null, stationSlug, CONTROLLER_KEY, SuperUser.build(), email.trim())
+        PublicSubmissionMetaDTO meta = new PublicSubmissionMetaDTO(email.trim(), artistName, description);
+        fileUploadService.processChunkUpload(rc, batchId, fileId, ci, tc, fileName, null, stationSlug, CONTROLLER_KEY, SuperUser.build(), meta)
                 .subscribe().with(
                         dto -> rc.response().setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")
