@@ -829,7 +829,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract imp
         dto.setArtist(row.getString("artist"));
         dto.setType(PlaylistItemType.valueOf(row.getString("type")));
         dto.setAlbum(row.getString("album"));
-        dto.setRegDate(row.getOffsetDateTime("reg_date"));
+        dto.setRegDate(row.getOffsetDateTime("reg_date").toZonedDateTime());
         dto.setStatus(LifecycleStatus.NOT_APPROVED.getCode());
         dto.setOrigin("SUBMISSION");
         dto.setBoost(0);

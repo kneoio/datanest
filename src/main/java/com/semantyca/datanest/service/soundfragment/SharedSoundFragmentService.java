@@ -184,7 +184,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         dto.setBoost(e.getBoost() != null ? e.getBoost() : 0);
         dto.setStatus(e.getStatus());
         dto.setOrigin("SHARE");
-        dto.setRegDate(e.getRegDate());
+        dto.setRegDate(e.getRegDate().toZonedDateTime());
         return dto;
     }
 
