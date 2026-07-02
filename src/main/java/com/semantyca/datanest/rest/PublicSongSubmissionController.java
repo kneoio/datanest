@@ -101,6 +101,7 @@ public class PublicSongSubmissionController {
     private void upload(RoutingContext rc) {
         String email = rc.request().getParam("email");
         String code  = rc.request().getParam("code");
+        String stationSlug = rc.request().getParam("stationSlug");
 
         if (email == null || code == null) {
             fail(rc, 400, "email and code are required");
@@ -114,7 +115,7 @@ public class PublicSongSubmissionController {
         String batchId = UUID.randomUUID().toString();
         String fileId  = UUID.randomUUID().toString();
 
-        fileUploadService.processDirectBulkStreamAsync(rc, batchId, fileId, null, CONTROLLER_KEY, SuperUser.build())
+        fileUploadService.processDirectBulkStreamAsync(rc, batchId, fileId, stationSlug, CONTROLLER_KEY, SuperUser.build(), email.trim())
                 .subscribe().with(
                         dto -> rc.response().setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")
@@ -139,6 +140,7 @@ public class PublicSongSubmissionController {
         String fileName       = rc.request().getParam("fileName");
         String chunkIndexStr  = rc.request().getParam("chunkIndex");
         String totalChunksStr = rc.request().getParam("totalChunks");
+        String stationSlug    = rc.request().getParam("stationSlug");
 
         if (email == null || code == null)           { fail(rc, 400, "email and code are required"); return; }
         if (batchId == null || batchId.isBlank())    { fail(rc, 400, "batchId required"); return; }
@@ -161,7 +163,7 @@ public class PublicSongSubmissionController {
         }
 
         final int ci = chunkIndex, tc = totalChunks;
-        fileUploadService.processChunkUpload(rc, batchId, fileId, ci, tc, fileName, null, null, CONTROLLER_KEY, SuperUser.build())
+        fileUploadService.processChunkUpload(rc, batchId, fileId, ci, tc, fileName, null, stationSlug, CONTROLLER_KEY, SuperUser.build(), email.trim())
                 .subscribe().with(
                         dto -> rc.response().setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")

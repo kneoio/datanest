@@ -1,6 +1,7 @@
 package com.semantyca.datanest.service.soundfragment;
 
 import com.semantyca.core.dto.DocumentAccessDTO;
+import com.semantyca.core.dto.document.UserDTO;
 import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.dto.rls.RlsActionType;
 import com.semantyca.core.dto.scheduler.OnceTriggerDTO;
@@ -12,6 +13,7 @@ import com.semantyca.core.model.FileMetadata;
 import com.semantyca.core.model.cnst.ArchivedStatus;
 import com.semantyca.core.model.cnst.FileType;
 import com.semantyca.core.model.cnst.LanguageCode;
+import com.semantyca.core.model.cnst.LifecycleStatus;
 import com.semantyca.core.model.cnst.TriggerType;
 import com.semantyca.core.model.scheduler.OnceTrigger;
 import com.semantyca.core.model.scheduler.PeriodicTrigger;
@@ -19,6 +21,7 @@ import com.semantyca.core.model.scheduler.Scheduler;
 import com.semantyca.core.model.scheduler.Task;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
+import com.semantyca.core.model.user.UndefinedUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.FileSecurityUtils;
@@ -766,7 +769,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 });
     }
 
-    public Uni<SoundFragment> createFromBulkUpload(UploadFileDTO uploadFile, UUID brandId, IUser user) {
+    public Uni<SoundFragment> createFromBulkUpload(UploadFileDTO uploadFile, UUID brandId, IUser user, boolean requiresApproval, String submitterEmail) {
         if (uploadFile.getFullPath() == null) {
             return Uni.createFrom().failure(new IllegalArgumentException("Upload file has no fullPath"));
         }
@@ -775,8 +778,11 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         String fallbackTitleArtist = baseNameWithoutExtension(uploadFile.getName());
 
         SoundFragment fragment = new SoundFragment();
-        fragment.setSource(SourceType.USER_UPLOAD);
-        fragment.setStatus(1);
+        // requiresApproval distinguishes public/anonymous submissions (need station-owner review,
+        // same as the chatbot contribution flow) from a station owner's own authenticated bulk
+        // upload of their own tracks (self-owned, no approval needed).
+        fragment.setSource(requiresApproval ? SourceType.CONTRIBUTION : SourceType.USER_UPLOAD);
+        fragment.setStatus(requiresApproval ? LifecycleStatus.NOT_APPROVED.getCode() : 1);
         fragment.setType(PlaylistItemType.SONG);
         if (metadata != null) {
             fragment.setTitle(metadata.getTitle() != null ? metadata.getTitle() : uploadFile.getName());
@@ -807,9 +813,54 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                             List<UUID> genreIds = genres.stream().map(DataEntity::getId).collect(Collectors.toList());
                             fragment.setGenres(genreIds);
                             assert repository != null;
-                            return repository.insert(fragment, brandIds, Collections.emptyList(), user);
+                            if (!requiresApproval) {
+                                return repository.insert(fragment, brandIds, Collections.emptyList(), user);
+                            }
+                            return resolveSubmitterGrant(submitterEmail)
+                                    .chain(submitterGrant -> buildRlsActionsWithCoOwners(brandIds,
+                                            submitterGrant != null ? List.of(superUserGrant(), submitterGrant) : List.of(superUserGrant())))
+                                    .chain(rlsActions -> repository.insert(fragment, brandIds, rlsActions, user));
                         })
                         .invoke(insertedFragment -> triggerOpusEncoding(insertedFragment, brandId, Paths.get(uploadFile.getFullPath()))));
+    }
+
+    // Silently resolve-or-create a real core user account for the submitter's (OTP-verified)
+    // email — same pattern as ListenerService.ensureUserExists for the chat-listener flow — and
+    // grant that id RLS access immediately. If this person later registers for real via Keycloak
+    // with the same email, the core user-lookup-by-email reuses this id, so they get access to
+    // everything they submitted before ever creating an account, with no separate "claim" step.
+    private Uni<RlsActionDTO> resolveSubmitterGrant(String submitterEmail) {
+        if (submitterEmail == null || submitterEmail.isBlank()) {
+            return Uni.createFrom().nullItem();
+        }
+        return userService.findByEmail(submitterEmail)
+                .chain(existingUser -> existingUser.getId() != UndefinedUser.ID
+                        ? Uni.createFrom().item(existingUser.getId())
+                        : createSubmitterUser(submitterEmail))
+                .map(userId -> {
+                    RlsActionDTO grant = new RlsActionDTO();
+                    grant.setAction(RlsActionType.GRANT);
+                    grant.setUserId(userId);
+                    grant.setCanEdit(true);
+                    grant.setCanDelete(true);
+                    return grant;
+                });
+    }
+
+    private Uni<Long> createSubmitterUser(String email) {
+        UserDTO userDTO = new UserDTO();
+        userDTO.setLogin(WebHelper.generatePersonSlug(email.substring(0, email.indexOf('@'))));
+        userDTO.setEmail(email);
+        return userService.add(userDTO, true);
+    }
+
+    private RlsActionDTO superUserGrant() {
+        RlsActionDTO grant = new RlsActionDTO();
+        grant.setAction(RlsActionType.GRANT);
+        grant.setUserId(SuperUser.build().getId());
+        grant.setCanEdit(true);
+        grant.setCanDelete(true);
+        return grant;
     }
 
     private void triggerOpusEncodingIfMissing(SoundFragment fragment, UUID brandId, List<FileMetadata> newlyUploadedFiles) {

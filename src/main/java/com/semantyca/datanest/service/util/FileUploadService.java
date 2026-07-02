@@ -31,6 +31,9 @@ public class FileUploadService {
     private static final Logger LOGGER = LoggerFactory.getLogger(FileUploadService.class);
     private static final long MAX_FILE_SIZE_BYTES = 200 * 1024 * 1024; //200 mb
     private static final String BULK_FOLDER_NAME = "bulk";
+    // Must match PublicSongSubmissionController.CONTROLLER_KEY — anonymous public submissions
+    // need station-owner approval, unlike an authenticated station owner's own bulk upload.
+    private static final String PUBLIC_SUBMISSIONS_CONTROLLER_KEY = "public-submissions";
     private final String uploadDirectory;
     private final AudioMetadataService audioMetadataService;
     private final SoundFragmentService soundFragmentService;
@@ -92,12 +95,16 @@ public class FileUploadService {
     }
 
     public Uni<UploadFileDTO> processDirectBulkStreamAsync(RoutingContext rc, String batchId, String fileId, String brandSlug, String controllerKey, IUser user) {
-        // Resolve brandSlug once for the batch before processing
-        return resolveBrandSlugIfNeeded(batchId, brandSlug)
-                .chain(() -> processFileUpload(rc, batchId, fileId, controllerKey, user));
+        return processDirectBulkStreamAsync(rc, batchId, fileId, brandSlug, controllerKey, user, null);
     }
 
-    private Uni<UploadFileDTO> processFileUpload(RoutingContext rc, String batchId, String fileId, String controllerKey, IUser user) {
+    public Uni<UploadFileDTO> processDirectBulkStreamAsync(RoutingContext rc, String batchId, String fileId, String brandSlug, String controllerKey, IUser user, String submitterEmail) {
+        // Resolve brandSlug once for the batch before processing
+        return resolveBrandSlugIfNeeded(batchId, brandSlug)
+                .chain(() -> processFileUpload(rc, batchId, fileId, controllerKey, user, submitterEmail));
+    }
+
+    private Uni<UploadFileDTO> processFileUpload(RoutingContext rc, String batchId, String fileId, String controllerKey, IUser user, String submitterEmail) {
         return Uni.createFrom().<UploadFileDTO>emitter(emitter -> {
             try {
                 rc.request().setExpectMultipart(true);
@@ -181,7 +188,8 @@ public class FileUploadService {
                                     // Get cached brandId for this batch
                                     UUID brandId = batchBrandIdMap.get(batchId);
                                     
-                                    return soundFragmentService.createFromBulkUpload(metadataDto, brandId, user)
+                                    return soundFragmentService.createFromBulkUpload(metadataDto, brandId, user,
+                                                    PUBLIC_SUBMISSIONS_CONTROLLER_KEY.equals(controllerKey), submitterEmail)
                                             .map(fragment -> {
                                                 UploadFileDTO finalDto = UploadFileDTO.builder()
                                                         .id(fileId)
@@ -245,14 +253,21 @@ public class FileUploadService {
     public Uni<UploadFileDTO> processChunkUpload(RoutingContext rc, String batchId, String fileId,
             int chunkIndex, int totalChunks, String originalFileName,
             String entityId, String brandSlug, String controllerKey, IUser user) {
+        return processChunkUpload(rc, batchId, fileId, chunkIndex, totalChunks, originalFileName,
+                entityId, brandSlug, controllerKey, user, null);
+    }
+
+    public Uni<UploadFileDTO> processChunkUpload(RoutingContext rc, String batchId, String fileId,
+            int chunkIndex, int totalChunks, String originalFileName,
+            String entityId, String brandSlug, String controllerKey, IUser user, String submitterEmail) {
         validateFileId(fileId);
         return resolveBrandSlugIfNeeded(batchId, brandSlug)
-                .chain(() -> writeChunk(rc, batchId, fileId, chunkIndex, totalChunks, originalFileName, entityId, controllerKey, user));
+                .chain(() -> writeChunk(rc, batchId, fileId, chunkIndex, totalChunks, originalFileName, entityId, controllerKey, user, submitterEmail));
     }
 
     private Uni<UploadFileDTO> writeChunk(RoutingContext rc, String batchId, String fileId,
             int chunkIndex, int totalChunks, String originalFileName, String entityId,
-            String controllerKey, IUser user) {
+            String controllerKey, IUser user, String submitterEmail) {
         return Uni.createFrom().<UploadFileDTO>emitter(emitter -> {
             try {
                 rc.request().setExpectMultipart(true);
@@ -315,7 +330,7 @@ public class FileUploadService {
                                             .batchId(batchId).name(safeFileName).url(fileUrl).build();
                                     batchMap.put(fileId, processingDto);
                                     emitter.complete(processingDto);
-                                    assembleAndProcess(batchId, fileId, state, controllerKey, user, batchMap);
+                                    assembleAndProcess(batchId, fileId, state, controllerKey, user, batchMap, submitterEmail);
                                 }
                             } catch (Exception e) {
                                 try { Files.deleteIfExists(chunkFile); } catch (IOException ignored) {}
@@ -342,7 +357,7 @@ public class FileUploadService {
 
     private void assembleAndProcess(String batchId, String fileId, ChunkAssemblyState state,
             String controllerKey, IUser user,
-            ConcurrentHashMap<String, UploadFileDTO> batchMap) {
+            ConcurrentHashMap<String, UploadFileDTO> batchMap, String submitterEmail) {
         Uni.createFrom().<UploadFileDTO>item(() -> {
             try {
                 Path destination = assembleChunks(fileId, state, controllerKey, user);
@@ -366,7 +381,8 @@ public class FileUploadService {
                     .fullPath(metadataDto.getFullPath()).metadata(metadataDto.getMetadata()).build();
             batchMap.put(fileId, creatingDto);
             UUID brandId = batchBrandIdMap.get(batchId);
-            return soundFragmentService.createFromBulkUpload(metadataDto, brandId, user)
+            return soundFragmentService.createFromBulkUpload(metadataDto, brandId, user,
+                            PUBLIC_SUBMISSIONS_CONTROLLER_KEY.equals(controllerKey), submitterEmail)
                     .map(fragment -> {
                         UploadFileDTO finalDto = UploadFileDTO.builder()
                                 .id(fileId).status("finished").percentage(100)
