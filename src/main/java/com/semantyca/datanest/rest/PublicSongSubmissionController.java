@@ -110,6 +110,10 @@ public class PublicSongSubmissionController {
             fail(rc, 400, "email and code are required");
             return;
         }
+        if (stationSlug == null || stationSlug.isBlank()) {
+            fail(rc, 400, "stationSlug is required");
+            return;
+        }
         if (otpService.isVerifyFail(email.trim(), code.trim())) {
             fail(rc, 401, "Invalid or expired confirmation code");
             return;
@@ -153,6 +157,7 @@ public class PublicSongSubmissionController {
         if (fileId == null || fileId.isBlank())      { fail(rc, 400, "fileId required"); return; }
         if (fileName == null || fileName.isBlank())  { fail(rc, 400, "fileName required"); return; }
         if (chunkIndexStr == null || totalChunksStr == null) { fail(rc, 400, "chunkIndex and totalChunks required"); return; }
+        if (stationSlug == null || stationSlug.isBlank())    { fail(rc, 400, "stationSlug is required"); return; }
 
         if (otpService.isVerifyFail(email.trim(), code.trim())) {
             fail(rc, 401, "Invalid or expired confirmation code");
