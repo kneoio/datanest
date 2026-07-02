@@ -12,7 +12,11 @@ datanest is a CRUD backend; it works with the `Mixdeck` (user) and `42next` (adm
 
 - `src/main/java/com/semantyca/datanest/repository/RLS_WORKFLOW.md` — how Row-Level Security scopes
   every read/write to the caller (ACL tables, grant-on-insert, sharing).
-- _(candidates)_ — sound-fragment & shared-fragment handling, one-time-stream data flow.
+- `src/main/java/com/semantyca/datanest/repository/soundfragment/CONTRIBUTION_WORKFLOW.md` — artist
+  submissions (chatbot + public web form), `LifecycleStatus`, RLS/submitter-account resolution.
+- `src/main/java/com/semantyca/datanest/repository/soundfragment/SHARING_WORKFLOW.md` — station-to-
+  station shares, `ApprovalStatus`, and the unified "received" inbox merge with contributions.
+- _(candidates)_ — one-time-stream data flow.
 
 ## datanest Conventions
 
@@ -36,6 +40,8 @@ Do not change the database structure without Aida's permission; when proposing o
 
 ## Behavior Rules
 
+- Never use find, grep, cat, ls, head, tail, sed, awk via Bash. Use Glob for file search, Grep for
+  content search, Read for file reading, Edit for file edits.
 - Keep answers brief
 - Prefer yes/no answers when possible
 - NO proactive behavior!!!!!!!!
