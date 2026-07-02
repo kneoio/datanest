@@ -31,5 +31,4 @@ public class SharingPreviewDTO extends AbstractDTO {
     private int boost;
     private Integer status;
     private String origin;
-    private OffsetDateTime regDate;
 }
