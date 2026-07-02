@@ -1,6 +1,7 @@
 package com.semantyca.datanest.repository.soundfragment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.semantyca.core.model.cnst.LifecycleStatus;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
@@ -58,7 +59,8 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
                 "  ) latest" +
                 "  GROUP BY sound_fragment_id" +
                 ") r ON r.sound_fragment_id = t.id " +
-                "WHERE bsf.brand_id = $1 AND rls.reader = $2 AND t.archived = 0";
+                "WHERE bsf.brand_id = $1 AND rls.reader = $2 AND t.archived = 0 " +
+                "AND (t.source != 'CONTRIBUTION' OR t.status = " + LifecycleStatus.APPROVED.getCode() + ")";
 
         if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
             sql += " AND (t.search_name ILIKE '%' || $3 || '%' OR similarity(t.search_name, $3) > 0.05)";
@@ -95,7 +97,8 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
                 "FROM " + entityData.getTableName() + " t " +
                 "JOIN mixpla__brand_sound_fragments bsf ON t.id = bsf.sound_fragment_id " +
                 "JOIN " + entityData.getRlsName() + " rls ON t.id = rls.entity_id " +
-                "WHERE bsf.brand_id = $1 AND rls.reader = $2 AND t.archived = 0";
+                "WHERE bsf.brand_id = $1 AND rls.reader = $2 AND t.archived = 0 " +
+                "AND (t.source != 'CONTRIBUTION' OR t.status = " + LifecycleStatus.APPROVED.getCode() + ")";
 
         if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
             sql += " AND (t.search_name ILIKE '%' || $3 || '%' OR similarity(t.search_name, $3) > 0.05)";

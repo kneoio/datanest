@@ -798,11 +798,15 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract imp
                 .onItem().ignore().andContinueWithNull();
     }
 
+    // Shows every CONTRIBUTION-sourced fragment regardless of status (pending/approved/rejected),
+    // mirroring how getReceivedList shows shares regardless of ApprovalStatus — the FE renders the
+    // status as a tag rather than filtering the list. source='CONTRIBUTION' (not a status check)
+    // is what scopes this to submissions, so a reader's own regular self-uploads never leak in here.
     public Uni<List<SharingPreviewDTO>> getPendingApprovalList(final int limit, final int offset, final long userId) {
-        String sql = "SELECT sf.id, sf.title, sf.artist, sf.type, sf.album, sf.reg_date " +
+        String sql = "SELECT sf.id, sf.title, sf.artist, sf.type, sf.album, sf.reg_date, sf.status " +
                 "FROM " + entityData.getTableName() + " sf " +
                 "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = sf.id " +
-                "WHERE rls.reader = $1 AND sf.status = " + LifecycleStatus.NOT_APPROVED.getCode() + " AND sf.archived = 0 " +
+                "WHERE rls.reader = $1 AND sf.source = 'CONTRIBUTION' AND sf.archived = 0 " +
                 "ORDER BY sf.reg_date DESC LIMIT $2 OFFSET $3";
         return client.preparedQuery(sql)
                 .execute(Tuple.of(userId, limit, offset))
@@ -815,7 +819,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract imp
     public Uni<Integer> getPendingApprovalCount(final long userId) {
         String sql = "SELECT COUNT(*) FROM " + entityData.getTableName() + " sf " +
                 "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = sf.id " +
-                "WHERE rls.reader = $1 AND sf.status = " + LifecycleStatus.NOT_APPROVED.getCode() + " AND sf.archived = 0";
+                "WHERE rls.reader = $1 AND sf.source = 'CONTRIBUTION' AND sf.archived = 0";
         return client.preparedQuery(sql)
                 .execute(Tuple.of(userId))
                 .onItem().transform(rows -> rows.iterator().next().getInteger(0));
@@ -830,7 +834,7 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract imp
         dto.setType(PlaylistItemType.valueOf(row.getString("type")));
         dto.setAlbum(row.getString("album"));
         dto.setRegDate(row.getOffsetDateTime("reg_date").toZonedDateTime());
-        dto.setStatus(LifecycleStatus.NOT_APPROVED.getCode());
+        dto.setStatus(row.getInteger("status"));
         dto.setOrigin("SUBMISSION");
         dto.setBoost(0);
         return loadPendingGenres(sfId).chain(genres -> {
@@ -863,10 +867,10 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract imp
     }
 
     public Uni<SharingPreviewDTO> findPendingApprovalById(UUID id, long userId) {
-        String sql = "SELECT sf.id, sf.title, sf.artist, sf.type, sf.album, sf.reg_date " +
+        String sql = "SELECT sf.id, sf.title, sf.artist, sf.type, sf.album, sf.reg_date, sf.status " +
                 "FROM " + entityData.getTableName() + " sf " +
                 "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = sf.id " +
-                "WHERE sf.id = $1 AND rls.reader = $2 AND sf.status = " + LifecycleStatus.NOT_APPROVED.getCode() +
+                "WHERE sf.id = $1 AND rls.reader = $2 AND sf.source = 'CONTRIBUTION'" +
                 " AND sf.archived = 0 LIMIT 1";
         return client.preparedQuery(sql)
                 .execute(Tuple.of(id, userId))
