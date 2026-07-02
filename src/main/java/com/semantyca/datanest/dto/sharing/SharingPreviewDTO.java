@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.OffsetDateTime;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
@@ -28,4 +29,7 @@ public class SharingPreviewDTO extends AbstractDTO {
     private String sharerUserEmail;
     private EnumMap<LanguageCode, String> targetBrandName;
     private int boost;
+    private Integer status;
+    private String origin;
+    private OffsetDateTime regDate;
 }

@@ -4,6 +4,7 @@ import com.semantyca.core.dto.DocumentAccessDTO;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
+import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.sharing.ShareDTO;
@@ -21,6 +22,8 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -46,28 +49,54 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
     }
 
     public Uni<Integer> rejectShareByReceiver(UUID shareId, IUser user) {
-        return repository.rejectByReceiver(shareId, user.getId());
+        return repository.rejectByReceiver(shareId, user.getId())
+                .chain(count -> count > 0
+                        ? Uni.createFrom().item(count)
+                        : soundFragmentRepository.rejectPendingFragment(shareId, user.getId()));
     }
 
     public Uni<Integer> acceptShareByReceiver(UUID shareId, IUser user) {
-        return repository.acceptByReceiver(shareId, user.getId());
+        return repository.acceptByReceiver(shareId, user.getId())
+                .chain(count -> count > 0
+                        ? Uni.createFrom().item(count)
+                        : soundFragmentRepository.approvePendingFragment(shareId, user.getId()));
     }
 
     public Uni<Integer> delete(UUID shareId, IUser user) {
         return repository.archive(shareId);
     }
 
+    // Merges two independently-owned approval systems (station-to-station shares and
+    // chatbot artist-submissions) into one "received" inbox. Fetching offset+limit from
+    // each side (not just limit) guarantees the final slice is correct regardless of how
+    // the two sources interleave by date.
     public Uni<List<SharingPreviewDTO>> getSharingPreviewList(int limit, int offset, IUser user) {
-        return repository.getReceivedList(limit, offset, user.getId())
+        int fetchSize = offset + limit;
+        Uni<List<SharingPreviewDTO>> sharesUni = repository.getReceivedList(fetchSize, 0, user.getId())
                 .map(list -> list.stream().map(this::toSharingPreviewDTO).collect(Collectors.toList()));
+        Uni<List<SharingPreviewDTO>> pendingUni = soundFragmentRepository.getPendingApprovalList(fetchSize, 0, user.getId());
+        return Uni.combine().all().unis(sharesUni, pendingUni).asTuple()
+                .map(tuple -> {
+                    List<SharingPreviewDTO> merged = new ArrayList<>(tuple.getItem1());
+                    merged.addAll(tuple.getItem2());
+                    merged.sort(Comparator.comparing(SharingPreviewDTO::getRegDate,
+                            Comparator.nullsLast(Comparator.reverseOrder())));
+                    if (offset >= merged.size()) return List.<SharingPreviewDTO>of();
+                    return merged.subList(offset, Math.min(merged.size(), offset + limit));
+                });
     }
 
     public Uni<Integer> getSharingPreviewCount(IUser user) {
-        return repository.getReceivedListCount(user.getId());
+        return Uni.combine().all().unis(
+                repository.getReceivedListCount(user.getId()),
+                soundFragmentRepository.getPendingApprovalCount(user.getId())
+        ).asTuple().map(tuple -> tuple.getItem1() + tuple.getItem2());
     }
 
     public Uni<SharingPreviewDTO> getById(UUID id, IUser user) {
-        return repository.findById(id, user.getId()).map(this::toSharingPreviewDTO);
+        return repository.findById(id, user.getId()).map(this::toSharingPreviewDTO)
+                .onFailure(DocumentHasNotFoundException.class)
+                .recoverWithUni(() -> soundFragmentRepository.findPendingApprovalById(id, user.getId()));
     }
 
     public Uni<Void> patchShares(UUID fragmentId, String slug, SharePatchDTO patch, IUser user) {
@@ -153,6 +182,9 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         dto.setSharerUserEmail(e.getSourceUserEmail());
         dto.setTargetBrandName(e.getTargetBrandName());
         dto.setBoost(e.getBoost() != null ? e.getBoost() : 0);
+        dto.setStatus(e.getStatus());
+        dto.setOrigin("SHARE");
+        dto.setRegDate(e.getRegDate());
         return dto;
     }
 
