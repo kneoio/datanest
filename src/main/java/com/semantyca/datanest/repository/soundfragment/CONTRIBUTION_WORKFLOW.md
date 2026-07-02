@@ -11,6 +11,22 @@ either through the AI chatbot (`jesoos`) or the public, unauthenticated web form
 
 ---
 
+## 0. Why this exists (vs. sharing)
+
+Contribution answers: **"should this brand-new song be allowed onto the platform at all?"** The
+submitter isn't already part of the system (often no account yet) — this is the gatekeeping step for
+unvetted content entering datanest for the first time, decided by one station owner.
+
+Sharing (see `SHARING_WORKFLOW.md`) answers a different question entirely: **"do I also want a copy of
+this song, which another station already owns and vetted, in my own library?"** Both sides there are
+already trusted station owners; nothing new is entering the platform, an existing song is just being
+copied between libraries. That's why it's a different table/enum/rules — it's not "the same kind of
+approval, twice," it's two different real-world decisions that happen to both feel like "something is
+waiting for my approval" from a station owner's point of view, which is the only reason they're merged
+in the FE "received" inbox at all.
+
+---
+
 ## 1. Entry points
 
 | Entry point | Where | Auth |

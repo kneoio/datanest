@@ -8,6 +8,28 @@ The two only meet at the FE "received" inbox, which merges both — see §3.
 
 ---
 
+## 0. Why this exists (vs. contribution)
+
+Sharing answers: **"do I also want a copy of this song, which another station already owns and
+vetted, in my own library?"** Both sides here are already trusted station owners — nothing new is
+entering the platform, an existing, already-legitimate song is just being copied between libraries.
+
+Contribution (see `CONTRIBUTION_WORKFLOW.md`) answers a different question: **"should this brand-new
+song be allowed onto the platform at all?"**, decided by one station owner about a submitter who isn't
+already part of the system. That's a gatekeeping decision about new content, not a distribution
+decision about existing content — hence the different table/enum/rules. The two only look similar
+because both feel like "something is waiting for my approval" from a station owner's point of view,
+which is the only reason they're merged into one FE "received" inbox.
+
+| | Contribution | Sharing |
+|---|---|---|
+| Who hands over the song | An outside artist (often no account yet) | A station owner, to another station owner |
+| Decision being made | "Is this new song okay to exist here at all?" | "Do I want a copy of this in my own library?" |
+| Tracked on | the song itself (`sf.status`) | the *relationship* between the two stations |
+| If rejected | the song stays dead in the DB — only that submitter is affected | only *this* station's copy is cancelled — the original owner's copy is untouched |
+
+---
+
 ## 1. Status lifecycle (`ApprovalStatus`, `model/cnst/ApprovalStatus.java`, deprecated but still in use)
 
 | Value | Meaning |
