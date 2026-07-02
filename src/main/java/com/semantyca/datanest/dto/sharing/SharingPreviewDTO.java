@@ -8,7 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
@@ -31,4 +31,5 @@ public class SharingPreviewDTO extends AbstractDTO {
     private int boost;
     private Integer status;
     private String origin;
+    private ZonedDateTime regDate;
 }
