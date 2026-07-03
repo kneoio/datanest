@@ -13,7 +13,6 @@ import com.semantyca.core.model.FileMetadata;
 import com.semantyca.core.model.cnst.ArchivedStatus;
 import com.semantyca.core.model.cnst.FileType;
 import com.semantyca.core.model.cnst.LanguageCode;
-import com.semantyca.core.model.cnst.LifecycleStatus;
 import com.semantyca.core.model.cnst.TriggerType;
 import com.semantyca.core.model.scheduler.OnceTrigger;
 import com.semantyca.core.model.scheduler.PeriodicTrigger;
@@ -781,11 +780,13 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 ? meta.artistName().trim() : null;
 
         SoundFragment fragment = new SoundFragment();
-        // requiresApproval distinguishes public/anonymous submissions (need station-owner review,
-        // same as the chatbot contribution flow) from a station owner's own authenticated bulk
-        // upload of their own tracks (self-owned, no approval needed).
+        // requiresApproval distinguishes public/anonymous submissions from a station owner's own
+        // authenticated bulk upload (self-owned, no review needed). Contributions get NO brand
+        // association and NO direct station RLS at creation — station-owner visibility comes
+        // entirely from a PENDING share created below, the same mechanism used for station-to-
+        // station sharing (see CONTRIBUTION_WORKFLOW.md / SHARING_WORKFLOW.md).
         fragment.setSource(requiresApproval ? SourceType.CONTRIBUTION : SourceType.USER_UPLOAD);
-        fragment.setStatus(requiresApproval ? LifecycleStatus.NOT_APPROVED.getCode() : 1);
+        fragment.setStatus(1);
         fragment.setType(PlaylistItemType.SONG);
         if (metadata != null) {
             fragment.setTitle(metadata.getTitle() != null ? metadata.getTitle() : uploadFile.getName());
@@ -806,7 +807,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         FileMetadata fileMetadata = new FileMetadata();
         fileMetadata.setFilePath(Paths.get(uploadFile.getFullPath()));
         fragment.setFileMetadataList(List.of(fileMetadata));
-        List<UUID> brandIds = brandId !=null ? List.of(brandId) : List.of();
+        List<UUID> brandIds = requiresApproval ? List.of() : (brandId != null ? List.of(brandId) : List.of());
 
         assert refService != null;
         String genreIdentifier = metadata != null && metadata.getGenre() != null ? metadata.getGenre() : "other";
@@ -822,35 +823,36 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                 return repository.insert(fragment, brandIds, Collections.emptyList(), user);
                             }
                             String submitterEmail = meta != null ? meta.submitterEmail() : null;
-                            return resolveSubmitterGrant(submitterEmail)
-                                    .chain(submitterGrant -> buildRlsActionsWithCoOwners(brandIds,
-                                            submitterGrant != null ? List.of(superUserGrant(), submitterGrant) : List.of(superUserGrant())))
-                                    .chain(rlsActions -> repository.insert(fragment, brandIds, rlsActions, user));
+                            return resolveSubmitterAccount(submitterEmail)
+                                    .chain(submitterUserId -> {
+                                        List<RlsActionDTO> rlsActions = new ArrayList<>();
+                                        rlsActions.add(userGrant(SuperUser.build().getId()));
+                                        if (submitterUserId != null) rlsActions.add(userGrant(submitterUserId));
+                                        return repository.insert(fragment, brandIds, rlsActions, user)
+                                                .chain(insertedFragment -> brandId == null
+                                                        ? Uni.createFrom().item(insertedFragment)
+                                                        : sharedSoundFragmentService.shareContribution(
+                                                                insertedFragment.getId(), brandId, submitterUserId,
+                                                                submitterArtistName, submitterEmail)
+                                                                .replaceWith(insertedFragment));
+                                    });
                         })
                         .invoke(insertedFragment -> triggerOpusEncoding(insertedFragment, brandId, Paths.get(uploadFile.getFullPath()))));
     }
 
     // Silently resolve-or-create a real core user account for the submitter's (OTP-verified)
-    // email — same pattern as ListenerService.ensureUserExists for the chat-listener flow — and
-    // grant that id RLS access immediately. If this person later registers for real via Keycloak
-    // with the same email, the core user-lookup-by-email reuses this id, so they get access to
-    // everything they submitted before ever creating an account, with no separate "claim" step.
-    private Uni<RlsActionDTO> resolveSubmitterGrant(String submitterEmail) {
+    // email — same pattern as ListenerService.ensureUserExists for the chat-listener flow. If
+    // this person later registers for real via Keycloak with the same email, the core
+    // user-lookup-by-email reuses this id, so they get access to everything they submitted
+    // before ever creating an account, with no separate "claim" step.
+    private Uni<Long> resolveSubmitterAccount(String submitterEmail) {
         if (submitterEmail == null || submitterEmail.isBlank()) {
             return Uni.createFrom().nullItem();
         }
         return userService.findByEmail(submitterEmail)
                 .chain(existingUser -> existingUser.getId() != UndefinedUser.ID
                         ? Uni.createFrom().item(existingUser.getId())
-                        : createSubmitterUser(submitterEmail))
-                .map(userId -> {
-                    RlsActionDTO grant = new RlsActionDTO();
-                    grant.setAction(RlsActionType.GRANT);
-                    grant.setUserId(userId);
-                    grant.setCanEdit(true);
-                    grant.setCanDelete(true);
-                    return grant;
-                });
+                        : createSubmitterUser(submitterEmail));
     }
 
     private Uni<Long> createSubmitterUser(String email) {
@@ -860,10 +862,10 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         return userService.add(userDTO, true);
     }
 
-    private RlsActionDTO superUserGrant() {
+    private RlsActionDTO userGrant(long userId) {
         RlsActionDTO grant = new RlsActionDTO();
         grant.setAction(RlsActionType.GRANT);
-        grant.setUserId(SuperUser.build().getId());
+        grant.setUserId(userId);
         grant.setCanEdit(true);
         grant.setCanDelete(true);
         return grant;

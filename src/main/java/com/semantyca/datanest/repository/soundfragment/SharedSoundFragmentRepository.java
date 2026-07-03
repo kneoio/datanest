@@ -108,7 +108,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         String selectSql = "SELECT id, sound_fragment_id, target_brand_id FROM " + entityData.getTableName() +
                 " WHERE id = $1 AND id IN (SELECT entity_id FROM " + entityData.getRlsName() + " WHERE reader = $2)";
         String deleteRlsSql = "DELETE FROM " + entityData.getRlsName() + " WHERE entity_id = $1";
-        String updateStatusSql = "UPDATE " + entityData.getTableName() + " SET status = " + ApprovalStatus.CANCELLED.value() + ", last_mod_date = NOW() WHERE id = $1";
+        String updateStatusSql = "UPDATE " + entityData.getTableName() + " SET status = " + ApprovalStatus.REJECTED.value() + ", last_mod_date = NOW() WHERE id = $1";
         String deleteBsfSql = "DELETE FROM mixpla__brand_sound_fragments WHERE sound_fragment_id = $1 AND brand_id = $2";
         return client.withTransaction(tx ->
                 tx.preparedQuery(selectSql)
@@ -132,7 +132,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     public Uni<Integer> acceptByReceiver(UUID shareId, long userId) {
         String selectSql = "SELECT id, sound_fragment_id, target_brand_id FROM " + entityData.getTableName() +
                 " WHERE id = $1 AND id IN (SELECT entity_id FROM " + entityData.getRlsName() + " WHERE reader = $2)";
-        String updateStatusSql = "UPDATE " + entityData.getTableName() + " SET status = " + ApprovalStatus.OPEN.value() + ", last_mod_date = NOW() WHERE id = $1";
+        String updateStatusSql = "UPDATE " + entityData.getTableName() + " SET status = " + ApprovalStatus.ACCEPTED.value() + ", last_mod_date = NOW() WHERE id = $1";
         String insertBsfSql = "INSERT INTO mixpla__brand_sound_fragments " +
                 "(brand_id, sound_fragment_id, played_by_brand_count, last_time_played_by_brand) " +
                 "VALUES ($1, $2, 0, NULL) ON CONFLICT DO NOTHING";
@@ -149,9 +149,30 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                             UUID targetBrandId = row.getUUID("target_brand_id");
                             return tx.preparedQuery(updateStatusSql).execute(Tuple.of(entityId))
                                     .chain(() -> tx.preparedQuery(insertBsfSql).execute(Tuple.of(targetBrandId, soundFragmentId)))
+                                    .chain(() -> grantFragmentRlsToBrand(tx, soundFragmentId, targetBrandId))
                                     .replaceWith(1);
                         })
         );
+    }
+
+    // Pre-existing gap: accepting a share only updated the share's own status and the brand
+    // association — it never granted the accepting brand owner/co-owners RLS on the underlying
+    // mixpla__sound_fragments row itself, which findForBrandFlat requires to show it in the
+    // regular library. Mirrors the raw-JSON owner/coOwners extraction already used in
+    // BrandRepository.getAllOpenForSubmission.
+    private Uni<Void> grantFragmentRlsToBrand(SqlClient tx, UUID soundFragmentId, UUID targetBrandId) {
+        String ownerSql = "INSERT INTO " + SF_RLS_TABLE + " (reader, entity_id, can_edit, can_delete) " +
+                "SELECT (b.owner->>'userId')::bigint, $1, true, true " +
+                "FROM " + BRANDS_TABLE + " b WHERE b.id = $2 AND b.owner->>'userId' IS NOT NULL " +
+                "ON CONFLICT DO NOTHING";
+        String coOwnersSql = "INSERT INTO " + SF_RLS_TABLE + " (reader, entity_id, can_edit, can_delete) " +
+                "SELECT (co->>'userId')::bigint, $1, true, true " +
+                "FROM " + BRANDS_TABLE + " b, jsonb_array_elements(COALESCE(b.owner->'coOwners', '[]'::jsonb)) co " +
+                "WHERE b.id = $2 AND co->>'userId' IS NOT NULL " +
+                "ON CONFLICT DO NOTHING";
+        return tx.preparedQuery(ownerSql).execute(Tuple.of(soundFragmentId, targetBrandId))
+                .chain(() -> tx.preparedQuery(coOwnersSql).execute(Tuple.of(soundFragmentId, targetBrandId)))
+                .replaceWithVoid();
     }
 
     public Uni<Integer> archive(UUID shareId) {

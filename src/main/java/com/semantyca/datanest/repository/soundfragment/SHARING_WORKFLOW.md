@@ -1,92 +1,107 @@
 # Sharing Workflow — datanest
 
-A **share** is one station (brand) offering a sound fragment it owns to another station, who can
-accept or reject it. This lives entirely in `mixpla__shared_sound_fragments` / `SharedSoundFragment`,
-tracked by `ApprovalStatus` — a completely separate table and enum from **contributions** (artist
-submissions via chat or the public web form; see `CONTRIBUTION_WORKFLOW.md` in this same directory).
-The two only meet at the FE "received" inbox, which merges both — see §3.
+A **share** is one entity (a station, or an outside artist submitting a song) offering a sound
+fragment to a target station, who can accept or reject it. Everything lives in
+`mixpla__shared_sound_fragments` / `SharedSoundFragment`, tracked by one `ApprovalStatus` enum.
+
+**Station-to-station sharing and artist contributions are now the same mechanism.** There used to
+be two separate systems (a `SharedSoundFragment`/`ApprovalStatus` table for shares, and a
+`LifecycleStatus`-driven flag directly on the fragment for contributions) — see
+`CONTRIBUTION_WORKFLOW.md` in this same directory for why that was replaced and what it now looks
+like from the contribution side. This doc covers the mechanism itself.
 
 ---
 
-## 0. Why this exists (vs. contribution)
+## 0. Why this exists
 
-Sharing answers: **"do I also want a copy of this song, which another station already owns and
-vetted, in my own library?"** Both sides here are already trusted station owners — nothing new is
-entering the platform, an existing, already-legitimate song is just being copied between libraries.
+The fragment being offered gets **no brand association and no direct RLS to the target station at
+creation time**. Visibility for the target station comes entirely from the share row. This is what
+makes the mechanism reusable for contributions: an artist who submits a song via chat or the public
+web form isn't a station owner and doesn't get station RLS granted directly — instead the fragment
+is created bare (visible only to the submitter's own account) and a PENDING share is created
+pointing at the target station. The station only gets access once it **accepts**.
 
-Contribution (see `CONTRIBUTION_WORKFLOW.md`) answers a different question: **"should this brand-new
-song be allowed onto the platform at all?"**, decided by one station owner about a submitter who isn't
-already part of the system. That's a gatekeeping decision about new content, not a distribution
-decision about existing content — hence the different table/enum/rules. The two only look similar
-because both feel like "something is waiting for my approval" from a station owner's point of view,
-which is the only reason they're merged into one FE "received" inbox.
-
-| | Contribution | Sharing |
-|---|---|---|
-| Who hands over the song | An outside artist (often no account yet) | A station owner, to another station owner |
-| Decision being made | "Is this new song okay to exist here at all?" | "Do I want a copy of this in my own library?" |
-| Tracked on | the song itself (`sf.status`) | the *relationship* between the two stations |
-| If rejected | the song stays dead in the DB — only that submitter is affected | only *this* station's copy is cancelled — the original owner's copy is untouched |
+This also fixed a real bug: previously, a contributor who later registered a real `mixdeck` account
+could never see their own submission again, because the fragment already had a brand association at
+creation time — which excluded it from the one page (`/sound-library/unassigned-to-brands`) that
+would otherwise show it to a plain registered user. Under this design the fragment has no brand
+association until accepted, so it always shows up there for the submitter in the meantime.
 
 ---
 
-## 1. Status lifecycle (`ApprovalStatus`, `model/cnst/ApprovalStatus.java`, deprecated but still in use)
+## 1. Status lifecycle (`ApprovalStatus`, `model/cnst/ApprovalStatus.java`)
+
+One enum, three values, used everywhere a share exists — regardless of whether it originated as a
+station-to-station offer or an artist contribution:
 
 | Value | Meaning |
 |---|---|
-| `506` `PENDING` | offered, awaiting the receiving brand's decision |
-| `500` `OPEN` | accepted |
-| `505` `ACCEPTED` | accepted (legacy duplicate meaning, see `ShareDTO.setShared`) |
-| `501` `CANCELLED` | rejected by receiver |
-| `502` `REJECTED_NOT_MEET_GENRE` | rejected — receiving brand's genre restrictions didn't match at offer time |
-| `503` `REJECTED` | rejected |
+| `506` `PENDING` | offered, awaiting the receiving station's decision |
+| `500` `ACCEPTED` | accepted |
+| `501` `REJECTED` | rejected by receiver |
 
-Offering a share (`SharedSoundFragmentService.patchShares` → `validateAndBuildEntities`) checks the
-target brand's `submissionPolicy == NO_RESTRICTIONS` and whether genres match, but does **not** check
-the source fragment's own approval status — a station can share a fragment of theirs that is itself
-still an unreviewed contribution (see `CONTRIBUTION_WORKFLOW.md` §3 for what that implies once shared).
+(Numeric values reuse the old enum's existing operational codes for `PENDING`/`OPEN`/`CANCELLED` —
+no data migration was needed. The old `505 ACCEPTED` duplicate and `502 REJECTED_NOT_MEET_GENRE`
+values are gone.)
+
+**Every new share starts `PENDING`, unconditionally.** Offering a share
+(`SharedSoundFragmentService.patchShares` → `validateAndBuildEntities`) still checks the target
+brand's `submissionPolicy == NO_RESTRICTIONS`, but there is **no automatic accept/reject based on
+genre fit anymore** — genre is shown to the reviewing station owner as context (rendered as tags),
+never used as an automated gate. A station can share (or a submitter can contribute) a fragment that
+doesn't match the target's usual genres; the human reviewer decides.
 
 ---
 
 ## 2. Accept / reject
 
 `SharedSoundFragmentRepository`:
-- `acceptByReceiver(shareId, userId)` — sets `status = OPEN`, and inserts a
-  `mixpla__brand_sound_fragments` row for the receiving brand (`ON CONFLICT DO NOTHING`) — this is what
-  actually makes the song show up in the receiving brand's regular library.
-- `rejectByReceiver(shareId, userId)` — sets `status = CANCELLED`, deletes the receiver's RLS row for
-  the share entity (unlike rejecting a contribution, which leaves RLS untouched — see
-  `CONTRIBUTION_WORKFLOW.md` §3).
+- `acceptByReceiver(shareId, userId)` — sets `status = ACCEPTED`, inserts a
+  `mixpla__brand_sound_fragments` row for the receiving brand (`ON CONFLICT DO NOTHING` — this is
+  what makes the song show up in the receiving brand's regular library), **and** grants the
+  receiving brand's owner + co-owners RLS on the underlying `mixpla__sound_fragments` row itself
+  (`grantFragmentRlsToBrand`, raw-JSON `owner`/`coOwners` extraction mirroring
+  `BrandRepository.getAllOpenForSubmission`). This RLS grant was a pre-existing gap — accepting used
+  to update only the share status and the brand association, never the fragment's own RLS, so an
+  accepted share's fragment was never actually visible via `findForBrandFlat`. Fixed as part of this
+  redesign since contributions depend on it too.
+- `rejectByReceiver(shareId, userId)` — sets `status = REJECTED`, deletes the receiver's RLS row for
+  the share entity itself.
 
-Both are gated by an RLS-reader subquery — the caller must actually be a granted reader of that share.
+Both are gated by an RLS-reader subquery — the caller must actually be a granted reader of that
+share.
 
 ---
 
-## 3. The unified "received" inbox — no new endpoint
+## 3. Creating a share
 
-`mixdeck`'s `/sound-library/received` shows **both** shares and contributions in one list. Rather than
-a new endpoint or a client-side merge of two API calls, the *existing* `/shared-sound-fragments/received*`
-routes were extended to internally dispatch to whichever system owns a given row — reuse the endpoint
-that already represented "my received inbox" instead of growing new API surface for the same concept.
+Two entry points into `SharedSoundFragmentService`, both building a plain `SharedSoundFragment` and
+funneling into the same `SharedSoundFragmentRepository.applyPatch`/`insertInTx`:
 
-`SharedSoundFragmentService`:
-- `getSharingPreviewList`/`getSharingPreviewCount` — fetch `offset+limit` rows from **both**
-  `SharedSoundFragmentRepository.getReceivedList` (shares) and
-  `SoundFragmentRepository.getPendingApprovalList` (contributions), tag each with `origin`
-  (`"SHARE"`/`"SUBMISSION"`), merge, sort by `regDate` desc, then slice. Fetching `offset+limit` from
-  each side (not just `limit`) is what guarantees the slice is correct regardless of how the two
-  sources interleave by date — the alternative, a SQL `UNION ALL` across two very differently-shaped
-  queries, was skipped since this is a review queue (low volume); revisit only if that stops being true.
-- `acceptShareByReceiver`/`rejectShareByReceiver`/`getById` — try the share-repository method first; if
-  it affects `0` rows (not a share), fall back to the contribution-repository equivalent
-  (`approvePendingFragment`/`rejectPendingFragment`/`findPendingApprovalById`). The frontend always
-  calls the same `PATCH .../accept` / `DELETE ...` / `GET .../:id` regardless of a row's origin — it
-  never needs to know or send which system owns a given id; the id itself determines that.
+- `patchShares(...)` — station-to-station: an authenticated station owner offers one of their own
+  fragments to one or more target brands (`validateAndBuildEntities`).
+- `shareContribution(soundFragmentId, targetBrandId, submitterUserId, submitterName, submitterEmail)`
+  — called from `SoundFragmentService.createFromBulkUpload` right after a public/chat contribution's
+  fragment is inserted, when a target station was specified. See `CONTRIBUTION_WORKFLOW.md` for the
+  caller side.
 
-Both origins map into the **same** `SharingPreviewDTO` (`dto/sharing/SharingPreviewDTO.java`) rather
-than a parallel DTO type — its existing fields (`title`, `artist`, `genres`, `labels`,
-`sharerUserName`/`sharerUserEmail`, `boost`, `status`) already cover a contribution row; only `origin`
-and `regDate` needed adding.
+Both produce a `PENDING` share; there is no other status a freshly-created share can have.
+
+---
+
+## 4. The "received" inbox
+
+`mixdeck`'s `/sound-library/received` (`PendingReviewView.vue`) lists shares for the current user via
+the existing `/shared-sound-fragments/received*` routes — plain, single-source queries against
+`SharedSoundFragmentRepository` (`getSharingPreviewList`/`getSharingPreviewCount`/`getById`). Because
+contributions are now just shares, no merge/dispatch logic is needed here — a contribution and a
+station-to-station offer are indistinguishable rows in this list, both driven by the one
+`ApprovalStatus` enum. The FE shows a single status tag (`PENDING`/`ACCEPTED`/`REJECTED`); there is no
+more "origin" concept to display.
+
+`SharingPreviewDTO` (`dto/sharing/SharingPreviewDTO.java`) carries `title`, `artist`, `genres`,
+`labels`, `sharerUserName`/`sharerUserEmail`, `targetBrandName`, `boost`, `status` — no `origin` or
+`regDate` fields; those were removed since there's no longer a multi-source merge/sort to support.
 
 ---
 
@@ -95,8 +110,8 @@ and `regDate` needed adding.
 | Area | File |
 |---|---|
 | Routes (`received`, `received/:id/accept`, `received/:id`) | `rest/SharedSoundFragmentController.java` |
-| Merge / dispatch logic | `service/soundfragment/SharedSoundFragmentService.java` |
-| Share table queries | `repository/soundfragment/SharedSoundFragmentRepository.java` |
+| Share creation, accept/reject, received-list mapping | `service/soundfragment/SharedSoundFragmentService.java` |
+| Share table queries, accept/reject transactions, fragment-RLS grant on accept | `repository/soundfragment/SharedSoundFragmentRepository.java` |
 | Status enum | `model/cnst/ApprovalStatus.java` |
-| Unified DTO (shares + contributions) | `dto/sharing/SharingPreviewDTO.java` |
+| Received-inbox DTO | `dto/sharing/SharingPreviewDTO.java` |
 | Share entity model | `model/soundfragment/SharedSoundFragment.java` |

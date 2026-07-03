@@ -5,7 +5,6 @@ import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.model.FileMetadata;
 import com.semantyca.core.model.cnst.FileStorageType;
 import com.semantyca.core.model.cnst.FileType;
-import com.semantyca.core.model.cnst.LifecycleStatus;
 import com.semantyca.core.model.embedded.DocumentAccessInfo;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
@@ -17,10 +16,8 @@ import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.rls.RlsActionUtil;
 import com.semantyca.core.repository.table.EntityData;
 import com.semantyca.core.service.external.hetzner.HetznerStorageService;
-import com.semantyca.datanest.dto.sharing.SharingPreviewDTO;
 import com.semantyca.datanest.repository.SchedulableRepository;
 import com.semantyca.datanest.util.SlugHelper;
-import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
 import com.semantyca.mixpla.model.soundfragment.SoundFragment;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
@@ -796,107 +793,6 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract imp
         return client.preparedQuery(sql)
                 .execute(Tuple.of(boost, soundFragmentId, brandId))
                 .onItem().ignore().andContinueWithNull();
-    }
-
-    // Shows every CONTRIBUTION-sourced fragment regardless of status (pending/approved/rejected),
-    // mirroring how getReceivedList shows shares regardless of ApprovalStatus — the FE renders the
-    // status as a tag rather than filtering the list. source='CONTRIBUTION' (not a status check)
-    // is what scopes this to submissions, so a reader's own regular self-uploads never leak in here.
-    public Uni<List<SharingPreviewDTO>> getPendingApprovalList(final int limit, final int offset, final long userId) {
-        String sql = "SELECT sf.id, sf.title, sf.artist, sf.type, sf.album, sf.reg_date, sf.status " +
-                "FROM " + entityData.getTableName() + " sf " +
-                "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = sf.id " +
-                "WHERE rls.reader = $1 AND sf.source = 'CONTRIBUTION' AND sf.archived = 0 " +
-                "ORDER BY sf.reg_date DESC LIMIT $2 OFFSET $3";
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(userId, limit, offset))
-                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
-                .onItem().transformToUni(this::toPendingApprovalPreviewDTO)
-                .concatenate()
-                .collect().asList();
-    }
-
-    public Uni<Integer> getPendingApprovalCount(final long userId) {
-        String sql = "SELECT COUNT(*) FROM " + entityData.getTableName() + " sf " +
-                "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = sf.id " +
-                "WHERE rls.reader = $1 AND sf.source = 'CONTRIBUTION' AND sf.archived = 0";
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(userId))
-                .onItem().transform(rows -> rows.iterator().next().getInteger(0));
-    }
-
-    private Uni<SharingPreviewDTO> toPendingApprovalPreviewDTO(Row row) {
-        SharingPreviewDTO dto = new SharingPreviewDTO();
-        UUID sfId = row.getUUID("id");
-        dto.setId(sfId);
-        dto.setTitle(row.getString("title"));
-        dto.setArtist(row.getString("artist"));
-        dto.setType(PlaylistItemType.valueOf(row.getString("type")));
-        dto.setAlbum(row.getString("album"));
-        dto.setRegDate(row.getOffsetDateTime("reg_date").toZonedDateTime());
-        dto.setStatus(row.getInteger("status"));
-        dto.setOrigin("SUBMISSION");
-        dto.setBoost(0);
-        return loadPendingGenres(sfId).chain(genres -> {
-            dto.setGenres(genres);
-            return loadPendingLabels(sfId);
-        }).map(labels -> {
-            dto.setLabels(labels);
-            return dto;
-        });
-    }
-
-    private Uni<List<UUID>> loadPendingGenres(UUID soundFragmentId) {
-        String sql = "SELECT g.id FROM __genres g " +
-                "JOIN mixpla__sound_fragment_genres sfg ON g.id = sfg.genre_id " +
-                "WHERE sfg.sound_fragment_id = $1 ORDER BY g.identifier";
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(soundFragmentId))
-                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
-                .onItem().transform(r -> r.getUUID("id"))
-                .collect().asList();
-    }
-
-    private Uni<List<UUID>> loadPendingLabels(UUID soundFragmentId) {
-        String sql = "SELECT label_id FROM mixpla__sound_fragment_labels WHERE id = $1";
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(soundFragmentId))
-                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
-                .onItem().transform(r -> r.getUUID("label_id"))
-                .collect().asList();
-    }
-
-    public Uni<SharingPreviewDTO> findPendingApprovalById(UUID id, long userId) {
-        String sql = "SELECT sf.id, sf.title, sf.artist, sf.type, sf.album, sf.reg_date, sf.status " +
-                "FROM " + entityData.getTableName() + " sf " +
-                "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = sf.id " +
-                "WHERE sf.id = $1 AND rls.reader = $2 AND sf.source = 'CONTRIBUTION'" +
-                " AND sf.archived = 0 LIMIT 1";
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(id, userId))
-                .onItem().transformToUni(rows -> {
-                    if (!rows.iterator().hasNext()) {
-                        throw new DocumentHasNotFoundException(id);
-                    }
-                    return toPendingApprovalPreviewDTO(rows.iterator().next());
-                });
-    }
-
-    public Uni<Integer> approvePendingFragment(UUID id, long userId) {
-        return updatePendingFragmentStatus(id, userId, LifecycleStatus.APPROVED.getCode());
-    }
-
-    public Uni<Integer> rejectPendingFragment(UUID id, long userId) {
-        return updatePendingFragmentStatus(id, userId, LifecycleStatus.REJECTED.getCode());
-    }
-
-    private Uni<Integer> updatePendingFragmentStatus(UUID id, long userId, int newStatus) {
-        String sql = "UPDATE " + entityData.getTableName() + " SET status = $1, last_mod_date = NOW() " +
-                "WHERE id = $2 AND status = " + LifecycleStatus.NOT_APPROVED.getCode() +
-                " AND id IN (SELECT entity_id FROM " + entityData.getRlsName() + " WHERE reader = $3)";
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(newStatus, id, userId))
-                .onItem().transform(SqlResult::rowCount);
     }
 
     private Uni<RowSet<Row>> updateSoundFragmentRecord(SqlClient tx, UUID id, SoundFragment doc, IUser user, OffsetDateTime nowTime) {
