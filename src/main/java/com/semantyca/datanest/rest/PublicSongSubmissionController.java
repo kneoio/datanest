@@ -46,6 +46,14 @@ public class PublicSongSubmissionController {
         router.post(base + "/songs/request-code").handler(BodyHandler.create()).handler(this::requestCode);
         router.post(base + "/songs/upload").handler(this::upload);
         router.post(base + "/songs/chunk").handler(this::uploadChunk);
+        router.get(base + "/songs/status/:batchId/stream").handler(this::streamProgress);
+    }
+
+    // Reuses the exact same SSE progress mechanism as the authenticated bulk upload
+    // (SoundFragmentBulkUploadController) — both poll FileUploadService.bulkUploadProgressMap,
+    // keyed by batchId, which is already populated for public submissions too.
+    private void streamProgress(RoutingContext rc) {
+        fileUploadService.streamBulkProgress(rc, rc.pathParam("batchId"));
     }
 
     private void getStations(RoutingContext rc) {

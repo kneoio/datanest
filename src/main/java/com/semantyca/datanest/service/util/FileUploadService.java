@@ -10,6 +10,7 @@ import com.semantyca.datanest.service.manipulation.AudioMetadataService;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
+import io.vertx.core.Vertx;
 import io.vertx.ext.web.RoutingContext;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -22,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -35,9 +37,12 @@ public class FileUploadService {
     // Must match PublicSongSubmissionController.CONTROLLER_KEY — anonymous public submissions
     // need station-owner approval, unlike an authenticated station owner's own bulk upload.
     private static final String PUBLIC_SUBMISSIONS_CONTROLLER_KEY = "public-submissions";
+    private static final long BULK_SSE_POLL_MS = 500L;
+    private static final long BULK_SSE_KEEPALIVE_MS = 30_000L;
     private final String uploadDirectory;
     private final AudioMetadataService audioMetadataService;
     private final SoundFragmentService soundFragmentService;
+    private final Vertx vertx;
     public final ConcurrentHashMap<String, UploadFileDTO> uploadProgressMap = new ConcurrentHashMap<>();
     public final ConcurrentHashMap<String, ConcurrentHashMap<String, UploadFileDTO>> bulkUploadProgressMap = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, UUID> batchBrandIdMap = new ConcurrentHashMap<>();
@@ -62,10 +67,11 @@ public class FileUploadService {
 
     @Inject
     public FileUploadService(DatanestConfig config, AudioMetadataService audioMetadataService,
-                             SoundFragmentService soundFragmentService) {
+                             SoundFragmentService soundFragmentService, Vertx vertx) {
         this.uploadDirectory = config.getPathUploads();
         this.audioMetadataService = audioMetadataService;
         this.soundFragmentService = soundFragmentService;
+        this.vertx = vertx;
     }
 
     public void validateUploadMeta(String originalFileName, String contentType) {
@@ -452,6 +458,51 @@ public class FileUploadService {
     public ConcurrentHashMap<String, UploadFileDTO> getBulkUploadProgress(String batchId) {
         ConcurrentHashMap<String, UploadFileDTO> files = bulkUploadProgressMap.get(batchId);
         return files != null ? files : new ConcurrentHashMap<>();
+    }
+
+    // Shared by SoundFragmentBulkUploadController (authenticated bulk upload) and
+    // PublicSongSubmissionController (anonymous public submission) — both poll the same
+    // bulkUploadProgressMap, keyed by batchId, so the SSE polling/keepalive logic only needs
+    // to exist once.
+    public void streamBulkProgress(RoutingContext rc, String batchId) {
+        rc.response()
+                .putHeader("Content-Type", "text/event-stream")
+                .putHeader("Cache-Control", "no-cache")
+                .setChunked(true);
+
+        ConcurrentHashMap<String, UploadFileDTO> snapshot = getBulkUploadProgress(batchId);
+        if (!snapshot.isEmpty()) {
+            rc.response().write("data: " + io.vertx.core.json.Json.encode(snapshot) + "\n\n");
+            if (allBulkFilesTerminal(snapshot)) {
+                rc.response().end();
+                return;
+            }
+        }
+
+        final long[] timerIds = new long[2];
+        timerIds[1] = vertx.setPeriodic(BULK_SSE_KEEPALIVE_MS, id -> rc.response().write(":\n\n"));
+        timerIds[0] = vertx.setPeriodic(BULK_SSE_POLL_MS, id -> {
+            ConcurrentHashMap<String, UploadFileDTO> files = getBulkUploadProgress(batchId);
+            if (!files.isEmpty()) {
+                rc.response().write("data: " + io.vertx.core.json.Json.encode(files) + "\n\n");
+                if (allBulkFilesTerminal(files)) {
+                    vertx.cancelTimer(timerIds[0]);
+                    vertx.cancelTimer(timerIds[1]);
+                    rc.response().end();
+                }
+            }
+        });
+
+        rc.request().connection().closeHandler(v -> {
+            vertx.cancelTimer(timerIds[0]);
+            vertx.cancelTimer(timerIds[1]);
+        });
+    }
+
+    private static boolean allBulkFilesTerminal(Map<String, UploadFileDTO> files) {
+        return !files.isEmpty()
+                && files.values().stream()
+                .allMatch(f -> "finished".equals(f.getStatus()) || "error".equals(f.getStatus()));
     }
 
     private String sanitizeAndValidateFilename(String originalFileName, IUser user) {

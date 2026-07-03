@@ -4,10 +4,8 @@ import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.repository.exception.UserNotFoundException;
 import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
-import com.semantyca.datanest.dto.UploadFileDTO;
 import com.semantyca.datanest.service.util.FileUploadService;
 import com.semantyca.mixpla.model.soundfragment.SoundFragment;
-import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
@@ -16,18 +14,11 @@ import jakarta.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 @ApplicationScoped
 public class SoundFragmentBulkUploadController extends AbstractSecuredController<SoundFragment, SoundFragmentDTO> {
     private static final Logger LOGGER = LoggerFactory.getLogger(SoundFragmentBulkUploadController.class);
 
-    private static final long BULK_SSE_POLL_MS = 500L;
-    private static final long BULK_SSE_KEEPALIVE_MS = 30_000L;
-
     private FileUploadService fileUploadService;
-    private Vertx vertx;
 
     public SoundFragmentBulkUploadController() {
         super(null);
@@ -35,11 +26,9 @@ public class SoundFragmentBulkUploadController extends AbstractSecuredController
 
     @Inject
     public SoundFragmentBulkUploadController(UserService userService,
-                                             FileUploadService fileUploadService,
-                                             Vertx vertx) {
+                                             FileUploadService fileUploadService) {
         super(userService);
         this.fileUploadService = fileUploadService;
-        this.vertx = vertx;
     }
 
     public void setupRoutes(Router router) {
@@ -140,46 +129,7 @@ public class SoundFragmentBulkUploadController extends AbstractSecuredController
     }
 
     private void streamProgress(RoutingContext rc) {
-        String batchId = rc.pathParam("batchId");
-
-        rc.response()
-                .putHeader("Content-Type", "text/event-stream")
-                .putHeader("Cache-Control", "no-cache")
-                .setChunked(true);
-
-        ConcurrentHashMap<String, UploadFileDTO> snapshot = fileUploadService.getBulkUploadProgress(batchId);
-        if (!snapshot.isEmpty()) {
-            rc.response().write("data: " + io.vertx.core.json.Json.encode(snapshot) + "\n\n");
-            if (allBulkFilesTerminal(snapshot)) {
-                rc.response().end();
-                return;
-            }
-        }
-
-        final long[] timerIds = new long[2];
-        timerIds[1] = vertx.setPeriodic(BULK_SSE_KEEPALIVE_MS, id -> rc.response().write(":\n\n"));
-        timerIds[0] = vertx.setPeriodic(BULK_SSE_POLL_MS, id -> {
-            ConcurrentHashMap<String, UploadFileDTO> files = fileUploadService.getBulkUploadProgress(batchId);
-            if (!files.isEmpty()) {
-                rc.response().write("data: " + io.vertx.core.json.Json.encode(files) + "\n\n");
-                if (allBulkFilesTerminal(files)) {
-                    vertx.cancelTimer(timerIds[0]);
-                    vertx.cancelTimer(timerIds[1]);
-                    rc.response().end();
-                }
-            }
-        });
-
-        rc.request().connection().closeHandler(v -> {
-            vertx.cancelTimer(timerIds[0]);
-            vertx.cancelTimer(timerIds[1]);
-        });
-    }
-
-    private static boolean allBulkFilesTerminal(Map<String, UploadFileDTO> files) {
-        return !files.isEmpty()
-                && files.values().stream()
-                .allMatch(f -> "finished".equals(f.getStatus()) || "error".equals(f.getStatus()));
+        fileUploadService.streamBulkProgress(rc, rc.pathParam("batchId"));
     }
 
     protected void handleFailure(RoutingContext rc, Throwable throwable) {
