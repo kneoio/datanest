@@ -330,10 +330,24 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .collect().asList();
     }
 
+    // Grants share-entity RLS (on the SharedSoundFragment row, not the underlying fragment) to the
+    // target brand's owner AND co-owners, so all of them see the offer in their "received" inbox.
+    // grantFromJsonField only ever extracted the single scalar owner->>'userId' - co-owners were
+    // never granted at all. Mirrors grantFragmentRlsToBrand's owner+coOwners pattern.
     private Uni<Void> insertRlsForReceivers(SqlClient tx, UUID entityId, long sourceUserId, UUID targetBrandId) {
-        Uni<Void> brandOwnerRls = RlsActionUtil.grantFromJsonField(tx, entityData.getRlsName(), entityId, BRANDS_TABLE, targetBrandId, "owner", "userId", false, false);
-        return brandOwnerRls
-                .chain(() -> RlsActionUtil.ensureSuperUserAccess(tx, entityData.getRlsName(), entityId));
+        String rlsTable = entityData.getRlsName();
+        String ownerSql = "INSERT INTO " + rlsTable + " (reader, entity_id, can_edit, can_delete) " +
+                "SELECT (b.owner->>'userId')::bigint, $1, false, false " +
+                "FROM " + BRANDS_TABLE + " b WHERE b.id = $2 AND b.owner->>'userId' IS NOT NULL " +
+                "ON CONFLICT (reader, entity_id) DO UPDATE SET reading_time = now()";
+        String coOwnersSql = "INSERT INTO " + rlsTable + " (reader, entity_id, can_edit, can_delete) " +
+                "SELECT (co->>'userId')::bigint, $1, false, false " +
+                "FROM " + BRANDS_TABLE + " b, jsonb_array_elements(COALESCE(b.owner->'coOwners', '[]'::jsonb)) co " +
+                "WHERE b.id = $2 AND co->>'userId' IS NOT NULL " +
+                "ON CONFLICT (reader, entity_id) DO UPDATE SET reading_time = now()";
+        return tx.preparedQuery(ownerSql).execute(Tuple.of(entityId, targetBrandId))
+                .chain(() -> tx.preparedQuery(coOwnersSql).execute(Tuple.of(entityId, targetBrandId)))
+                .chain(() -> RlsActionUtil.ensureSuperUserAccess(tx, rlsTable, entityId));
     }
 
     private Tuple buildInsertTuple(SharedSoundFragment entity) {

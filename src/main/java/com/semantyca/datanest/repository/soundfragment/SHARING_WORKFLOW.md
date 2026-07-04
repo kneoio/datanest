@@ -16,7 +16,7 @@ tables, granted at two separate times:
 
 | Layer | Table | Granted to | Granted when |
 |---|---|---|---|
-| Share-entity RLS | `mixpla__shared_sound_fragment_readers` (entity_id = the `SharedSoundFragment` row) | target brand's **owner** + `SuperUser` (`insertRlsForReceivers`) | immediately at share creation |
+| Share-entity RLS | `mixpla__shared_sound_fragment_readers` (entity_id = the `SharedSoundFragment` row) | target brand's owner **+ co-owners** + `SuperUser` (`insertRlsForReceivers`) | immediately at share creation |
 | Fragment RLS | `mixpla__sound_fragment_readers` (entity_id = the `SoundFragment` row) | target brand's owner **+ co-owners** (`grantFragmentRlsToBrand`) | only on **accept** |
 
 The share-entity RLS is what makes the offer show up in the target station owner's `/received` inbox
@@ -28,8 +28,9 @@ that's the fragment-RLS layer, untouched until acceptance. This two-layer split 
 mechanism reusable for contributions: an artist who submits a song via chat or the public web form
 isn't a station owner and doesn't get station RLS granted directly on the fragment — instead the
 fragment is created bare (visible only to the submitter's own account) and a PENDING share is created
-pointing at the target station, with share-entity RLS granted to that station's owner so the offer is
-reviewable. The station only gets fragment-level access once it **accepts**.
+pointing at the target station, with share-entity RLS granted to that station's owner and co-owners
+so the offer is reviewable by any of them. The station only gets fragment-level access once it
+**accepts**.
 
 This also fixed a real bug: previously, a contributor who later registered a real `mixdeck` account
 could never see their own submission again, because the fragment already had a brand association at
@@ -84,9 +85,10 @@ doesn't match the target's usual genres; the human reviewer decides.
 
 Both are gated by an RLS-reader subquery against the **share-entity** RLS table
 (`mixpla__shared_sound_fragment_readers`, not the fragment's own) — the caller must actually be a
-granted reader of that share. See §0 for the two-RLS-layer split; note the asymmetry: only the
-brand **owner** gets a share-entity reader row at creation, but both owner **and co-owners** get
-fragment RLS on accept.
+granted reader of that share. See §0 for the two-RLS-layer split — both layers grant owner **and**
+co-owners (`insertRlsForReceivers` was fixed to match `grantFragmentRlsToBrand`'s pattern; it used to
+extract only the single scalar `owner->>'userId'` via `RlsActionUtil.grantFromJsonField`, silently
+never granting co-owners a share-entity reader row at all).
 
 If a contribution's fragment ends up shared to more than one station (e.g. the submitter also sent it
 directly, or a station that received it re-shares it onward), each target station has its own
