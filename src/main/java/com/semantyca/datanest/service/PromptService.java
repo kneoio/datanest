@@ -1,6 +1,7 @@
 package com.semantyca.datanest.service;
 
 import com.semantyca.core.dto.DocumentAccessDTO;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.model.user.IUser;
@@ -8,7 +9,6 @@ import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.script.PromptDTO;
 import com.semantyca.datanest.dto.script.PromptOptionDTO;
-import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.datanest.repository.prompt.PromptRepository;
 import com.semantyca.mixpla.model.DjPrompt;
 import com.semantyca.mixpla.model.filter.PromptFilter;

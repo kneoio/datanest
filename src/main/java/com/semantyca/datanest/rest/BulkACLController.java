@@ -1,10 +1,10 @@
 package com.semantyca.datanest.rest;
 
 import com.semantyca.core.controller.AbstractSecuredController;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.repository.exception.UserNotFoundException;
 import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.BulkACLRequestDTO;
-import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.datanest.service.BulkACLService;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonArray;

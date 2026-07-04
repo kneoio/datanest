@@ -2,7 +2,6 @@ package com.semantyca.datanest.service;
 
 import com.semantyca.core.dto.DocumentAccessDTO;
 import com.semantyca.core.dto.rls.RlsActionDTO;
-import com.semantyca.core.model.ScriptVariable;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.model.user.IUser;
@@ -13,15 +12,13 @@ import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.dto.BrandScriptDTO;
 import com.semantyca.datanest.dto.DraftDTO;
 import com.semantyca.datanest.dto.LabelFlatDTO;
+import com.semantyca.datanest.dto.PlaylistRequestDTO;
 import com.semantyca.datanest.dto.script.PromptDTO;
 import com.semantyca.datanest.dto.script.SceneDTO;
 import com.semantyca.datanest.dto.script.ScenePromptDTO;
 import com.semantyca.datanest.dto.script.ScriptDTO;
 import com.semantyca.datanest.dto.script.ScriptExportDTO;
-
-import static com.semantyca.datanest.dto.script.CustomActionDTO.AVAILABLE_CONTEXT_VARS;
 import com.semantyca.datanest.dto.script.ScriptFlatDTO;
-import com.semantyca.datanest.dto.PlaylistRequestDTO;
 import com.semantyca.datanest.repository.ScriptRepository;
 import com.semantyca.mixpla.model.BrandScript;
 import com.semantyca.mixpla.model.DjPrompt;
@@ -45,6 +42,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
+import static com.semantyca.datanest.dto.script.CustomActionDTO.AVAILABLE_CONTEXT_VARS;
 
 @ApplicationScoped
 public class ScriptService extends AbstractService<Script, ScriptDTO> {

@@ -8,6 +8,7 @@
     import com.semantyca.core.dto.view.ViewPage;
     import com.semantyca.core.model.FileMetadata;
     import com.semantyca.core.model.cnst.LanguageCode;
+    import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
     import com.semantyca.core.service.UserService;
     import com.semantyca.core.util.ProblemDetailsUtil;
     import com.semantyca.core.util.RuntimeUtil;
@@ -36,10 +37,14 @@
     import org.slf4j.Logger;
     import org.slf4j.LoggerFactory;
 
-    import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
-
     import java.io.FileNotFoundException;
-    import java.util.*;
+    import java.util.ArrayList;
+    import java.util.EnumMap;
+    import java.util.HashMap;
+    import java.util.List;
+    import java.util.Map;
+    import java.util.Set;
+    import java.util.UUID;
     import java.util.stream.Collectors;
 
     @ApplicationScoped

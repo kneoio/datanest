@@ -4,8 +4,8 @@ import com.semantyca.mixpla.model.ScenePrompt;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.OffsetDateTime;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Setter

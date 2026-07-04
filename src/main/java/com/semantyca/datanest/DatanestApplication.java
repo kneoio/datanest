@@ -1,6 +1,24 @@
 package com.semantyca.datanest;
 
-import com.semantyca.datanest.rest.*;
+import com.semantyca.datanest.rest.AiAgentController;
+import com.semantyca.datanest.rest.ArtistController;
+import com.semantyca.datanest.rest.BrandAgentStatsController;
+import com.semantyca.datanest.rest.BrandController;
+import com.semantyca.datanest.rest.BulkACLController;
+import com.semantyca.datanest.rest.ChatSummaryController;
+import com.semantyca.datanest.rest.DraftController;
+import com.semantyca.datanest.rest.EventController;
+import com.semantyca.datanest.rest.ListenerController;
+import com.semantyca.datanest.rest.ProfileController;
+import com.semantyca.datanest.rest.PromptController;
+import com.semantyca.datanest.rest.PublicSongSubmissionController;
+import com.semantyca.datanest.rest.RefController;
+import com.semantyca.datanest.rest.SceneController;
+import com.semantyca.datanest.rest.ScriptController;
+import com.semantyca.datanest.rest.SharedSoundFragmentController;
+import com.semantyca.datanest.rest.SoundFragmentBulkUploadController;
+import com.semantyca.datanest.rest.SoundFragmentController;
+import com.semantyca.datanest.rest.UserAdController;
 import io.vertx.ext.web.Router;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;

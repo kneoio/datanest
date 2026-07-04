@@ -29,7 +29,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import static com.semantyca.mixpla.repository.MixplaNameResolver.*;
+import static com.semantyca.mixpla.repository.MixplaNameResolver.RADIO_STATION;
+import static com.semantyca.mixpla.repository.MixplaNameResolver.SCRIPT;
+import static com.semantyca.mixpla.repository.MixplaNameResolver.SCRIPT_SCENE;
 
 @ApplicationScoped
 public class BrandPubRepository extends AsyncRepository {

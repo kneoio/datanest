@@ -14,7 +14,12 @@ import com.semantyca.core.repository.exception.DocumentModificationAccessExcepti
 import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.rls.RlsActionUtil;
 import com.semantyca.core.repository.table.EntityData;
-import com.semantyca.mixpla.model.brand.*;
+import com.semantyca.mixpla.model.brand.AiOverriding;
+import com.semantyca.mixpla.model.brand.Brand;
+import com.semantyca.mixpla.model.brand.BrandScriptEntry;
+import com.semantyca.mixpla.model.brand.Owner;
+import com.semantyca.mixpla.model.brand.ProfileOverriding;
+import com.semantyca.mixpla.model.brand.StreamingOptions;
 import com.semantyca.mixpla.model.cnst.ManagedBy;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
 import com.semantyca.mixpla.model.filter.BrandFilter;
@@ -24,7 +29,11 @@ import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.mutiny.sqlclient.*;
+import io.vertx.mutiny.sqlclient.Pool;
+import io.vertx.mutiny.sqlclient.Row;
+import io.vertx.mutiny.sqlclient.RowSet;
+import io.vertx.mutiny.sqlclient.SqlClient;
+import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
@@ -37,7 +46,9 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
 
-import static com.semantyca.mixpla.repository.MixplaNameResolver.*;
+import static com.semantyca.mixpla.repository.MixplaNameResolver.LISTENER;
+import static com.semantyca.mixpla.repository.MixplaNameResolver.RADIO_STATION;
+import static com.semantyca.mixpla.repository.MixplaNameResolver.SOUND_FRAGMENT;
 
 @ApplicationScoped
 public class BrandRepository extends AsyncRepository {

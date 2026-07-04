@@ -1,13 +1,13 @@
 package com.semantyca.datanest.service;
 
 import com.semantyca.core.dto.DocumentAccessDTO;
+import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.ProfileDTO;
 import com.semantyca.datanest.dto.ProfileFlatDTO;
-import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.datanest.repository.ProfileRepository;
 import com.semantyca.mixpla.model.Profile;
 import io.smallrye.mutiny.Uni;

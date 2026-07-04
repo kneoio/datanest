@@ -13,7 +13,6 @@ import com.semantyca.datanest.model.ChatSummary;
 import com.semantyca.datanest.service.ChatSummaryService;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.tuples.Tuple2;
-import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;

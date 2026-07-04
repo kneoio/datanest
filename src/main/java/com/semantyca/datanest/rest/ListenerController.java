@@ -16,7 +16,6 @@ import com.semantyca.mixpla.model.Listener;
 import com.semantyca.mixpla.model.filter.ListenerFilter;
 import com.semantyca.officeframe.model.cnst.CountryCode;
 import io.smallrye.mutiny.Uni;
-import java.util.UUID;
 import io.smallrye.mutiny.tuples.Tuple2;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
