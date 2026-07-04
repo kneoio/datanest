@@ -116,7 +116,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     // which made it vanish for good the instant it was rejected, with no way back to delete it.
     public Uni<Integer> rejectByReceiver(UUID shareId, long userId) {
         String selectSql = "SELECT id, sound_fragment_id, target_brand_id FROM " + entityData.getTableName() +
-                " WHERE id = $1 AND id IN (SELECT entity_id FROM " + entityData.getRlsName() + " WHERE reader = $2)";
+                " WHERE id = $1 AND archived = 0 AND id IN (SELECT entity_id FROM " + entityData.getRlsName() + " WHERE reader = $2)";
         String updateStatusSql = "UPDATE " + entityData.getTableName() + " SET status = " + ApprovalStatus.REJECTED.value() + ", last_mod_date = NOW() WHERE id = $1";
         String deleteBsfSql = "DELETE FROM mixpla__brand_sound_fragments WHERE sound_fragment_id = $1 AND brand_id = $2";
         return client.withTransaction(tx ->
@@ -151,7 +151,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
 
     public Uni<Integer> acceptByReceiver(UUID shareId, long userId) {
         String selectSql = "SELECT id, sound_fragment_id, target_brand_id FROM " + entityData.getTableName() +
-                " WHERE id = $1 AND id IN (SELECT entity_id FROM " + entityData.getRlsName() + " WHERE reader = $2)";
+                " WHERE id = $1 AND archived = 0 AND id IN (SELECT entity_id FROM " + entityData.getRlsName() + " WHERE reader = $2)";
         String updateStatusSql = "UPDATE " + entityData.getTableName() + " SET status = " + ApprovalStatus.ACCEPTED.value() + ", last_mod_date = NOW() WHERE id = $1";
         String insertBsfSql = "INSERT INTO mixpla__brand_sound_fragments " +
                 "(brand_id, sound_fragment_id, played_by_brand_count, last_time_played_by_brand) " +

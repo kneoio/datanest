@@ -60,6 +60,12 @@ station **accepts** the share (`SharedSoundFragmentRepository.acceptByReceiver` 
 `grantFragmentRlsToBrand`). Follow this pattern (grant on acceptance, not on offer) for any similar
 "offer, then the other side opts in" feature.
 
+One deliberate, narrow exception: a receiver can preview a still-PENDING share's audio before
+deciding, via a query that bypasses fragment RLS entirely (safe only because it's gated by the
+share-entity RLS check that already ran first) — see `soundfragment/SHARING_WORKFLOW.md` §2b. That
+section also flags an adjacent, unrelated, **not yet fixed** gap: the actual file-serving endpoint
+doesn't appear to enforce fragment RLS at all, for anyone, independent of the preview feature.
+
 ---
 
 ## Rules
