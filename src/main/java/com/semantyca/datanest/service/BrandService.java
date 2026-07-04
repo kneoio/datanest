@@ -406,7 +406,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         List<Uni<Void>> resolutions = new ArrayList<>();
         OwnerDTO owner = dto.getOwner();
 
-        if (owner.getUserId() == null && owner.getEmail() != null) {
+        if (owner.getEmail() != null) {
             resolutions.add(userService.findByEmail(owner.getEmail())
                     .onFailure().recoverWithNull()
                     .invoke(u -> {
@@ -420,7 +420,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
         if (owner.getCoOwners() != null) {
             for (OwnerDTO co : owner.getCoOwners()) {
-                if (co.getUserId() == null && co.getEmail() != null) {
+                if (co.getEmail() != null) {
                     resolutions.add(userService.findByEmail(co.getEmail())
                             .onFailure().recoverWithNull()
                             .invoke(u -> {
