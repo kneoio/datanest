@@ -54,8 +54,11 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
         router.route(HttpMethod.GET,    path + "/received/:id").handler(this::getReceivedDoc);
         // receiver: accept a received share — sets status 500 (OPEN) and adds song to brand playlist
         router.route(HttpMethod.PATCH,  path + "/received/:id/accept").handler(this::acceptShareByReceiver);
-        // receiver: reject a received share — removes RLS access, marks status 501, main record stays
-        router.route(HttpMethod.DELETE, path + "/received/:id").handler(this::rejectShareByReceiver);
+        // receiver: reject a received share — marks status 501, keeps RLS/visibility so it stays
+        // in the inbox as a rejected item until the receiver removes it via DELETE below
+        router.route(HttpMethod.PATCH,  path + "/received/:id/reject").handler(this::rejectShareByReceiver);
+        // receiver: delete an already-rejected share — sets archived=1, only works once status is REJECTED
+        router.route(HttpMethod.DELETE, path + "/received/:id").handler(this::archiveRejectedByReceiver);
 
         //--- only for 42next ---
         router.route(HttpMethod.GET,    path + "/received/:id/access").handler(this::getDocumentAccess);
@@ -118,6 +121,16 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
                 .chain(user -> sharedSoundFragmentService.rejectShareByReceiver(shareId, user))
                 .subscribe().with(
                         count -> rc.response().setStatusCode(204).end(),
+                        t -> handleFailure(rc, t)
+                );
+    }
+
+    private void archiveRejectedByReceiver(RoutingContext rc) {
+        UUID shareId = UUID.fromString(rc.pathParam("id"));
+        getContextUser(rc, false, true)
+                .chain(user -> sharedSoundFragmentService.archiveRejectedShareByReceiver(shareId, user))
+                .subscribe().with(
+                        count -> rc.response().setStatusCode(count > 0 ? 204 : 404).end(),
                         t -> handleFailure(rc, t)
                 );
     }

@@ -47,6 +47,10 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return repository.rejectByReceiver(shareId, user.getId());
     }
 
+    public Uni<Integer> archiveRejectedShareByReceiver(UUID shareId, IUser user) {
+        return repository.archiveByReceiver(shareId, user.getId());
+    }
+
     public Uni<Integer> acceptShareByReceiver(UUID shareId, IUser user) {
         return repository.acceptByReceiver(shareId, user.getId());
     }

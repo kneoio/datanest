@@ -107,10 +107,13 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 });
     }
 
+    // Rejecting keeps the share (and everyone's RLS reader row) intact - only status flips to
+    // REJECTED - so it stays visible to the receiver as a rejected item until they explicitly
+    // remove it via archiveByReceiver. Previously this also wiped every reader row on the share,
+    // which made it vanish for good the instant it was rejected, with no way back to delete it.
     public Uni<Integer> rejectByReceiver(UUID shareId, long userId) {
         String selectSql = "SELECT id, sound_fragment_id, target_brand_id FROM " + entityData.getTableName() +
                 " WHERE id = $1 AND id IN (SELECT entity_id FROM " + entityData.getRlsName() + " WHERE reader = $2)";
-        String deleteRlsSql = "DELETE FROM " + entityData.getRlsName() + " WHERE entity_id = $1";
         String updateStatusSql = "UPDATE " + entityData.getTableName() + " SET status = " + ApprovalStatus.REJECTED.value() + ", last_mod_date = NOW() WHERE id = $1";
         String deleteBsfSql = "DELETE FROM mixpla__brand_sound_fragments WHERE sound_fragment_id = $1 AND brand_id = $2";
         return client.withTransaction(tx ->
@@ -124,12 +127,23 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                             UUID entityId = row.getUUID("id");
                             UUID soundFragmentId = row.getUUID("sound_fragment_id");
                             UUID targetBrandId = row.getUUID("target_brand_id");
-                            return tx.preparedQuery(deleteRlsSql).execute(Tuple.of(entityId))
-                                    .chain(() -> tx.preparedQuery(updateStatusSql).execute(Tuple.of(entityId)))
+                            return tx.preparedQuery(updateStatusSql).execute(Tuple.of(entityId))
                                     .chain(() -> tx.preparedQuery(deleteBsfSql).execute(Tuple.of(soundFragmentId, targetBrandId)))
                                     .replaceWith(1);
                         })
         );
+    }
+
+    // Receiver's own "delete" of a share they already rejected - the actual removal step that
+    // used to happen automatically on reject. Gated on status = REJECTED so this can't be used
+    // to silently drop access to a still-PENDING or already-ACCEPTED share.
+    public Uni<Integer> archiveByReceiver(UUID shareId, long userId) {
+        String sql = "UPDATE " + entityData.getTableName() + " SET archived = 1, last_mod_date = NOW() " +
+                "WHERE id = $1 AND status = " + ApprovalStatus.REJECTED.value() +
+                " AND id IN (SELECT entity_id FROM " + entityData.getRlsName() + " WHERE reader = $2)";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(shareId, userId))
+                .onItem().transform(SqlResult::rowCount);
     }
 
     public Uni<Integer> acceptByReceiver(UUID shareId, long userId) {
