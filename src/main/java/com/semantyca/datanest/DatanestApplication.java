@@ -12,6 +12,7 @@ import com.semantyca.datanest.rest.ListenerController;
 import com.semantyca.datanest.rest.ProfileController;
 import com.semantyca.datanest.rest.PromptController;
 import com.semantyca.datanest.rest.PublicSongSubmissionController;
+import com.semantyca.datanest.rest.PublicSoundFragmentController;
 import com.semantyca.datanest.rest.RefController;
 import com.semantyca.datanest.rest.SceneController;
 import com.semantyca.datanest.rest.ScriptController;
