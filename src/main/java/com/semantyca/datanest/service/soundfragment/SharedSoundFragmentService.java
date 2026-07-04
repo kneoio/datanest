@@ -1,12 +1,14 @@
 package com.semantyca.datanest.service.soundfragment;
 
 import com.semantyca.core.dto.DocumentAccessDTO;
+import com.semantyca.core.model.cnst.FileType;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.SharePatchDTO;
+import com.semantyca.datanest.dto.UploadFileDTO;
 import com.semantyca.datanest.dto.sharing.ShareDTO;
 import com.semantyca.datanest.dto.sharing.SharingPreviewDTO;
 import com.semantyca.datanest.model.cnst.ApprovalStatus;
@@ -186,6 +188,16 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         dto.setTargetBrandName(e.getTargetBrandName());
         dto.setBoost(e.getBoost() != null ? e.getBoost() : 0);
         dto.setStatus(e.getStatus());
+        if (e.getFileMetadataList() != null && !e.getFileMetadataList().isEmpty()) {
+            dto.setUploadedFiles(e.getFileMetadataList().stream().map(meta -> {
+                UploadFileDTO fileDto = new UploadFileDTO();
+                fileDto.setId(meta.getSlugName());
+                fileDto.setName(meta.getFileOriginalName());
+                fileDto.setUrl("/soundfragments/files/" + e.getSoundFragmentId() + "/" + meta.getSlugName());
+                fileDto.setType(meta.getFileType() == FileType.OPUS_ENCODED_SOUND_FRAGMENT ? "opus" : "original");
+                return fileDto;
+            }).collect(Collectors.toList()));
+        }
         return dto;
     }
 

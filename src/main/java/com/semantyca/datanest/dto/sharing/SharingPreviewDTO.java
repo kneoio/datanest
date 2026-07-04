@@ -3,6 +3,7 @@ package com.semantyca.datanest.dto.sharing;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
 import com.semantyca.core.model.cnst.LanguageCode;
+import com.semantyca.datanest.dto.UploadFileDTO;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -29,4 +30,7 @@ public class SharingPreviewDTO extends AbstractDTO {
     private EnumMap<LanguageCode, String> targetBrandName;
     private int boost;
     private Integer status;
+    // Lets the receiver preview audio before accepting/rejecting - only populated on the
+    // single-item fetch (getById), not the paged received list.
+    private List<UploadFileDTO> uploadedFiles;
 }

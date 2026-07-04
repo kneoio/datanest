@@ -1,5 +1,6 @@
 package com.semantyca.datanest.model.soundfragment;
 
+import com.semantyca.core.model.FileMetadata;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import lombok.Getter;
@@ -42,4 +43,10 @@ public class SharedSoundFragment {
 
     // inflated from JOIN with brands table
     private EnumMap<LanguageCode, String> targetBrandName;
+
+    // inflated from a separate _files query - lets the receiver preview audio before deciding.
+    // Deliberately bypasses the fragment's own RLS (not granted until accept, see
+    // SHARING_WORKFLOW.md §0) - reachable only once the caller already passed the
+    // share-entity RLS check that gates the query populating this field.
+    private List<FileMetadata> fileMetadataList;
 }

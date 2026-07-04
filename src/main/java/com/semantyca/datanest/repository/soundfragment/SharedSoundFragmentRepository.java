@@ -1,6 +1,8 @@
 package com.semantyca.datanest.repository.soundfragment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.semantyca.core.model.FileMetadata;
+import com.semantyca.core.model.cnst.FileType;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.embedded.DocumentAccessInfo;
 import com.semantyca.core.model.user.IUser;
@@ -24,6 +26,7 @@ import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
@@ -296,6 +299,33 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                         throw new DocumentHasNotFoundException(id);
                     }
                     return fromSoundFragmentPreviewRow(rows.iterator().next());
+                })
+                .chain(this::attachPreviewFiles);
+    }
+
+    // Lets the receiver preview the audio before accepting/rejecting. Deliberately bypasses the
+    // fragment's own RLS gate (not granted until accept, see SHARING_WORKFLOW.md §0) - safe here
+    // because this is only reached after findById's own share-entity RLS check above already
+    // passed, so the caller is already an authorized reader of this specific share.
+    private Uni<SharedSoundFragment> attachPreviewFiles(SharedSoundFragment e) {
+        String sql = "SELECT slug_name, file_original_name, file_type FROM _files " +
+                "WHERE parent_table = '" + SF_TABLE + "' AND parent_id = $1 AND archived = 0 ORDER BY reg_date ASC";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(e.getSoundFragmentId()))
+                .onItem().transform(rows -> {
+                    List<FileMetadata> files = new ArrayList<>();
+                    for (Row row : rows) {
+                        FileMetadata meta = new FileMetadata();
+                        meta.setSlugName(row.getString("slug_name"));
+                        meta.setFileOriginalName(row.getString("file_original_name"));
+                        Integer fileTypeCode = row.getInteger("file_type");
+                        if (fileTypeCode != null && fileTypeCode != 0) {
+                            try { meta.setFileType(FileType.fromCode(fileTypeCode)); } catch (IllegalArgumentException ignored) {}
+                        }
+                        files.add(meta);
+                    }
+                    e.setFileMetadataList(files);
+                    return e;
                 });
     }
 
