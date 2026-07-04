@@ -52,6 +52,14 @@ write is rejected.
 Access is granted to other users by adding reader rows (via `RlsActionDTO` / `RlsActionUtil`),
 optionally with edit/delete rights — this is how a resource is shared between subscribers/admins.
 
+**Delayed grant on share/accept.** Sound fragment sharing (station-to-station, and artist
+contributions — see `soundfragment/SHARING_WORKFLOW.md`) is a variation
+on grant-on-insert: the target station gets **no** RLS row on the fragment at share-creation time,
+only on the receiver's own share entity. The fragment-level grant only happens when the target
+station **accepts** the share (`SharedSoundFragmentRepository.acceptByReceiver` →
+`grantFragmentRlsToBrand`). Follow this pattern (grant on acceptance, not on offer) for any similar
+"offer, then the other side opts in" feature.
+
 ---
 
 ## Rules

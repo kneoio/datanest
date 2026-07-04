@@ -1,14 +1,9 @@
 # Sharing Workflow — datanest
 
-A **share** is one entity (a station, or an outside artist submitting a song) offering a sound
+A **share** is one entity — a station, or an outside artist contributing a song — offering a sound
 fragment to a target station, who can accept or reject it. Everything lives in
 `mixpla__shared_sound_fragments` / `SharedSoundFragment`, tracked by one `ApprovalStatus` enum.
-
-**Station-to-station sharing and artist contributions are now the same mechanism.** There used to
-be two separate systems (a `SharedSoundFragment`/`ApprovalStatus` table for shares, and a
-`LifecycleStatus`-driven flag directly on the fragment for contributions) — see
-`CONTRIBUTION_WORKFLOW.md` in this same directory for why that was replaced and what it now looks
-like from the contribution side. This doc covers the mechanism itself.
+Station-to-station sharing and artist contributions are **the same mechanism**; this doc covers both.
 
 ---
 
@@ -26,6 +21,10 @@ could never see their own submission again, because the fragment already had a b
 creation time — which excluded it from the one page (`/sound-library/unassigned-to-brands`) that
 would otherwise show it to a plain registered user. Under this design the fragment has no brand
 association until accepted, so it always shows up there for the submitter in the meantime.
+
+Contributions used to be their own system entirely: a `LifecycleStatus`-driven `status` column
+checked directly on the fragment, with a direct brand association/RLS grant at creation. That's gone
+— `ApprovalStatus` (below) is the only status a contribution has, same as any other share.
 
 ---
 
@@ -71,6 +70,10 @@ doesn't match the target's usual genres; the human reviewer decides.
 Both are gated by an RLS-reader subquery — the caller must actually be a granted reader of that
 share.
 
+If a contribution's fragment ends up shared to more than one station (e.g. the submitter also sent it
+directly, or a station that received it re-shares it onward), each target station has its own
+independent share/status — accepting or rejecting for one station has no effect on another's.
+
 ---
 
 ## 3. Creating a share
@@ -82,14 +85,104 @@ funneling into the same `SharedSoundFragmentRepository.applyPatch`/`insertInTx`:
   fragments to one or more target brands (`validateAndBuildEntities`).
 - `shareContribution(soundFragmentId, targetBrandId, submitterUserId, submitterName, submitterEmail)`
   — called from `SoundFragmentService.createFromBulkUpload` right after a public/chat contribution's
-  fragment is inserted, when a target station was specified. See `CONTRIBUTION_WORKFLOW.md` for the
-  caller side.
+  fragment is inserted, when a target station was specified. See §4 for the contribution side.
 
 Both produce a `PENDING` share; there is no other status a freshly-created share can have.
 
 ---
 
-## 4. The "received" inbox
+## 4. Contribution entry points
+
+A **contribution** is a sound fragment submitted by an artist for a station owner to review — either
+through the AI chatbot (`jesoos`) or the public, unauthenticated web form (`mixdeck` `/submission`).
+Both entry points create a normal row in `mixpla__sound_fragments` tagged `source = CONTRIBUTION`,
+then — if a target station was specified — a share (§3) pointing at that station.
+
+| Entry point | Where | Auth |
+|---|---|---|
+| AI chatbot | `jesoos` — `service/chat/tools/UploadSongToolHandler` (not in this repo) | authenticated listener with the `artist` label |
+| Public web form | `rest/PublicSongSubmissionController` (`/datanest/public/songs/*`) | anonymous, gated by an emailed OTP code |
+
+Both eventually call `SoundFragmentService.createFromBulkUpload(...)` (jesoos calls it indirectly via
+its own upsert path; the web form goes through `FileUploadService`'s chunk-assembly pipeline). Only
+the **public web-form path** is documented in detail here — the chatbot path lives in the `jesoos`
+repo's own `CHAT_WORKFLOW.md`.
+
+### Public web-form flow (`PublicSongSubmissionController` → `FileUploadService` → `SoundFragmentService`)
+
+1. `POST /public/songs/request-code` — `OtpService.sendOtp(email)` generates a 6-digit code (10 min
+   TTL, in-memory `ConcurrentHashMap`), emails it. **Not consumed on success** — `isVerifyFail` stays
+   valid until it naturally expires, because it's re-checked on *every chunk* of a multi-chunk upload
+   and again for "submit another track" (a single-use code would break both).
+2. A fixed QA bypass exists: email `qa-test@mixpla.io` + code `424242` always verifies, bound to that
+   one address only — cannot be used to skip verification on a real submission.
+3. `POST /public/songs/chunk` (used by the FE) — `email`/`code` are required and re-validated on
+   **every** chunk request (`401` otherwise), to support multi-chunk uploads without a single-use
+   code. `stationSlug` is only required (and only read) on the **first** chunk (`chunkIndex == 0`) —
+   `FileUploadService.resolveBrandSlugIfNeeded` resolves it to a brand id once and caches it per
+   `batchId`, so later chunks don't need to resend it. Descriptive metadata (`artistName`, `genre`,
+   `country`, `description`) is likewise only read from the **last** chunk — it's the only one
+   `assembleAndProcess` ever uses it from. Chunks stream to disk; on the last chunk,
+   `FileUploadService.assembleAndProcess` extracts audio metadata (FFprobe via `AudioMetadataService`)
+   and calls `SoundFragmentService.createFromBulkUpload(..., requiresApproval=true, meta)`.
+4. Post-upload processing status (metadata extraction, entity creation) is polled via
+   `GET /public/songs/status/:batchId/stream` (SSE) — the same `FileUploadService.streamBulkProgress`
+   mechanism the authenticated bulk-upload dialog uses, reused as-is rather than duplicated, since both
+   poll the same `bulkUploadProgressMap` keyed by `batchId`.
+
+### `requiresApproval` — one method, two callers
+
+`createFromBulkUpload` is shared with `SoundFragmentBulkUploadController` (the **authenticated**
+station-owner bulk-upload feature — a different, unrelated flow: self-owned content, no review
+needed). `FileUploadService` derives `requiresApproval` from which `controllerKey` called it
+(`"public-submissions"` vs `"sound-fragments-controller"`), so:
+
+- `requiresApproval = false` (authenticated bulk upload): unchanged original behavior — `USER_UPLOAD`
+  source, direct brand association, no share involved.
+- `requiresApproval = true` (public/chat submission): `CONTRIBUTION` source, **no** brand association
+  at creation (`brandIds = List.of()`), RLS granted only to the submitter's resolved account (below)
+  and `SuperUser` directly on the fragment — and, when a target station was specified, a `PENDING`
+  share is created via `SharedSoundFragmentService.shareContribution(...)` right after insert.
+
+**Never** change this method's behavior without checking both call sites — a blanket change here
+would silently affect the authenticated station owner's own uploads.
+
+Both paths set `fragment.setStatus(1)` — a fixed placeholder value, not `LifecycleStatus` and not
+`ApprovalStatus`. The fragment itself no longer carries an approval status; the share does.
+
+### Silent account resolution (no separate "claim" step)
+
+`SoundFragmentService.resolveSubmitterAccount(email)` mirrors `ListenerService.ensureUserExists` (used
+for the chat-listener flow): resolve-or-create a real `core` user for the submitter's OTP-verified
+email, then grant that id RLS access on the fragment directly, alongside `SuperUser`
+(`userGrant(userId)`).
+
+If the submitter later registers for real via Keycloak with the same email, `core`'s own
+email-lookup-by-account reuses this id — they land with access to everything they ever submitted
+(via direct fragment RLS, and via the shares those submissions created), with no separate "claim my
+submissions" feature needed.
+
+**Station is optional at the API level**, but if none is given, no share is created — the fragment is
+still visible to the submitter's own resolved account but no station will ever see it. In practice
+`mixdeck`'s public submission form requires a station be chosen before allowing submission.
+
+---
+
+## 5. Where status is (and isn't) enforced
+
+| Query | Enforces status? |
+|---|---|
+| `SharedSoundFragmentRepository.getReceivedList`/`getReceivedListCount` (received queue) | No — shows every share regardless of `ApprovalStatus`, the FE renders status as a tag. |
+| `SoundFragmentBrandRepository.findForBrandFlat`/`findForBrandCount` (station's regular library page) | Implicitly — a fragment only appears here once `mixpla__brand_sound_fragments` has a row for that brand, which only happens on share acceptance. No separate status check is needed (an earlier `CONTRIBUTION`-specific status gate here was removed as part of this redesign — brand association itself is now sufficient gating). |
+| `jesoos`'s playback-agenda query | Out of scope for this repo. If it still special-cases `source = CONTRIBUTION` + a `LifecycleStatus` value, that check is obsolete under this design and should be reverted — a `CONTRIBUTION` fragment is eligible for playback exactly when it has a `mixpla__brand_sound_fragments` row, same as any other fragment. |
+
+If you add a **new** query that lists or selects sound fragments for a brand, you do not need a
+contribution-specific status gate — brand association (created only on share acceptance) is already
+the correct scope.
+
+---
+
+## 6. The "received" inbox
 
 `mixdeck`'s `/sound-library/received` (`PendingReviewView.vue`) lists shares for the current user via
 the existing `/shared-sound-fragments/received*` routes — plain, single-source queries against
@@ -97,7 +190,7 @@ the existing `/shared-sound-fragments/received*` routes — plain, single-source
 contributions are now just shares, no merge/dispatch logic is needed here — a contribution and a
 station-to-station offer are indistinguishable rows in this list, both driven by the one
 `ApprovalStatus` enum. The FE shows a single status tag (`PENDING`/`ACCEPTED`/`REJECTED`); there is no
-more "origin" concept to display.
+"origin" concept to display.
 
 `SharingPreviewDTO` (`dto/sharing/SharingPreviewDTO.java`) carries `title`, `artist`, `genres`,
 `labels`, `sharerUserName`/`sharerUserEmail`, `targetBrandName`, `boost`, `status` — no `origin` or
@@ -115,3 +208,9 @@ more "origin" concept to display.
 | Status enum | `model/cnst/ApprovalStatus.java` |
 | Received-inbox DTO | `dto/sharing/SharingPreviewDTO.java` |
 | Share entity model | `model/soundfragment/SharedSoundFragment.java` |
+| Public submission entry point | `rest/PublicSongSubmissionController.java` |
+| OTP verification | `service/OtpService.java` |
+| Chunk assembly / dispatch | `service/util/FileUploadService.java` |
+| Fragment creation, submitter resolution, share creation trigger | `service/soundfragment/SoundFragmentService.java` (`createFromBulkUpload`, `resolveSubmitterAccount`) |
+| Submission metadata carrier | `dto/PublicSubmissionMetaDTO.java` |
+| Chatbot entry point (other repo) | `jesoos` — `service/chat/tools/UploadSongToolHandler.java`, and that repo's `CHAT_WORKFLOW.md` |

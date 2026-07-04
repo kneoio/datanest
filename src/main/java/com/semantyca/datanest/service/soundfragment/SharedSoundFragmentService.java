@@ -58,10 +58,9 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
     // Creates a PENDING share from a submitter (an artist, resolved to a real core user account
     // by SoundFragmentService.resolveSubmitterAccount) to a target station. This is how a public/
     // chat contribution becomes visible to a station owner — via the exact same mechanism as an
-    // inter-station share, not a separate approval system. See CONTRIBUTION_WORKFLOW.md /
-    // SHARING_WORKFLOW.md. The underlying fragment has no brand association until this is
-    // accepted, so it shows up for the submitter's own account as "unassigned to brands" in the
-    // meantime.
+    // inter-station share, not a separate approval system. See SHARING_WORKFLOW.md. The underlying
+    // fragment has no brand association until this is accepted, so it shows up for the submitter's
+    // own account as "unassigned to brands" in the meantime.
     public Uni<Void> shareContribution(UUID soundFragmentId, UUID targetBrandId, Long submitterUserId,
                                         String submitterName, String submitterEmail) {
         SharedSoundFragment entity = new SharedSoundFragment();

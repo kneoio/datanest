@@ -12,10 +12,10 @@ datanest is a CRUD backend; it works with the `Mixdeck` (user) and `42next` (adm
 
 - `src/main/java/com/semantyca/datanest/repository/RLS_WORKFLOW.md` — how Row-Level Security scopes
   every read/write to the caller (ACL tables, grant-on-insert, sharing).
-- `src/main/java/com/semantyca/datanest/repository/soundfragment/CONTRIBUTION_WORKFLOW.md` — artist
-  submissions (chatbot + public web form), `LifecycleStatus`, RLS/submitter-account resolution.
 - `src/main/java/com/semantyca/datanest/repository/soundfragment/SHARING_WORKFLOW.md` — station-to-
-  station shares, `ApprovalStatus`, and the unified "received" inbox merge with contributions.
+  station shares **and** artist contributions (chatbot + public web form) — same
+  `SharedSoundFragment`/`ApprovalStatus` mechanism for both, plus submitter-account resolution and
+  the "received" inbox.
 - _(candidates)_ — one-time-stream data flow.
 
 ## datanest Conventions
