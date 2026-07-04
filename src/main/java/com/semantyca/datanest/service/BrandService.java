@@ -350,6 +350,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
             dto.setScriptMode(earlyMode);
             dto.setStreamingOptions(doc.getStreamingOptions());
+            dto.setChatFeatureFlags(doc.getChatFeatureFlags());
 
             if (ScriptMode.CUSTOM.equals(earlyMode) && doc.getCustomScriptId() != null) {
                 assert scriptService != null;
@@ -511,6 +512,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         }
         doc.setScriptMode(dto.getScriptMode() != null ? dto.getScriptMode().name() : ScriptMode.PREDEFINED.name());
         doc.setStreamingOptions(dto.getStreamingOptions());
+        doc.setChatFeatureFlags(dto.getChatFeatureFlags());
 
         return doc;
     }

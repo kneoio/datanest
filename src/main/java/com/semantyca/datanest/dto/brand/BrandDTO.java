@@ -12,6 +12,7 @@ import com.semantyca.datanest.dto.script.BrandScriptEntryDTO;
 import com.semantyca.datanest.dto.script.CustomScriptDTO;
 import com.semantyca.datanest.model.cnst.ScriptMode;
 import com.semantyca.mixpla.model.brand.StreamingOptions;
+import com.semantyca.mixpla.model.cnst.ChatFeatureFlag;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
@@ -24,7 +25,9 @@ import lombok.Setter;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Setter
@@ -83,6 +86,7 @@ public class BrandDTO extends AbstractDTO {
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<RlsActionDTO> rlsActions = new ArrayList<>();
     private boolean skipScriptValidation = false;
+    private Map<ChatFeatureFlag, Boolean> chatFeatureFlags = new HashMap<>();
 
     @JsonIgnore
     @AssertTrue(message = "Custom script must have at least one scene, and each scene must have at least one prompt or action")
