@@ -14,7 +14,6 @@ import com.semantyca.datanest.model.soundfragment.SharedSoundFragment;
 import com.semantyca.datanest.repository.soundfragment.SharedSoundFragmentRepository;
 import com.semantyca.datanest.repository.soundfragment.SoundFragmentRepository;
 import com.semantyca.datanest.service.BrandService;
-import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
 import com.semantyca.mixpla.model.soundfragment.SoundFragment;
 import io.smallrye.mutiny.Uni;
@@ -98,6 +97,12 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return repository.findById(id, user.getId()).map(this::toSharingPreviewDTO);
     }
 
+    // Slug names the source station attributing the share (its owner's name/email is recorded as
+    // sourceUserName/Email, shown to the receiver as "shared by"). A fragment with no brand
+    // association (e.g. the "unassigned to brands" page) has no station to pick - the FE sends
+    // this sentinel instead, and the sharer is just the current user directly.
+    public static final String NO_BRAND_SLUG = "NO_BRAND";
+
     public Uni<Void> patchShares(UUID fragmentId, String slug, SharePatchDTO patch, IUser user) {
         List<UUID> remove = patch.getRemoveTargetBrandIds() != null ? patch.getRemoveTargetBrandIds() : List.of();
         List<UUID> add = patch.getAddTargetBrandIds() != null ? patch.getAddTargetBrandIds() : List.of();
@@ -106,14 +111,19 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
             return repository.applyPatch(fragmentId, remove, List.of());
         }
 
-        return soundFragmentRepository.findById(fragmentId, user.getId(), false, true, false)
-                .chain(fragment -> brandService.getBySlugNameForUser(slug, user)
-                        .chain(sourceBrand -> validateAndBuildEntities(fragment, add, sourceBrand, incognito)))
-                .chain(entities -> repository.applyPatch(fragmentId, remove, entities));
+        Uni<SoundFragment> fragmentUni = soundFragmentRepository.findById(fragmentId, user.getId(), false, true, false);
+        Uni<List<SharedSoundFragment>> entitiesUni = NO_BRAND_SLUG.equals(slug)
+                ? fragmentUni.chain(fragment -> validateAndBuildEntities(fragment, add, user.getId(), user.getUserName(), user.getEmail(), incognito))
+                : fragmentUni.chain(fragment -> brandService.getBySlugNameForUser(slug, user)
+                        .chain(sourceBrand -> validateAndBuildEntities(fragment, add,
+                                sourceBrand.getOwner().getUserId(), sourceBrand.getOwner().getName(),
+                                sourceBrand.getOwner().getEmail(), incognito)));
+        return entitiesUni.chain(entities -> repository.applyPatch(fragmentId, remove, entities));
     }
 
     private Uni<List<SharedSoundFragment>> validateAndBuildEntities(SoundFragment fragment, List<UUID> targetBrandIds,
-                                                                     Brand sourceBrand, boolean stayIncognito) {
+                                                                     Long sourceUserId, String sourceUserName, String sourceUserEmail,
+                                                                     boolean stayIncognito) {
         List<Uni<SharedSoundFragment>> unis = targetBrandIds.stream()
                 .map(targetBrandId -> brandService.getById(targetBrandId, SuperUser.build())
                         .onItem().transformToUni(targetBrand -> {
@@ -122,10 +132,10 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
                                         "Brand does not accept contributions without restrictions: " + targetBrandId));
                             }
                             SharedSoundFragment entity = new SharedSoundFragment();
-                            entity.setSourceUserId(sourceBrand.getOwner().getUserId());
+                            entity.setSourceUserId(sourceUserId);
                             if (!stayIncognito) {
-                                entity.setSourceUserName(sourceBrand.getOwner().getName());
-                                entity.setSourceUserEmail(sourceBrand.getOwner().getEmail());
+                                entity.setSourceUserName(sourceUserName);
+                                entity.setSourceUserEmail(sourceUserEmail);
                             }
                             entity.setTargetBrandId(targetBrandId);
                             entity.setSoundFragmentId(fragment.getId());

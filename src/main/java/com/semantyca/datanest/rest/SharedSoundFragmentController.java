@@ -46,7 +46,9 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
     public void setupRoutes(Router router) {
         String path = "/datanest/shared-sound-fragments";
         BodyHandler jsonBodyHandler = BodyHandler.create().setHandleFileUploads(false);
-        // sharer adds or removes target brands for a shared fragment62734k
+        // sharer adds or removes target brands for a shared fragment62734k. slug is the source
+        // station attributing the share; the FE sends SharedSoundFragmentService.NO_BRAND_SLUG for
+        // a fragment with no brand association (nothing to pick a source station from there).
         router.route(HttpMethod.PATCH,  path + "/shared/:slug/:fragmentId").handler(jsonBodyHandler).handler(this::patchToShare);
         // receiver: list all shares sent to the current user
         router.route(HttpMethod.GET,    path + "/received").handler(this::getReceived);
@@ -162,6 +164,7 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
             }
         }
     }
+
 
     private void delete(RoutingContext rc) {
         UUID shareId = UUID.fromString(rc.pathParam("id"));
