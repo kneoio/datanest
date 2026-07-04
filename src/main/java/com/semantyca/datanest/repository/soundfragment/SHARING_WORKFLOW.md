@@ -109,6 +109,15 @@ be accepted or rejected back to life through these two methods (they'd match zer
 nonexistent id or an unauthorized caller). Re-sharing (§3) is the only way to bring an archived share
 back, and that resets it to a fresh `PENDING` row, not whatever it was before archiving.
 
+mixdeck's `ReceivedForm.vue` (the receiver's single-item detail view) has to reflect this
+reversibility deliberately — it's not automatic just because the backend allows it. It branches on
+status: `REJECTED` → Delete only; `ACCEPTED` → Reject only (no redundant Approve — this used to be
+missing, an ACCEPTED item fell through to the same "else" branch as PENDING and showed Approve+Reject
+as if no decision had been made yet); anything else (`PENDING`) → both Approve and Reject. There is
+currently **no "Accept" button offered from a REJECTED state** — only Delete — even though the
+backend would allow un-rejecting; if that's ever wanted, it's a FE-only addition (add an `isRejected`
+branch that shows Accept + Delete instead of Delete only).
+
 Routes (`rest/SharedSoundFragmentController.java`):
 
 | Route | Handler | Does |
