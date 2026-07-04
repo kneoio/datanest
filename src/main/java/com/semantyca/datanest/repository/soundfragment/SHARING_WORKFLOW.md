@@ -110,13 +110,18 @@ nonexistent id or an unauthorized caller). Re-sharing (§3) is the only way to b
 back, and that resets it to a fresh `PENDING` row, not whatever it was before archiving.
 
 mixdeck's `ReceivedForm.vue` (the receiver's single-item detail view) has to reflect this
-reversibility deliberately — it's not automatic just because the backend allows it. It branches on
-status: `REJECTED` → Delete only; `ACCEPTED` → Reject only (no redundant Approve — this used to be
-missing, an ACCEPTED item fell through to the same "else" branch as PENDING and showed Approve+Reject
-as if no decision had been made yet); anything else (`PENDING`) → both Approve and Reject. There is
-currently **no "Accept" button offered from a REJECTED state** — only Delete — even though the
-backend would allow un-rejecting; if that's ever wanted, it's a FE-only addition (add an `isRejected`
-branch that shows Accept + Delete instead of Delete only).
+reversibility deliberately — it's not automatic just because the backend allows it. Approve, Reject,
+and Delete are **always rendered** (not conditionally shown/hidden with `v-if` — an earlier version
+did that and caused a visible flash: buttons would render for the default/loading state, then
+swap the instant real status arrived); only `:disabled` is state-driven:
+- Approve: disabled once `isAccepted` or `isRejected` (only actionable while `PENDING`)
+- Reject: disabled once `isRejected` (actionable for `PENDING` or `ACCEPTED` — undoing an accept)
+- Delete: disabled unless `isRejected` (matches the backend's `archiveByReceiver` gate)
+
+All three are also disabled while `loading` (initial fetch) or `actionBusy` (a request in flight).
+There is currently **no way to un-reject** (Approve stays disabled once `isRejected`), even though
+the backend allows REJECTED → accept — if that's ever wanted, just drop `|| isRejected` from
+Approve's disabled condition.
 
 Routes (`rest/SharedSoundFragmentController.java`):
 
