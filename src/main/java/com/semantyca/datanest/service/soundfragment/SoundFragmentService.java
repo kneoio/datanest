@@ -724,12 +724,20 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
 
     public Uni<Integer> delete(String id, IUser user) {
         assert repository != null;
-        return repository.delete(UUID.fromString(id), user);
+        assert sharedSoundFragmentService != null;
+        UUID uuid = UUID.fromString(id);
+        return sharedSoundFragmentService.deleteBySoundFragmentId(uuid)
+                .chain(() -> repository.delete(uuid, user));
     }
 
     public Uni<Integer> archive(String id, IUser user) {
         assert repository != null;
-        return repository.archive(UUID.fromString(id), user);
+        assert sharedSoundFragmentService != null;
+        UUID uuid = UUID.fromString(id);
+        return repository.archive(uuid, user)
+                .chain(count -> count > 0
+                        ? sharedSoundFragmentService.archiveBySoundFragmentId(uuid).replaceWith(count)
+                        : Uni.createFrom().item(count));
     }
 
     public Uni<Void> updateBoost(String id, String brandId, int boost, String type) {

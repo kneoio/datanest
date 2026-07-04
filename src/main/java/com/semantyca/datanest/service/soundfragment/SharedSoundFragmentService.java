@@ -55,6 +55,14 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return repository.archive(shareId);
     }
 
+    public Uni<Integer> archiveBySoundFragmentId(UUID soundFragmentId) {
+        return repository.archiveBySoundFragmentId(soundFragmentId);
+    }
+
+    public Uni<Void> deleteBySoundFragmentId(UUID soundFragmentId) {
+        return repository.deleteBySoundFragmentId(soundFragmentId);
+    }
+
     // Creates a PENDING share from a submitter (an artist, resolved to a real core user account
     // by SoundFragmentService.resolveSubmitterAccount) to a target station. This is how a public/
     // chat contribution becomes visible to a station owner — via the exact same mechanism as an

@@ -185,6 +185,29 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .onItem().transform(SqlResult::rowCount);
     }
 
+    // Cascades a SoundFragment soft-delete to every share pointing at it, so the sender's
+    // "sharedWith" list (listBySoundFragmentId) and the receiver's inbox don't keep referencing
+    // a fragment that's gone, even though both already also filter on the fragment's own archived flag.
+    public Uni<Integer> archiveBySoundFragmentId(UUID soundFragmentId) {
+        String sql = "UPDATE " + entityData.getTableName() + " SET archived = 1, last_mod_date = NOW() WHERE sound_fragment_id = $1";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(soundFragmentId))
+                .onItem().transform(SqlResult::rowCount);
+    }
+
+    // Cascades a SoundFragment hard-delete: without this, mixpla__shared_sound_fragments rows
+    // (and their share-entity RLS rows) become permanent orphans pointing at a sound_fragment_id
+    // that no longer exists.
+    public Uni<Void> deleteBySoundFragmentId(UUID soundFragmentId) {
+        String deleteRlsSql = "DELETE FROM " + entityData.getRlsName() +
+                " WHERE entity_id IN (SELECT id FROM " + entityData.getTableName() + " WHERE sound_fragment_id = $1)";
+        String deleteSharesSql = "DELETE FROM " + entityData.getTableName() + " WHERE sound_fragment_id = $1";
+        return client.withTransaction(tx ->
+                tx.preparedQuery(deleteRlsSql).execute(Tuple.of(soundFragmentId))
+                        .chain(() -> tx.preparedQuery(deleteSharesSql).execute(Tuple.of(soundFragmentId)))
+                        .replaceWithVoid());
+    }
+
     private Uni<Void> insertInTx(SqlClient tx, SharedSoundFragment entity) {
         String upsertSql = "INSERT INTO " + entityData.getTableName() + " " +
                 "(source_user_id, target_brand_id, sound_fragment_id, expires_at, played_count, rated_count, status, archived, source_user_name, source_user_email, reg_date, last_mod_date) " +
