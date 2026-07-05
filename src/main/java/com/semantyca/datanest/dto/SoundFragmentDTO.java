@@ -21,6 +21,7 @@ import java.util.UUID;
 public class SoundFragmentDTO extends SoundFragmentFlatDTO {
     private List<String> brands;
     private List<String> newlyUploaded;
+    private List<String> customTags;
     private List<UploadFileDTO> uploadedFiles;
     private ScheduleDTO schedule;
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)

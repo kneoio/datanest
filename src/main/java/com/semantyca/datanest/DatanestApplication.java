@@ -8,6 +8,7 @@ import com.semantyca.datanest.rest.BulkACLController;
 import com.semantyca.datanest.rest.ChatSummaryController;
 import com.semantyca.datanest.rest.DraftController;
 import com.semantyca.datanest.rest.EventController;
+import com.semantyca.datanest.rest.LabelController;
 import com.semantyca.datanest.rest.ListenerController;
 import com.semantyca.datanest.rest.ProfileController;
 import com.semantyca.datanest.rest.PromptController;
@@ -75,6 +76,9 @@ public class DatanestApplication {
     RefController refController;
 
     @Inject
+    LabelController labelController;
+
+    @Inject
     ChatSummaryController chatSummaryController;
 
     @Inject
@@ -105,6 +109,7 @@ public class DatanestApplication {
         soundFragmentBulkUploadController.setupRoutes(router);
         publicSongSubmissionController.setupRoutes(router);
         refController.setupRoutes(router);
+        labelController.setupRoutes(router);
         aiAgentController.setupRoutes(router);
         chatSummaryController.setupRoutes(router);
         bulkACLController.setupRoutes(router);

@@ -48,7 +48,9 @@ import com.semantyca.mixpla.model.cnst.SourceType;
 import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
 import com.semantyca.mixpla.model.soundfragment.SoundFragment;
 import com.semantyca.mixpla.repository.UserSubscriptionRepository;
+import com.semantyca.officeframe.dto.LabelDTO;
 import com.semantyca.officeframe.service.GenreService;
+import com.semantyca.officeframe.service.LabelService;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
@@ -88,6 +90,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
     private final HetznerStorageService fileStorage;
     private final CommandPublisher commandPublisher;
     private final UserSubscriptionRepository userSubscriptionRepository;
+    private final LabelService labelService;
     private String uploadDir;
     Validator validator;
 
@@ -104,6 +107,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         this.fileStorage = null;
         this.commandPublisher = null;
         this.userSubscriptionRepository = null;
+        this.labelService = null;
     }
 
     @Inject
@@ -119,7 +123,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                 OpusEncodingService opusEncodingService,
                                 HetznerStorageService fileStorage,
                                 CommandPublisher commandPublisher,
-                                UserSubscriptionRepository userSubscriptionRepository) {
+                                UserSubscriptionRepository userSubscriptionRepository,
+                                LabelService labelService) {
         super(userService);
         this.genreService = genreService;
         this.localFileCleanupService = localFileCleanupService;
@@ -133,6 +138,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         this.fileStorage = fileStorage;
         this.commandPublisher = commandPublisher;
         this.userSubscriptionRepository = userSubscriptionRepository;
+        this.labelService = labelService;
         uploadDir = config.getPathUploads() + "/sound-fragments-controller";
     }
 
@@ -244,6 +250,83 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
     }
 
     public Uni<SoundFragmentDTO> upsert(String id, SoundFragmentDTO dto, IUser user, LanguageCode code) {
+        return resolveCustomTags(dto, user)
+                .chain(() -> doUpsert(id, dto, user, code));
+    }
+
+    private static final String SOUND_FRAGMENT_LABEL_CATEGORY = "sound_fragment";
+
+    private Uni<Void> resolveCustomTags(SoundFragmentDTO dto, IUser user) {
+        if (dto.getCustomTags() == null || dto.getCustomTags().isEmpty()) {
+            return Uni.createFrom().voidItem();
+        }
+        return Multi.createFrom().iterable(dto.getCustomTags())
+                .onItem().transformToUniAndConcatenate(tag -> resolveOrCreatePersonalLabel(tag, user))
+                .collect().asList()
+                .onItem().invoke(resolvedIds -> {
+                    List<UUID> merged = new ArrayList<>(dto.getLabels() != null ? dto.getLabels() : List.of());
+                    for (UUID labelId : resolvedIds) {
+                        if (!merged.contains(labelId)) {
+                            merged.add(labelId);
+                        }
+                    }
+                    dto.setLabels(merged);
+                })
+                .replaceWithVoid();
+    }
+
+    private Uni<UUID> resolveOrCreatePersonalLabel(String identifier, IUser user) {
+        LabelDTO labelDto = new LabelDTO();
+        labelDto.setIdentifier(identifier);
+        labelDto.setCategory(SOUND_FRAGMENT_LABEL_CATEGORY);
+        return labelService.upsert("new", labelDto, new PersonalOnlyUser(user), LanguageCode.en)
+                .map(LabelDTO::getId);
+    }
+
+    /**
+     * Forces custom-tag label creation to always be personal to the calling user: LabelService
+     * grants owner=null (shared/system) labels only to supervisors, and free-text tags typed in
+     * Mixdeck must never become shared/system labels, regardless of the caller's real role.
+     */
+    private static class PersonalOnlyUser implements IUser {
+        private final IUser delegate;
+
+        PersonalOnlyUser(IUser delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public Long getId() {
+            return delegate.getId();
+        }
+
+        @Override
+        public String getUserName() {
+            return delegate.getUserName();
+        }
+
+        @Override
+        public String getEmail() {
+            return delegate.getEmail();
+        }
+
+        @Override
+        public boolean isSupervisor() {
+            return false;
+        }
+
+        @Override
+        public void setSupervisor(boolean supervisor) {
+            // no-op: this view always reports non-supervisor
+        }
+
+        @Override
+        public String getLogin() {
+            return delegate.getLogin();
+        }
+    }
+
+    private Uni<SoundFragmentDTO> doUpsert(String id, SoundFragmentDTO dto, IUser user, LanguageCode code) {
         SoundFragment entity = buildEntity(dto);
 
         List<FileMetadata> fileMetadataList = new ArrayList<>();

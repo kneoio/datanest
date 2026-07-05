@@ -99,6 +99,6 @@ public class RefService {
     }
 
     public Uni<List<LabelDTO>> getSoundFragmentLabels(String category) {
-        return labelService.getOfCategory(category, LanguageCode.en);
+        return labelService.getOfCategory(category, SuperUser.build(), LanguageCode.en);
     }
 }
