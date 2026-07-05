@@ -40,8 +40,6 @@ Do not change the database structure without Aida's permission; when proposing o
 
 ## Behavior Rules
 
-- Never use find, grep, cat, ls, head, tail, sed, awk via Bash. Use Glob for file search, Grep for
-  content search, Read for file reading, Edit for file edits.
 - Keep answers brief
 - Prefer yes/no answers when possible
 - NO proactive behavior!!!!!!!!
@@ -63,7 +61,7 @@ Do not change the database structure without Aida's permission; when proposing o
 
 - Each project's `CLAUDE.md` is an **index**, not a manual — keep detail out of it.
 - Each complex subsystem gets an authoritative `<AREA>_WORKFLOW.md` **next to its code**; read it
-  before editing that area and update it when behaviour changes. New docs get a line in the
+  before editing that area and update it when behavior changes. New docs get a line in the
   project's Documentation Map (in the project-specific header above).
 - Cross-service domain terms are defined **once** in the shared `2next/mixpla` glossary, never
   redefined per service.
