@@ -78,10 +78,6 @@ public class DraftService extends AbstractService<Draft, DraftDTO> {
                         .collect(Collectors.toList()));
     }
 
-    public Uni<List<Draft>> getByIds(List<UUID> ids) {
-        return getByIds(ids, SuperUser.build());
-    }
-
     @Override
     public Uni<Integer> delete(String id, IUser user) {
         return repository.archive(UUID.fromString(id), user);

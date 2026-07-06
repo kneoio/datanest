@@ -58,6 +58,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.validation.Validator;
 import org.jboss.logging.Logger;
+import org.jspecify.annotations.NonNull;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -78,6 +79,9 @@ import java.util.stream.Collectors;
 public class SoundFragmentService extends AbstractService<SoundFragment, SoundFragmentDTO> {
     private static final Logger LOGGER = Logger.getLogger(SoundFragmentService.class);
     private static final int FREE_PLAN_SONG_LIMIT = 500;
+    private static final String SOUND_FRAGMENT_LABEL_CATEGORY = "sound_fragment";
+    private static final String USER_LABEL_COLOR = "#000000";
+    private static final String USER_LABEL_FONT_COLOR = "#FFFFFF";
 
     private final SoundFragmentRepository repository;
     private final SoundFragmentBrandRepository brandRepository;
@@ -93,6 +97,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
     private final LabelService labelService;
     private String uploadDir;
     Validator validator;
+
 
     protected SoundFragmentService(UserService userService, GenreService genreService) {
         super(userService);
@@ -157,13 +162,6 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
     public Uni<Integer> getAllCount(final IUser user, final SoundFragmentFilter filter) {
         assert repository != null;
         return repository.getAllCount(user, false, filter);
-    }
-
-    public Uni<List<SoundFragmentDTO>> getAllDTOWithoutBrandAssociation(final int limit, final int offset,
-                                                                        final IUser user, final SoundFragmentFilter filter) {
-        assert repository != null;
-        return repository.getAllWithoutBrandAssociation(limit, offset, user, filter)
-                .chain(this::buildListDTOs);
     }
 
     public Uni<List<SoundFragmentFlatDTO>> getAllFlatDTOWithoutBrandAssociation(final int limit, final int offset,
@@ -250,18 +248,16 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
     }
 
     public Uni<SoundFragmentDTO> upsert(String id, SoundFragmentDTO dto, IUser user, LanguageCode code) {
-        return resolveCustomTags(dto, user)
+        return resolveCustomTags(dto, user, code)
                 .chain(() -> doUpsert(id, dto, user, code));
     }
 
-    private static final String SOUND_FRAGMENT_LABEL_CATEGORY = "sound_fragment";
-
-    private Uni<Void> resolveCustomTags(SoundFragmentDTO dto, IUser user) {
+    private Uni<Void> resolveCustomTags(SoundFragmentDTO dto, IUser user, LanguageCode code) {
         if (dto.getCustomTags() == null || dto.getCustomTags().isEmpty()) {
             return Uni.createFrom().voidItem();
         }
         return Multi.createFrom().iterable(dto.getCustomTags())
-                .onItem().transformToUniAndConcatenate(tag -> resolveOrCreatePersonalLabel(tag, user))
+                .onItem().transformToUniAndConcatenate(tag -> resolveOrCreatePersonalLabel(tag, user, code))
                 .collect().asList()
                 .onItem().invoke(resolvedIds -> {
                     List<UUID> merged = new ArrayList<>(dto.getLabels() != null ? dto.getLabels() : List.of());
@@ -275,55 +271,15 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 .replaceWithVoid();
     }
 
-    private Uni<UUID> resolveOrCreatePersonalLabel(String identifier, IUser user) {
+    private Uni<UUID> resolveOrCreatePersonalLabel(String tag, IUser user, LanguageCode code) {
         LabelDTO labelDto = new LabelDTO();
-        labelDto.setIdentifier(identifier);
+        labelDto.setIdentifier(WebHelper.generateSlug(tag));
         labelDto.setCategory(SOUND_FRAGMENT_LABEL_CATEGORY);
-        return labelService.upsert("new", labelDto, new PersonalOnlyUser(user), LanguageCode.en)
+        labelDto.getLocalizedName().put(code, tag);
+        labelDto.setColor(USER_LABEL_COLOR);
+        labelDto.setFontColor(USER_LABEL_FONT_COLOR);
+        return labelService.upsert("new", labelDto, new PersonalOnlyUser(user), code)
                 .map(LabelDTO::getId);
-    }
-
-    /**
-     * Forces custom-tag label creation to always be personal to the calling user: LabelService
-     * grants owner=null (shared/system) labels only to supervisors, and free-text tags typed in
-     * Mixdeck must never become shared/system labels, regardless of the caller's real role.
-     */
-    private static class PersonalOnlyUser implements IUser {
-        private final IUser delegate;
-
-        PersonalOnlyUser(IUser delegate) {
-            this.delegate = delegate;
-        }
-
-        @Override
-        public Long getId() {
-            return delegate.getId();
-        }
-
-        @Override
-        public String getUserName() {
-            return delegate.getUserName();
-        }
-
-        @Override
-        public String getEmail() {
-            return delegate.getEmail();
-        }
-
-        @Override
-        public boolean isSupervisor() {
-            return false;
-        }
-
-        @Override
-        public void setSupervisor(boolean supervisor) {
-            // no-op: this view always reports non-supervisor
-        }
-
-        @Override
-        public String getLogin() {
-            return delegate.getLogin();
-        }
     }
 
     private Uni<SoundFragmentDTO> doUpsert(String id, SoundFragmentDTO dto, IUser user, LanguageCode code) {
@@ -404,7 +360,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                             }));
         } else {
             List<UUID> brandIds = dto.getRepresentedInBrands() != null ? dto.getRepresentedInBrands() : List.of();
-            UUID brandId = brandIds.isEmpty() ? null : brandIds.get(0);
+            UUID brandId = brandIds.isEmpty() ? null : brandIds.getFirst();
             boolean isPrerecorded = entity.getType() == PlaylistItemType.PRERECORDED_ADVERTISEMENT
                     || entity.getType() == PlaylistItemType.PRERECORDED_PODCAST;
             if (isPrerecorded) {
@@ -777,18 +733,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 .collect(Collectors.toList());
         return Uni.join().all(brandUnis).andFailFast()
                 .map(brands -> {
-                    Set<Long> coOwnerIds = new HashSet<>();
-                    for (Brand brand : brands) {
-                        if (brand == null) continue;
-                        Owner owner = brand.getOwner();
-                        if (owner == null) continue;
-                        if (owner.getUserId() != null) coOwnerIds.add(owner.getUserId());
-                        if (owner.getCoOwners() != null) {
-                            for (Owner co : owner.getCoOwners()) {
-                                if (co.getUserId() != null) coOwnerIds.add(co.getUserId());
-                            }
-                        }
-                    }
+                    Set<Long> coOwnerIds = getCoOwnerIds(brands);
                     if (coOwnerIds.isEmpty()) {
                         return existing != null ? existing : List.<RlsActionDTO>of();
                     }
@@ -803,6 +748,22 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                     }
                     return combined;
                 });
+    }
+
+    private static @NonNull Set<Long> getCoOwnerIds(List<Brand> brands) {
+        Set<Long> coOwnerIds = new HashSet<>();
+        for (Brand brand : brands) {
+            if (brand == null) continue;
+            Owner owner = brand.getOwner();
+            if (owner == null) continue;
+            if (owner.getUserId() != null) coOwnerIds.add(owner.getUserId());
+            if (owner.getCoOwners() != null) {
+                for (Owner co : owner.getCoOwners()) {
+                    if (co.getUserId() != null) coOwnerIds.add(co.getUserId());
+                }
+            }
+        }
+        return coOwnerIds;
     }
 
     public Uni<Integer> delete(String id, IUser user) {
@@ -1024,11 +985,11 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
             return;
         }
         List<FileMetadata> files = fragment.getFileMetadataList();
-        if (files == null || files.isEmpty() || files.get(0).getFileKey() == null) {
+        if (files == null || files.isEmpty() || files.getFirst().getFileKey() == null) {
             LOGGER.warnf("Opus encoding skipped: no file key on fragment %s", fragment.getId());
             return;
         }
-        String originalKey = files.get(0).getFileKey();
+        String originalKey = files.getFirst().getFileKey();
         LOGGER.infof("Opus encoding: originalKey=%s, brandId=%s", originalKey, brandId);
 
         Uni<Long> bitRateUni = brandId != null

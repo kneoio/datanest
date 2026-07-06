@@ -67,11 +67,6 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
                 });
     }
 
-
-    public Uni<Integer> getByScriptCount(final UUID scriptId, final IUser user) {
-        return repository.countByScript(scriptId, false, user);
-    }
-
     @Override
     public Uni<SceneDTO> getDTO(UUID id, IUser user, LanguageCode language) {
         return repository.findById(id, user, false).chain(this::mapToDTO);
