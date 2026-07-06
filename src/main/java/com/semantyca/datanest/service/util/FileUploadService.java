@@ -561,7 +561,7 @@ public class FileUploadService {
         } catch (Exception e) {
             LOGGER.warn("Metadata extraction failed for uploadId: {}, error: {}", uploadId, e.getMessage());
             updateProgress(uploadId, 90, "extract_metadata", null, null, null, null);
-            return null;
+            throw new RuntimeException("Not a valid/decodable audio file: " + originalFileName, e);
         }
     }
 

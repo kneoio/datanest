@@ -55,6 +55,12 @@ public class AudioMetadataService {
             FFmpegProbeResult probeResult = ffprobe.probe(filePath);
             reportProgress(progressCallback, 65);
 
+            boolean hasDecodableAudioStream = probeResult.getStreams().stream()
+                    .anyMatch(stream -> stream.codec_type == FFmpegStream.CodecType.AUDIO && stream.codec_name != null);
+            if (!hasDecodableAudioStream) {
+                throw new java.io.IOException("No decodable audio stream found in file: " + filePath);
+            }
+
             FFmpegFormat format = probeResult.getFormat();
             double durationSec = (format != null ? format.duration : 0);
 
@@ -131,8 +137,7 @@ public class AudioMetadataService {
             return metadata;
 
         } catch (Exception e) {
-            LOGGER.warn("Failed to extract metadata from file: {}, user will need to enter manually. Error: {}", filePath, e.getMessage());
-            return createEmptyMetadata(filePath);
+            throw new RuntimeException("Failed to extract metadata from file: " + filePath + ": " + e.getMessage(), e);
         }
     }
 
