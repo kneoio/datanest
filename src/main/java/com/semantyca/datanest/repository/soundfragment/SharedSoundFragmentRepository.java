@@ -25,6 +25,7 @@ import io.vertx.mutiny.sqlclient.SqlResult;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -33,6 +34,8 @@ import java.util.UUID;
 
 @ApplicationScoped
 public class SharedSoundFragmentRepository extends AsyncRepository {
+
+    private static final Logger LOGGER = Logger.getLogger(SharedSoundFragmentRepository.class);
 
     private static final EntityData entityData = new EntityData(
             "mixpla__shared_sound_fragments",
@@ -415,8 +418,16 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 "FROM " + BRANDS_TABLE + " b, jsonb_array_elements(COALESCE(b.owner->'coOwners', '[]'::jsonb)) co " +
                 "WHERE b.id = $2 AND co->>'userId' IS NOT NULL " +
                 "ON CONFLICT (reader, entity_id) DO UPDATE SET reading_time = now()";
-        return tx.preparedQuery(ownerSql).execute(Tuple.of(entityId, targetBrandId))
+        String ownerJsonSql = "SELECT b.owner FROM " + BRANDS_TABLE + " b WHERE b.id = $1";
+        return tx.preparedQuery(ownerJsonSql).execute(Tuple.of(targetBrandId))
+                .invoke(rows -> {
+                    Object ownerJson = rows.iterator().hasNext() ? rows.iterator().next().getValue("owner") : null;
+                    LOGGER.infof("insertRlsForReceivers: entityId=%s targetBrandId=%s raw owner json=%s", entityId, targetBrandId, ownerJson);
+                })
+                .chain(() -> tx.preparedQuery(ownerSql).execute(Tuple.of(entityId, targetBrandId)))
+                .invoke(rows -> LOGGER.infof("insertRlsForReceivers: owner reader rows inserted=%d for entityId=%s targetBrandId=%s", rows.rowCount(), entityId, targetBrandId))
                 .chain(() -> tx.preparedQuery(coOwnersSql).execute(Tuple.of(entityId, targetBrandId)))
+                .invoke(rows -> LOGGER.infof("insertRlsForReceivers: coOwner reader rows inserted=%d for entityId=%s targetBrandId=%s", rows.rowCount(), entityId, targetBrandId))
                 .chain(() -> RlsActionUtil.ensureSuperUserAccess(tx, rlsTable, entityId));
     }
 

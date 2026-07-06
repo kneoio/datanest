@@ -513,6 +513,14 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         } else if (existingOwner != null) {
             doc.setOwner(existingOwner);
         }
+        LOGGER.infof("buildEntity owner resolution: slug=%s incomingOwnerId=%s incomingCoOwners=%s existingOwnerId=%s existingCoOwners=%s -> resultOwnerId=%s resultCoOwners=%s",
+                slug,
+                dto.getOwner() != null ? dto.getOwner().getUserId() : null,
+                dto.getOwner() != null && dto.getOwner().getCoOwners() != null ? dto.getOwner().getCoOwners().stream().map(OwnerDTO::getUserId).toList() : null,
+                existingOwner != null ? existingOwner.getUserId() : null,
+                existingOwner != null && existingOwner.getCoOwners() != null ? existingOwner.getCoOwners().stream().map(Owner::getUserId).toList() : null,
+                doc.getOwner() != null ? doc.getOwner().getUserId() : null,
+                doc.getOwner() != null && doc.getOwner().getCoOwners() != null ? doc.getOwner().getCoOwners().stream().map(Owner::getUserId).toList() : null);
 
         if (dto.getLabels() != null) {
             doc.setLabels(dto.getLabels());
