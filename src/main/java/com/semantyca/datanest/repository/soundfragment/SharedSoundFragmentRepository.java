@@ -12,8 +12,9 @@ import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.rls.RlsActionUtil;
 import com.semantyca.core.repository.table.EntityData;
 import com.semantyca.datanest.model.cnst.ApprovalStatus;
-import com.semantyca.datanest.model.soundfragment.SharedSoundFragment;
+
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
+import com.semantyca.mixpla.model.soundfragment.SharedSoundFragment;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonObject;
@@ -366,7 +367,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         e.setSourceUserEmail(row.getString("source_user_email"));
         e.setBoost(row.getInteger("boost") != null ? row.getInteger("boost") : 0);
         e.setStatus(row.getInteger("status"));
-        e.setRegDate(row.getOffsetDateTime("reg_date"));
+        e.setRegDate(row.getOffsetDateTime("reg_date").toZonedDateTime());
         JsonObject locNameJson = row.getJsonObject("target_brand_name");
         if (locNameJson != null) {
             EnumMap<LanguageCode, String> targetBrandName = new EnumMap<>(LanguageCode.class);
@@ -422,7 +423,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         return tx.preparedQuery(ownerJsonSql).execute(Tuple.of(targetBrandId))
                 .invoke(rows -> {
                     Object ownerJson = rows.iterator().hasNext() ? rows.iterator().next().getValue("owner") : null;
-                    LOGGER.infof("insertRlsForReceivers: entityId=%s targetBrandId=%s raw owner json=%s", entityId, targetBrandId, ownerJson);
+                    //LOGGER.infof("insertRlsForReceivers: entityId=%s targetBrandId=%s raw owner json=%s", entityId, targetBrandId, ownerJson);
                 })
                 .chain(() -> tx.preparedQuery(ownerSql).execute(Tuple.of(entityId, targetBrandId)))
                 .invoke(rows -> LOGGER.infof("insertRlsForReceivers: owner reader rows inserted=%d for entityId=%s targetBrandId=%s", rows.rowCount(), entityId, targetBrandId))
@@ -460,7 +461,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
 
     private SharedSoundFragment from(Row row) {
         SharedSoundFragment e = new SharedSoundFragment();
-        e.setId(row.getUUID("id"));
+        setDefaultFields(e, row);
         e.setSourceUserId(row.getLong("source_user_id"));
         e.setSourceUserName(row.getString("source_user_name"));
         e.setSourceUserEmail(row.getString("source_user_email"));
@@ -472,8 +473,6 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         e.setBoost(row.getInteger("boost") != null ? row.getInteger("boost") : 0);
         e.setStatus(row.getInteger("status"));
         e.setArchived(row.getInteger("archived"));
-        e.setRegDate(row.getOffsetDateTime("reg_date"));
-        e.setLastModDate(row.getOffsetDateTime("last_mod_date"));
         return e;
     }
 
