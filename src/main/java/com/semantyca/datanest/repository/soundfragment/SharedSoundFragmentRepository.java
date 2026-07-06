@@ -231,11 +231,12 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
 
     private Uni<Void> insertInTx(SqlClient tx, SharedSoundFragment entity) {
         String upsertSql = "INSERT INTO " + entityData.getTableName() + " " +
-                "(source_user_id, target_brand_id, sound_fragment_id, expires_at, played_count, rated_count, status, archived, source_user_name, source_user_email, reg_date, last_mod_date) " +
-                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()) " +
+                "(source_user_id, target_brand_id, sound_fragment_id, expires_at, played_count, rated_count, status, archived, source_user_name, source_user_email, author, last_mod_user, reg_date, last_mod_date) " +
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW()) " +
                 "ON CONFLICT ON CONSTRAINT unique_brand_shared_fragment " +
                 "DO UPDATE SET archived = 0, status = EXCLUDED.status, source_user_id = EXCLUDED.source_user_id, " +
-                "source_user_name = EXCLUDED.source_user_name, source_user_email = EXCLUDED.source_user_email, last_mod_date = NOW() " +
+                "source_user_name = EXCLUDED.source_user_name, source_user_email = EXCLUDED.source_user_email, " +
+                "last_mod_user = EXCLUDED.last_mod_user, last_mod_date = NOW() " +
                 "RETURNING id";
         return tx.preparedQuery(upsertSql)
                 .execute(buildInsertTuple(entity))
@@ -443,7 +444,9 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .addInteger(entity.getStatus())
                 .addInteger(0)
                 .addValue(entity.getSourceUserName())
-                .addValue(entity.getSourceUserEmail());
+                .addValue(entity.getSourceUserEmail())
+                .addValue(entity.getSourceUserId())
+                .addValue(entity.getSourceUserId());
     }
 
     private SharedSoundFragment fromWithBrand(Row row) {
