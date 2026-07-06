@@ -166,12 +166,15 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
 
         boolean isNew = "new".equalsIgnoreCase(id) || id == null || id.isBlank();
-        Uni<String> slugUni = isNew
-                ? Uni.createFrom().item(WebHelper.generateSlug(dto.getLocalizedName()))
-                : repository.findById(UUID.fromString(id), user, false).map(Brand::getSlugName);
+        Uni<Brand> existingUni = isNew
+                ? Uni.createFrom().nullItem()
+                : repository.findById(UUID.fromString(id), user, false);
 
-        return slugUni
-                .chain(slug -> resolveOwnerUserIds(dto).map(resolvedDto -> buildEntity(resolvedDto, user, slug)))
+        return existingUni
+                .chain(existing -> resolveOwnerUserIds(dto).map(resolvedDto -> buildEntity(
+                        resolvedDto, user,
+                        existing != null ? existing.getSlugName() : WebHelper.generateSlug(dto.getLocalizedName()),
+                        existing != null ? existing.getOwner() : null)))
                 .chain(entity -> {
                     if (isNew) {
                         entity.setPopularityRate(5);
@@ -440,6 +443,10 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     }
 
     Brand buildEntity(BrandDTO dto, IUser user, String slug) {
+        return buildEntity(dto, user, slug, null);
+    }
+
+    Brand buildEntity(BrandDTO dto, IUser user, String slug, Owner existingOwner) {
         Brand doc = new Brand();
         doc.setLocalizedName(dto.getLocalizedName());
         doc.setCountry(CountryCode.fromString(dto.getCountry()));
@@ -475,7 +482,14 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
         if (dto.getOwner() != null) {
             Owner owner = new Owner();
-            owner.setUserId(dto.getOwner().getUserId() != null && dto.getOwner().getUserId() > 0 ? dto.getOwner().getUserId() : user.getId());
+            Long incomingOwnerId = dto.getOwner().getUserId();
+            if (incomingOwnerId != null && incomingOwnerId > 0) {
+                owner.setUserId(incomingOwnerId);
+            } else if (existingOwner != null && existingOwner.getUserId() != null) {
+                owner.setUserId(existingOwner.getUserId());
+            } else {
+                owner.setUserId(user.getId());
+            }
             owner.setName(dto.getOwner().getName());
             owner.setEmail(dto.getOwner().getEmail());
             owner.setExposeWhileSharing(dto.getOwner().isExposeWhileSharing());
@@ -492,8 +506,12 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                             return coOwner;
                         })
                         .collect(Collectors.toList()));
+            } else if (existingOwner != null) {
+                owner.setCoOwners(existingOwner.getCoOwners());
             }
             doc.setOwner(owner);
+        } else if (existingOwner != null) {
+            doc.setOwner(existingOwner);
         }
 
         if (dto.getLabels() != null) {

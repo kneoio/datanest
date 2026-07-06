@@ -100,7 +100,7 @@ public class BrandPubService extends BrandService {
             return repository.findById(UUID.fromString(id), user, false)
                     .chain(existingBrand -> {
                         String slug = existingBrand.getSlugName();
-                        Brand brand = super.buildEntity(dto, user, slug);
+                        Brand brand = super.buildEntity(dto, user, slug, existingBrand.getOwner());
                         if (isCustom) {
                             return resolveExistingCustomScriptId(existingBrand)
                                     .chain(existingScriptId -> {
