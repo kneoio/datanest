@@ -120,7 +120,13 @@ public class RefController extends BaseController {
                                         .map(tuple -> buildAgentsPage(tuple.getItem2(), tuple.getItem1(), page, size));
                             });
                 } else {
-                    agentsUni = Uni.createFrom().item(buildEmptyAgentsPage(page, size));
+                    List<String> freePlanDjTypes = List.of("free");
+                    agentsUni = Uni.combine().all().unis(
+                                    aiAgentService.getAllCountByLabelIdentifiers(superUser, freePlanDjTypes),
+                                    aiAgentService.getAllFlatByLabelIdentifiers(size, (page - 1) * size, superUser, freePlanDjTypes)
+                            )
+                            .asTuple()
+                            .map(tuple -> buildAgentsPage(tuple.getItem2(), tuple.getItem1(), page, size));
                 }
                 agentsUni.subscribe().with(
                         viewPage -> rc.response()
