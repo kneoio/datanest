@@ -1,4 +1,4 @@
-package com.semantyca.datanest.dto;
+package com.semantyca.datanest.dto.req;
 
 import com.semantyca.core.dto.rls.RlsActionDTO;
 import lombok.Getter;

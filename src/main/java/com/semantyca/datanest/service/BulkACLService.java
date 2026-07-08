@@ -2,7 +2,7 @@ package com.semantyca.datanest.service;
 
 import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.model.user.IUser;
-import com.semantyca.datanest.dto.BulkACLRequestDTO;
+import com.semantyca.datanest.dto.req.BulkACLRequestDTO;
 import com.semantyca.datanest.repository.AiAgentRepository;
 import com.semantyca.datanest.repository.BrandRepository;
 import com.semantyca.datanest.repository.EventRepository;

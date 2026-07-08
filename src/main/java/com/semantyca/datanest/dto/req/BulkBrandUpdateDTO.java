@@ -1,4 +1,4 @@
-package com.semantyca.datanest.dto;
+package com.semantyca.datanest.dto.req;
 
 import lombok.Getter;
 import lombok.Setter;
