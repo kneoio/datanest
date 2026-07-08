@@ -1,5 +1,6 @@
 package com.semantyca.datanest.service;
 
+import com.semantyca.datanest.config.DatanestConfig;
 import io.quarkus.mailer.Mail;
 import io.quarkus.mailer.reactive.ReactiveMailer;
 import io.smallrye.mutiny.Uni;
@@ -17,18 +18,14 @@ public class OtpService {
     private static final Logger LOGGER = LoggerFactory.getLogger(OtpService.class);
     private static final long OTP_TTL_SECONDS = 600;
 
-    // QA-only bypass: this exact email+code pair always verifies, without ever needing a real
-    // email to be sent. Deliberately bound to one fixed address (not a wildcard) so it can never
-    // be used to skip verification on a real user's submission.
-    private static final String TEST_BYPASS_EMAIL = "qa-test@mixpla.io";
-    private static final String TEST_BYPASS_CODE = "424242";
-
+    private final DatanestConfig config;
     private final ReactiveMailer mailer;
     private final ConcurrentHashMap<String, OtpEntry> store = new ConcurrentHashMap<>();
     private final SecureRandom rng = new SecureRandom();
 
     @Inject
-    public OtpService(ReactiveMailer mailer) {
+    public OtpService(DatanestConfig config, ReactiveMailer mailer) {
+        this.config = config;
         this.mailer = mailer;
     }
 
@@ -47,7 +44,7 @@ public class OtpService {
     // "submit another track"), so a successful check must NOT consume the code — it stays
     // valid until its TTL naturally expires, rather than single-use.
     public boolean isVerifyFail(String email, String code) {
-        if (TEST_BYPASS_EMAIL.equalsIgnoreCase(email) && TEST_BYPASS_CODE.equals(code)) {
+        if (config.getOtpTestBypassEmail().equalsIgnoreCase(email) && config.getOtpTestBypassCode().equals(code)) {
             return false;
         }
         OtpEntry entry = store.get(email.toLowerCase());

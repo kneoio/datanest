@@ -57,4 +57,12 @@ public interface DatanestConfig {
     @WithName("genre.other-id")
     Optional<String> getOtherGenreId();
 
+    @WithName("otp.test-bypass.email")
+    @WithDefault("")
+    String getOtpTestBypassEmail();
+
+    @WithName("otp.test-bypass.code")
+    @WithDefault("")
+    String getOtpTestBypassCode();
+
 }
