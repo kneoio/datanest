@@ -138,10 +138,12 @@ public class RefController extends BaseController {
                 break;
 
             case "scripts":
+                String timingModeParam = rc.request().getParam("timingMode", SceneTimingMode.ABSOLUTE_TIME.name());
+                SceneTimingMode timingMode = SceneTimingMode.valueOf(timingModeParam);
                 getFreeLabelId()
                         .chain(freeLabelUuid -> {
                             ScriptFilter scriptFilter = new ScriptFilter();
-                            scriptFilter.setTimingMode(SceneTimingMode.ABSOLUTE_TIME);
+                            scriptFilter.setTimingMode(timingMode);
                             if (freeLabelUuid != null) {
                                 scriptFilter.setLabels(List.of(freeLabelUuid));
                             }
