@@ -44,27 +44,15 @@ On insert the repository, in one transaction:
 2. `insertRLSPermissions` — grants the **creator** a reader row (with `can_edit` / `can_delete`), then
 3. `applyRlsActions(RlsActionDTO…)` — applies any additional shares to other readers.
 
+**`SuperUser` always has access.** Every reader-granting helper in `RlsActionUtil` also calls
+`ensureSuperUserAccess`, which grants every `i_su = true` user (including `SuperUser`, id `1`) a
+reader row on the same entity. Where a case needs guaranteed read access to any entity (e.g. a
+public-facing endpoint with no real caller identity), call the repository with `SuperUser.build()`
+as the `IUser` — no query changes needed, the existing scoped queries already find its row.
+
 ### Update / Delete — gated
 The caller's ACL row must carry `can_edit` (update) or `can_delete` (delete); without the flag the
 write is rejected.
-
-### Sharing
-Access is granted to other users by adding reader rows (via `RlsActionDTO` / `RlsActionUtil`),
-optionally with edit/delete rights — this is how a resource is shared between subscribers/admins.
-
-**Delayed grant on share/accept.** Sound fragment sharing (station-to-station, and artist
-contributions — see `soundfragment/SHARING_WORKFLOW.md`) is a variation
-on grant-on-insert: the target station gets **no** RLS row on the fragment at share-creation time,
-only on the receiver's own share entity. The fragment-level grant only happens when the target
-station **accepts** the share (`SharedSoundFragmentRepository.acceptByReceiver` →
-`grantFragmentRlsToBrand`). Follow this pattern (grant on acceptance, not on offer) for any similar
-"offer, then the other side opts in" feature.
-
-One deliberate, narrow exception: a receiver can preview a still-PENDING share's audio before
-deciding, via a query that bypasses fragment RLS entirely (safe only because it's gated by the
-share-entity RLS check that already ran first) — see `soundfragment/SHARING_WORKFLOW.md` §2b. That
-section also flags an adjacent, unrelated, **not yet fixed** gap: the actual file-serving endpoint
-doesn't appear to enforce fragment RLS at all, for anyone, independent of the preview feature.
 
 ---
 
