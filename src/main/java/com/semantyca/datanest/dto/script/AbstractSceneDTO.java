@@ -27,7 +27,6 @@ public abstract class AbstractSceneDTO extends AbstractDTO {
     private List<ScenePromptDTO> prompts;
     private List<CustomActionDTO> actions;
     private PlaylistRequestDTO playlistRequest;
-    private boolean oneTimeRun;
     private boolean allowJingles;
     private boolean allowAds;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)

@@ -113,6 +113,7 @@ public class SceneService extends AbstractService<Scene, AbstractSceneDTO> {
                 AbsoluteSceneDTO absoluteDto = new AbsoluteSceneDTO();
                 absoluteDto.setStartTime(doc.getStartTime());
                 absoluteDto.setWeekdays(doc.getWeekdays());
+                absoluteDto.setOneTimeRun(doc.isOneTimeRun());
                 dto = absoluteDto;
             }
             dto.setTimingMode(doc.getTimingMode());
@@ -125,7 +126,6 @@ public class SceneService extends AbstractService<Scene, AbstractSceneDTO> {
             dto.setLastModifiedDate(doc.getLastModifiedDate());
             dto.setScriptId(doc.getScriptId());
             dto.setTalkativity(doc.getTalkativity());
-            dto.setOneTimeRun(doc.isOneTimeRun());
             dto.setAllowJingles(doc.isAllowJingles());
             dto.setAllowAds(doc.isAllowAds());
             dto.setPrompts(mapScenePromptsToDTOs(doc.getIntroPrompts()));
@@ -177,9 +177,9 @@ public class SceneService extends AbstractService<Scene, AbstractSceneDTO> {
         } else if (dto instanceof AbsoluteSceneDTO absoluteDto) {
             entity.setStartTime(absoluteDto.getStartTime());
             entity.setWeekdays(absoluteDto.getWeekdays());
+            entity.setOneTimeRun(absoluteDto.isOneTimeRun());
         }
         entity.setTalkativity(dto.getTalkativity());
-        entity.setOneTimeRun(dto.isOneTimeRun());
         entity.setAllowJingles(dto.isAllowJingles());
         entity.setAllowAds(dto.isAllowAds());
         entity.setIntroPrompts(dto.getPrompts() != null ? mapScenePromptDTOsToEntities(dto.getPrompts()) : List.of());
