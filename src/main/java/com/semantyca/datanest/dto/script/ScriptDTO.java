@@ -28,7 +28,7 @@ public class ScriptDTO extends AbstractDTO {
     private String timingMode;
     private List<UUID> labels;
     //private List<UUID> brands;
-    private List<SceneDTO> scenes;
+    private List<AbstractSceneDTO> scenes;
     private List<ScriptVariable> requiredVariables;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<RlsActionDTO> rlsActions = new ArrayList<>();

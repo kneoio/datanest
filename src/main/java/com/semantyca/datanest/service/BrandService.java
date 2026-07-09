@@ -17,7 +17,8 @@ import com.semantyca.datanest.dto.script.BrandScriptEntryDTO;
 import com.semantyca.datanest.dto.script.CustomActionDTO;
 import com.semantyca.datanest.dto.script.CustomSceneDTO;
 import com.semantyca.datanest.dto.script.CustomScriptDTO;
-import com.semantyca.datanest.dto.script.SceneDTO;
+import com.semantyca.datanest.dto.script.AbsoluteSceneDTO;
+import com.semantyca.datanest.dto.script.AbstractSceneDTO;
 import com.semantyca.datanest.messaging.CommandPublisher;
 import com.semantyca.datanest.messaging.MetricPublisher;
 import com.semantyca.datanest.model.cnst.ScriptMode;
@@ -377,11 +378,12 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         });
     }
 
-    protected CustomSceneDTO toCustomSceneDTO(SceneDTO scene) {
+    protected CustomSceneDTO toCustomSceneDTO(AbstractSceneDTO scene) {
         CustomSceneDTO customScene = new CustomSceneDTO();
         customScene.setName(scene.getTitle());
-        if (scene.getStartTime() != null && !scene.getStartTime().isEmpty()) {
-            customScene.setStartTime(scene.getStartTime().getFirst());
+        if (scene instanceof AbsoluteSceneDTO absoluteScene
+                && absoluteScene.getStartTime() != null && !absoluteScene.getStartTime().isEmpty()) {
+            customScene.setStartTime(absoluteScene.getStartTime().getFirst());
         }
         customScene.setTalkativity(scene.getTalkativity());
         customScene.setAllowJingles(scene.isAllowJingles());

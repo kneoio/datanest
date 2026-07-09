@@ -14,7 +14,7 @@ import com.semantyca.datanest.dto.BrandScriptDTO;
 import com.semantyca.datanest.dto.DraftDTO;
 import com.semantyca.datanest.dto.TreeNodeDTO;
 import com.semantyca.datanest.dto.script.PromptDTO;
-import com.semantyca.datanest.dto.script.SceneDTO;
+import com.semantyca.datanest.dto.script.AbstractSceneDTO;
 import com.semantyca.datanest.dto.script.ScriptDTO;
 import com.semantyca.datanest.dto.script.ScriptExportDTO;
 import com.semantyca.datanest.service.ScriptService;
@@ -479,7 +479,7 @@ public class ScriptController extends AbstractSecuredController<Script, ScriptDT
         return node;
     }
 
-    private TreeNodeDTO sceneToTreeNode(SceneDTO scene) {
+    private TreeNodeDTO sceneToTreeNode(AbstractSceneDTO scene) {
         TreeNodeDTO node = new TreeNodeDTO();
         node.setKey("scene:" + scene.getId());
         node.setLabel(scene.getTitle());

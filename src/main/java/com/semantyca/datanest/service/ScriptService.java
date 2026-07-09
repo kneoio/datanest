@@ -14,7 +14,9 @@ import com.semantyca.datanest.dto.DraftDTO;
 import com.semantyca.datanest.dto.LabelFlatDTO;
 import com.semantyca.datanest.dto.PlaylistRequestDTO;
 import com.semantyca.datanest.dto.script.PromptDTO;
-import com.semantyca.datanest.dto.script.SceneDTO;
+import com.semantyca.datanest.dto.script.AbsoluteSceneDTO;
+import com.semantyca.datanest.dto.script.AbstractSceneDTO;
+import com.semantyca.datanest.dto.script.RelativeSceneDTO;
 import com.semantyca.datanest.dto.script.ScenePromptDTO;
 import com.semantyca.datanest.dto.script.ScriptDTO;
 import com.semantyca.datanest.dto.script.ScriptExportDTO;
@@ -550,7 +552,8 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
     }
 
     private Uni<Scene> importScene(UUID scriptId, ScriptExportDTO.SceneExportDTO sceneDTO, IUser user, Map<ScriptExportDTO.ScenePromptExportDTO, UUID> actionToPromptId) {
-        SceneDTO dto = new SceneDTO();
+        AbsoluteSceneDTO dto = new AbsoluteSceneDTO();
+        dto.setTimingMode(SceneTimingMode.ABSOLUTE_TIME);
         dto.setScriptId(scriptId);
         dto.setTitle(sceneDTO.getTitle() + " (imported)");
         dto.setStartTime(sceneDTO.getStartTime());
@@ -589,12 +592,22 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         return dto;
     }
 
-    public Uni<List<SceneDTO>> getScenesByScriptId(UUID scriptId, IUser user) {
+    public Uni<List<AbstractSceneDTO>> getScenesByScriptId(UUID scriptId, IUser user) {
         assert scriptSceneService != null;
         return scriptSceneService.getAllByScript(scriptId, Integer.MAX_VALUE, 0, user)
                 .map(scenes -> scenes.stream()
-                        .sorted(Comparator.comparingInt(SceneDTO::getSeqNum))
+                        .sorted(Comparator.comparingInt(this::sceneSortKey))
                         .collect(Collectors.toList()));
+    }
+
+    private int sceneSortKey(AbstractSceneDTO scene) {
+        if (scene instanceof RelativeSceneDTO relative) {
+            return relative.getSeqNum();
+        }
+        if (scene instanceof AbsoluteSceneDTO absolute && absolute.getStartTime() != null && !absolute.getStartTime().isEmpty()) {
+            return absolute.getStartTime().getFirst().toSecondOfDay();
+        }
+        return 0;
     }
 
     public Uni<List<PromptDTO>> getPromptsBySceneId(UUID sceneId, IUser user) {
@@ -678,7 +691,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         assert promptService != null;
 
         if (originalScene.getIntroPrompts() == null || originalScene.getIntroPrompts().isEmpty()) {
-            SceneDTO sceneDTO = buildSceneDTOFromScene(originalScene, newScriptId, null);
+            AbstractSceneDTO sceneDTO = buildSceneDTOFromScene(originalScene, newScriptId, null);
             return scriptSceneService.upsert(null,  sceneDTO, user)
                     .map(savedDTO -> {
                         Scene scene = new Scene();
@@ -694,7 +707,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                 .collect(Collectors.toList());
 
         if (promptIds.isEmpty()) {
-            SceneDTO sceneDTO = buildSceneDTOFromScene(originalScene, newScriptId, null);
+            AbstractSceneDTO sceneDTO = buildSceneDTOFromScene(originalScene, newScriptId, null);
             return scriptSceneService.upsert(null,  sceneDTO, user)
                     .map(savedDTO -> {
                         Scene scene = new Scene();
@@ -716,7 +729,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                                     oldToNewPromptIds.put(originalPrompts.get(i).getId(), clonedPrompts.get(i).getId());
                                 }
 
-                                SceneDTO sceneDTO = buildSceneDTOFromScene(originalScene, newScriptId, oldToNewPromptIds);
+                                AbstractSceneDTO sceneDTO = buildSceneDTOFromScene(originalScene, newScriptId, oldToNewPromptIds);
                                 return scriptSceneService.upsert(null, sceneDTO, user)
                                         .map(savedDTO -> {
                                             Scene scene = new Scene();
@@ -802,14 +815,22 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                 });
     }
 
-    private SceneDTO buildSceneDTOFromScene(Scene originalScene, UUID newScriptId, Map<UUID, UUID> oldToNewPromptIds) {
-        SceneDTO sceneDTO = new SceneDTO();
+    private AbstractSceneDTO buildSceneDTOFromScene(Scene originalScene, UUID newScriptId, Map<UUID, UUID> oldToNewPromptIds) {
+        AbstractSceneDTO sceneDTO;
+        if (originalScene.getTimingMode() == SceneTimingMode.RELATIVE_TO_STREAM_START) {
+            RelativeSceneDTO relativeDTO = new RelativeSceneDTO();
+            relativeDTO.setDurationSeconds(originalScene.getDurationSeconds());
+            relativeDTO.setSeqNum(originalScene.getSeqNum());
+            sceneDTO = relativeDTO;
+        } else {
+            AbsoluteSceneDTO absoluteDTO = new AbsoluteSceneDTO();
+            absoluteDTO.setStartTime(originalScene.getStartTime());
+            absoluteDTO.setWeekdays(originalScene.getWeekdays());
+            sceneDTO = absoluteDTO;
+        }
+        sceneDTO.setTimingMode(originalScene.getTimingMode());
         sceneDTO.setScriptId(newScriptId);
         sceneDTO.setTitle(originalScene.getTitle());
-        sceneDTO.setStartTime(originalScene.getStartTime());
-        sceneDTO.setDurationSeconds(originalScene.getDurationSeconds());
-        sceneDTO.setSeqNum(originalScene.getSeqNum());
-        sceneDTO.setWeekdays(originalScene.getWeekdays());
         sceneDTO.setTalkativity(originalScene.getTalkativity());
 
         if (originalScene.getIntroPrompts() != null && !originalScene.getIntroPrompts().isEmpty() && oldToNewPromptIds != null) {

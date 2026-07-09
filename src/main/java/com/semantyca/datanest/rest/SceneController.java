@@ -9,7 +9,9 @@ import com.semantyca.core.dto.view.ViewPage;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
-import com.semantyca.datanest.dto.script.SceneDTO;
+import com.semantyca.datanest.dto.script.AbsoluteSceneDTO;
+import com.semantyca.datanest.dto.script.AbstractSceneDTO;
+import com.semantyca.datanest.dto.script.RelativeSceneDTO;
 import com.semantyca.datanest.service.SceneService;
 import com.semantyca.mixpla.model.Scene;
 import com.semantyca.mixpla.model.cnst.SceneTimingMode;
@@ -27,7 +29,7 @@ import jakarta.validation.Validator;
 import java.util.UUID;
 
 @ApplicationScoped
-public class SceneController extends AbstractSecuredController<Scene, SceneDTO> {
+public class SceneController extends AbstractSecuredController<Scene, AbstractSceneDTO> {
     @Inject
     SceneService sceneService;
     private Validator validator;
@@ -71,7 +73,7 @@ public class SceneController extends AbstractSecuredController<Scene, SceneDTO> 
                         sceneService.getAllDTO(size, (page - 1) * size, user, filter)
                 ).asTuple().map(tuple -> {
                     ViewPage viewPage = new ViewPage();
-                    View<SceneDTO> dtoEntries = new View<>(tuple.getItem2(),
+                    View<AbstractSceneDTO> dtoEntries = new View<>(tuple.getItem2(),
                             tuple.getItem1(), page,
                             RuntimeUtil.countMaxPage(tuple.getItem1(), size),
                             size);
@@ -141,7 +143,11 @@ public class SceneController extends AbstractSecuredController<Scene, SceneDTO> 
         getContextUser(rc, false, true)
                 .chain(user -> {
                     if ("new".equals(id)) {
-                        SceneDTO dto = new SceneDTO();
+                        SceneTimingMode timingMode = SceneTimingMode.valueOf(
+                                rc.request().getParam("timingMode", SceneTimingMode.ABSOLUTE_TIME.name()));
+                        AbstractSceneDTO dto = timingMode == SceneTimingMode.RELATIVE_TO_STREAM_START
+                                ? new RelativeSceneDTO() : new AbsoluteSceneDTO();
+                        dto.setTimingMode(timingMode);
                         return Uni.createFrom().item(Tuple2.of(dto, user));
                     } else {
                         return sceneService.getDTO(UUID.fromString(id), user, languageCode)
@@ -150,7 +156,7 @@ public class SceneController extends AbstractSecuredController<Scene, SceneDTO> 
                 })
                 .subscribe().with(
                         tuple -> {
-                            SceneDTO doc = tuple.getItem1();
+                            AbstractSceneDTO doc = tuple.getItem1();
                             FormPage page = new FormPage();
                             page.addPayload(PayloadType.DOC_DATA, doc);
                             page.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());
@@ -167,7 +173,10 @@ public class SceneController extends AbstractSecuredController<Scene, SceneDTO> 
         try {
             if (!validateJsonBody(rc)) return;
             String id = rc.pathParam("id");
-            SceneDTO dto = rc.body().asJsonObject().mapTo(SceneDTO.class);
+            JsonObject json = rc.body().asJsonObject();
+            SceneTimingMode timingMode = SceneTimingMode.valueOf(json.getString("timingMode"));
+            AbstractSceneDTO dto = timingMode == SceneTimingMode.RELATIVE_TO_STREAM_START
+                    ? json.mapTo(RelativeSceneDTO.class) : json.mapTo(AbsoluteSceneDTO.class);
             if (!validateDTO(rc, dto, validator)) return;
             getContextUser(rc, false, true)
                     .chain(user -> sceneService.upsert(id, dto, user))

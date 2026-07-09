@@ -7,8 +7,10 @@ import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.PlaylistRequestDTO;
+import com.semantyca.datanest.dto.script.AbsoluteSceneDTO;
+import com.semantyca.datanest.dto.script.AbstractSceneDTO;
 import com.semantyca.datanest.dto.script.CustomActionDTO;
-import com.semantyca.datanest.dto.script.SceneDTO;
+import com.semantyca.datanest.dto.script.RelativeSceneDTO;
 import com.semantyca.datanest.dto.script.ScenePromptDTO;
 import com.semantyca.datanest.repository.SceneRepository;
 import com.semantyca.mixpla.model.CustomAction;
@@ -16,6 +18,7 @@ import com.semantyca.mixpla.model.PlaylistRequest;
 import com.semantyca.mixpla.model.Scene;
 import com.semantyca.mixpla.model.ScenePrompt;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
+import com.semantyca.mixpla.model.cnst.SceneTimingMode;
 import com.semantyca.mixpla.model.cnst.SourceType;
 import com.semantyca.mixpla.model.cnst.WayOfSourcing;
 import com.semantyca.mixpla.model.filter.SceneFilter;
@@ -28,7 +31,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
-public class SceneService extends AbstractService<Scene, SceneDTO> {
+public class SceneService extends AbstractService<Scene, AbstractSceneDTO> {
     private final SceneRepository repository;
 
     @Inject
@@ -37,13 +40,13 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
         this.repository = repository;
     }
 
-    public Uni<List<SceneDTO>> getAllDTO(final int limit, final int offset, final IUser user, SceneFilter filter) {
+    public Uni<List<AbstractSceneDTO>> getAllDTO(final int limit, final int offset, final IUser user, SceneFilter filter) {
         return repository.getAll(limit, offset, false, user, filter)
                 .chain(list -> {
                     if (list.isEmpty()) {
                         return Uni.createFrom().item(List.of());
                     }
-                    List<Uni<SceneDTO>> unis = list.stream().map(this::mapToDTO).collect(Collectors.toList());
+                    List<Uni<AbstractSceneDTO>> unis = list.stream().map(this::mapToDTO).collect(Collectors.toList());
                     return Uni.join().all(unis).andFailFast();
                 });
     }
@@ -56,19 +59,19 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
         return repository.listByScript(scriptId, limit, offset, false, user);
     }
 
-    public Uni<List<SceneDTO>> getAllByScript(final UUID scriptId, final int limit, final int offset, final IUser user) {
+    public Uni<List<AbstractSceneDTO>> getAllByScript(final UUID scriptId, final int limit, final int offset, final IUser user) {
         return repository.listByScript(scriptId, limit, offset, false, user)
                 .chain(list -> {
                     if (list.isEmpty()) {
                         return Uni.createFrom().item(List.of());
                     }
-                    List<Uni<SceneDTO>> unis = list.stream().map(this::mapToDTO).collect(Collectors.toList());
+                    List<Uni<AbstractSceneDTO>> unis = list.stream().map(this::mapToDTO).collect(Collectors.toList());
                     return Uni.join().all(unis).andFailFast();
                 });
     }
 
     @Override
-    public Uni<SceneDTO> getDTO(UUID id, IUser user, LanguageCode language) {
+    public Uni<AbstractSceneDTO> getDTO(UUID id, IUser user, LanguageCode language) {
         return repository.findById(id, user, false).chain(this::mapToDTO);
     }
 
@@ -76,7 +79,7 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
         return repository.findById(sceneId, user, false);
     }
 
-    public Uni<SceneDTO> upsert(String id, SceneDTO dto, IUser user) {
+    public Uni<AbstractSceneDTO> upsert(String id, AbstractSceneDTO dto, IUser user) {
         Scene entity = buildEntity(dto);
         List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
         if ("new".equalsIgnoreCase(id) || id == null || id.isBlank()) {
@@ -95,12 +98,24 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
         return repository.delete(UUID.fromString(id), user);
     }
 
-    private Uni<SceneDTO> mapToDTO(Scene doc) {
+    private Uni<AbstractSceneDTO> mapToDTO(Scene doc) {
         return Uni.combine().all().unis(
                 userService.getUserName(doc.getAuthor()),
                 userService.getUserName(doc.getLastModifier())
         ).asTuple().map(tuple -> {
-            SceneDTO dto = new SceneDTO();
+            AbstractSceneDTO dto;
+            if (doc.getTimingMode() == SceneTimingMode.RELATIVE_TO_STREAM_START) {
+                RelativeSceneDTO relativeDto = new RelativeSceneDTO();
+                relativeDto.setSeqNum(doc.getSeqNum());
+                relativeDto.setDurationSeconds(doc.getDurationSeconds());
+                dto = relativeDto;
+            } else {
+                AbsoluteSceneDTO absoluteDto = new AbsoluteSceneDTO();
+                absoluteDto.setStartTime(doc.getStartTime());
+                absoluteDto.setWeekdays(doc.getWeekdays());
+                dto = absoluteDto;
+            }
+            dto.setTimingMode(doc.getTimingMode());
             dto.setId(doc.getId());
             dto.setTitle(doc.getTitle());
             dto.setScriptTitle(doc.getScriptTitle());
@@ -109,11 +124,7 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
             dto.setLastModifier(tuple.getItem2());
             dto.setLastModifiedDate(doc.getLastModifiedDate());
             dto.setScriptId(doc.getScriptId());
-            dto.setStartTime(doc.getStartTime());
-            dto.setDurationSeconds(doc.getDurationSeconds());
-            dto.setSeqNum(doc.getSeqNum());
             dto.setTalkativity(doc.getTalkativity());
-            dto.setWeekdays(doc.getWeekdays());
             dto.setOneTimeRun(doc.isOneTimeRun());
             dto.setAllowJingles(doc.isAllowJingles());
             dto.setAllowAds(doc.isAllowAds());
@@ -156,13 +167,17 @@ public class SceneService extends AbstractService<Scene, SceneDTO> {
                 .collect(Collectors.toList());
     }
 
-    private Scene buildEntity(SceneDTO dto) {
+    private Scene buildEntity(AbstractSceneDTO dto) {
         Scene entity = new Scene();
         entity.setTitle(dto.getTitle());
-        entity.setStartTime(dto.getStartTime());
-        entity.setDurationSeconds(dto.getDurationSeconds());
-        entity.setSeqNum(dto.getSeqNum());
-        entity.setWeekdays(dto.getWeekdays());
+        entity.setTimingMode(dto.getTimingMode());
+        if (dto instanceof RelativeSceneDTO relativeDto) {
+            entity.setSeqNum(relativeDto.getSeqNum());
+            entity.setDurationSeconds(relativeDto.getDurationSeconds());
+        } else if (dto instanceof AbsoluteSceneDTO absoluteDto) {
+            entity.setStartTime(absoluteDto.getStartTime());
+            entity.setWeekdays(absoluteDto.getWeekdays());
+        }
         entity.setTalkativity(dto.getTalkativity());
         entity.setOneTimeRun(dto.isOneTimeRun());
         entity.setAllowJingles(dto.isAllowJingles());
