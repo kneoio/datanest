@@ -23,7 +23,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
-public class PublicSongSubmissionController {
+public class   PublicSongSubmissionController {
     private static final Logger LOGGER = Logger.getLogger(PublicSongSubmissionController.class);
     private static final String CONTROLLER_KEY = "public-submissions";
 

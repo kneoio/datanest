@@ -6,6 +6,7 @@ import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.form.FormPage;
 import com.semantyca.core.dto.view.View;
 import com.semantyca.core.dto.view.ViewPage;
+import com.semantyca.core.model.ScriptVariable;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.ProblemDetailsUtil;
@@ -260,7 +261,7 @@ public class DraftController extends AbstractSecuredController<Draft, DraftDTO> 
                 return;
             }
 
-            var variables = service.extractVariables(code);
+            List<ScriptVariable> variables = service.extractVariables(code);
             JsonArray result = new JsonArray(variables.stream()
                     .map(JsonObject::mapFrom)
                     .toList());

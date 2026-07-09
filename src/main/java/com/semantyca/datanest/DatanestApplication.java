@@ -12,6 +12,7 @@ import com.semantyca.datanest.rest.LabelController;
 import com.semantyca.datanest.rest.ListenerController;
 import com.semantyca.datanest.rest.ProfileController;
 import com.semantyca.datanest.rest.PromptController;
+import com.semantyca.datanest.rest.PublicScriptController;
 import com.semantyca.datanest.rest.PublicSongSubmissionController;
 import com.semantyca.datanest.rest.PublicSoundFragmentController;
 import com.semantyca.datanest.rest.RefController;
@@ -73,6 +74,9 @@ public class DatanestApplication {
     ScriptController scriptController;
 
     @Inject
+    PublicScriptController publicScriptController;
+
+    @Inject
     RefController refController;
 
     @Inject
@@ -103,6 +107,7 @@ public class DatanestApplication {
         promptController.setupRoutes(router);
         sceneController.setupRoutes(router);
         scriptController.setupRoutes(router);
+        publicScriptController.setupRoutes(router);
         sharedSoundFragmentController.setupRoutes(router);
         publicSoundFragmentController.setupRoutes(router);
         soundFragmentController.setupRoutes(router);

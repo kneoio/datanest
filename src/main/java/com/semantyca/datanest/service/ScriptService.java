@@ -2,6 +2,7 @@ package com.semantyca.datanest.service;
 
 import com.semantyca.core.dto.DocumentAccessDTO;
 import com.semantyca.core.dto.rls.RlsActionDTO;
+import com.semantyca.core.model.ScriptVariable;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.model.user.IUser;
@@ -22,6 +23,7 @@ import com.semantyca.datanest.dto.script.ScriptDTO;
 import com.semantyca.datanest.dto.script.ScriptExportDTO;
 import com.semantyca.datanest.dto.script.ScriptFlatDTO;
 import com.semantyca.datanest.repository.ScriptRepository;
+import com.semantyca.datanest.util.ScriptVariableExtractor;
 import com.semantyca.mixpla.model.BrandScript;
 import com.semantyca.mixpla.model.DjPrompt;
 import com.semantyca.mixpla.model.Draft;
@@ -180,6 +182,55 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
     public Uni<Script> getById(UUID id, IUser user) {
         assert repository != null;
         return repository.findById(id, user, false);
+    }
+
+    public Uni<ScriptDTO> getPublicDTO(UUID id) {
+        assert repository != null;
+        return repository.findById(id, SuperUser.build(), false)
+                .chain(script -> mapToDTO(script, SuperUser.build())
+                        .chain(dto -> extractRequiredVariables(id).map(vars -> {
+                            dto.setRequiredVariables(vars);
+                            return dto;
+                        })));
+    }
+
+    public Uni<List<ScriptVariable>> extractRequiredVariables(UUID scriptId) {
+        assert scriptSceneService != null;
+        IUser superUser = SuperUser.build();
+        return scriptSceneService.getAllByScript(scriptId, Integer.MAX_VALUE, 0, superUser)
+                .chain(scenes -> {
+                    List<UUID> promptIds = scenes.stream()
+                            .filter(scene -> scene.getPrompts() != null)
+                            .flatMap(scene -> scene.getPrompts().stream())
+                            .map(ScenePromptDTO::getPromptId)
+                            .filter(Objects::nonNull)
+                            .distinct()
+                            .collect(Collectors.toList());
+                    if (promptIds.isEmpty()) {
+                        return Uni.createFrom().item(List.<ScriptVariable>of());
+                    }
+                    return promptService.getByIds(promptIds, superUser)
+                            .chain(prompts -> {
+                                List<UUID> draftIds = prompts.stream()
+                                        .map(DjPrompt::getDraftId)
+                                        .filter(Objects::nonNull)
+                                        .distinct()
+                                        .collect(Collectors.toList());
+                                if (draftIds.isEmpty()) {
+                                    return Uni.createFrom().item(List.<ScriptVariable>of());
+                                }
+                                return draftService.getByIds(draftIds, superUser)
+                                        .map(drafts -> {
+                                            Map<String, ScriptVariable> merged = new java.util.LinkedHashMap<>();
+                                            for (Draft draft : drafts) {
+                                                for (ScriptVariable variable : ScriptVariableExtractor.extract(draft.getContent())) {
+                                                    merged.putIfAbsent(variable.getName(), variable);
+                                                }
+                                            }
+                                            return new ArrayList<>(merged.values());
+                                        });
+                            });
+                });
     }
 
     public Uni<ScriptDTO> upsert(String id, ScriptDTO dto, IUser user) {
