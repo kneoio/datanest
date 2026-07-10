@@ -38,4 +38,9 @@ record PersonalOnlyUser(IUser delegate) implements IUser {
     public String getLogin() {
         return delegate.getLogin();
     }
+
+    @Override
+    public java.util.TimeZone getTimeZone() {
+        return delegate.getTimeZone();
+    }
 }
