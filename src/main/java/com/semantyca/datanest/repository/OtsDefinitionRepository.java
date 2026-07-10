@@ -3,11 +3,14 @@ package com.semantyca.datanest.repository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.semantyca.core.dto.rls.RlsActionDTO;
+import com.semantyca.core.model.embedded.DocumentAccessInfo;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.repository.AsyncRepository;
 import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.exception.DocumentModificationAccessException;
 import com.semantyca.core.repository.rls.RLSRepository;
+import com.semantyca.core.repository.rls.RlsActionUtil;
 import com.semantyca.core.repository.table.EntityData;
 import com.semantyca.mixpla.model.filter.OtsDefinitionFilter;
 import com.semantyca.mixpla.model.stream.OtsDefinition;
@@ -18,9 +21,11 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
+import io.vertx.mutiny.sqlclient.SqlClient;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.jboss.logging.Logger;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -31,6 +36,7 @@ import static com.semantyca.mixpla.repository.MixplaNameResolver.OTS_DEFINITION;
 
 @ApplicationScoped
 public class OtsDefinitionRepository extends AsyncRepository {
+    private static final Logger LOGGER = Logger.getLogger(OtsDefinitionRepository.class);
     private static final EntityData entityData = MixplaNameResolver.create().getEntityNames(OTS_DEFINITION);
 
     @Inject
@@ -119,7 +125,34 @@ public class OtsDefinitionRepository extends AsyncRepository {
                 .onItem().transform(rows -> rows.iterator().hasNext());
     }
 
+    public Uni<OtsDefinition> findById(UUID id, IUser user, boolean includeArchived) {
+        String sql = "SELECT theTable.*, rls.* " +
+                "FROM %s theTable " +
+                "JOIN %s rls ON theTable.id = rls.entity_id " +
+                "WHERE rls.reader = $1 AND theTable.id = $2";
+
+        if (!includeArchived) {
+            sql += " AND (theTable.archived IS NULL OR theTable.archived = 0)";
+        }
+
+        return client.preparedQuery(String.format(sql, entityData.getTableName(), entityData.getRlsName()))
+                .execute(Tuple.of(user.getId(), id))
+                .onItem().transform(RowSet::iterator)
+                .onItem().transformToUni(iterator -> {
+                    if (iterator.hasNext()) {
+                        return Uni.createFrom().item(from(iterator.next()));
+                    } else {
+                        LOGGER.warnf("No %s found with id: %s, user: %s ", OTS_DEFINITION, id, user.getId());
+                        return Uni.createFrom().failure(new DocumentHasNotFoundException(id));
+                    }
+                });
+    }
+
     public Uni<OtsDefinition> insert(OtsDefinition ots, IUser user) {
+        return insert(ots, List.of(), user);
+    }
+
+    public Uni<OtsDefinition> insert(OtsDefinition ots, List<RlsActionDTO> rlsActions, IUser user) {
         return Uni.createFrom().deferred(() -> {
             try {
                 String sql = "INSERT INTO " + entityData.getTableName() +
@@ -151,36 +184,22 @@ public class OtsDefinitionRepository extends AsyncRepository {
                                 .onItem().transform(result -> result.iterator().next().getUUID("id"))
                                 .onItem().transformToUni(id ->
                                         insertRLSPermissions(tx, id, entityData, user)
+                                                .onItem().transformToUni(ignored -> applyRlsActions(tx, id, rlsActions))
                                                 .onItem().transform(ignored -> id)
                                 )
-                ).onItem().transformToUni(id -> findById(id, user));
+                ).onItem().transformToUni(id -> findById(id, user, true));
             } catch (Exception e) {
+                LOGGER.errorf("Failed to insert ots definition for user: %s", user.getId(), e);
                 return Uni.createFrom().failure(e);
             }
         });
     }
 
-    public Uni<OtsDefinition> findById(UUID id, IUser user) {
-        String sql = """
-                    SELECT t.*
-                    FROM %s t
-                    JOIN %s rls ON t.id = rls.entity_id
-                    WHERE rls.reader = $1 AND t.id = $2
-                """.formatted(entityData.getTableName(), entityData.getRlsName());
-
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(user.getId(), id))
-                .onItem().transform(RowSet::iterator)
-                .onItem().transformToUni(iterator -> {
-                    if (iterator.hasNext()) {
-                        return Uni.createFrom().item(from(iterator.next()));
-                    } else {
-                        return Uni.createFrom().failure(new DocumentHasNotFoundException(id));
-                    }
-                });
+    public Uni<OtsDefinition> update(UUID id, OtsDefinition ots, IUser user) {
+        return update(id, ots, List.of(), user);
     }
 
-    public Uni<OtsDefinition> update(UUID id, OtsDefinition ots, IUser user) {
+    public Uni<OtsDefinition> update(UUID id, OtsDefinition ots, List<RlsActionDTO> rlsActions, IUser user) {
         return Uni.createFrom().deferred(() -> {
             try {
                 JsonObject userVarsJson = null;
@@ -190,6 +209,7 @@ public class OtsDefinitionRepository extends AsyncRepository {
                 JsonObject finalUserVarsJson = userVarsJson;
 
                 return rlsRepository.findById(entityData.getRlsName(), user.getId(), id)
+                        .onFailure().invoke(throwable -> LOGGER.errorf("Failed to check RLS permissions for update ots definition: %s by user: %s", id, user.getId(), throwable))
                         .onItem().transformToUni(permissions -> {
                             if (!permissions[0]) {
                                 return Uni.createFrom().failure(
@@ -215,14 +235,17 @@ public class OtsDefinitionRepository extends AsyncRepository {
 
                             return client.preparedQuery(sql)
                                     .execute(params)
+                                    .onFailure().invoke(throwable -> LOGGER.errorf("Failed to update ots definition: %s by user: %s", id, user.getId(), throwable))
                                     .onItem().transformToUni(rowSet -> {
                                         if (rowSet.rowCount() == 0) {
                                             return Uni.createFrom().failure(new DocumentHasNotFoundException(id));
                                         }
-                                        return findById(id, user);
+                                        return applyRlsActions(client, id, rlsActions)
+                                                .onItem().transformToUni(ignored -> findById(id, user, true));
                                     });
                         });
             } catch (Exception e) {
+                LOGGER.errorf("Failed to prepare update parameters for ots definition: %s by user: %s", id, user.getId(), e);
                 return Uni.createFrom().failure(e);
             }
         });
@@ -234,6 +257,25 @@ public class OtsDefinitionRepository extends AsyncRepository {
 
     public Uni<Integer> delete(UUID id, IUser user) {
         return delete(id, entityData, user);
+    }
+
+    public Uni<Void> bulkUpdateACL(UUID entityId, List<RlsActionDTO> actions, IUser user) {
+        return rlsRepository.findById(entityData.getRlsName(), user.getId(), entityId)
+                .onItem().transformToUni(permissions -> {
+                    if (!permissions[0]) {
+                        return Uni.createFrom().failure(new DocumentModificationAccessException(
+                                "User does not have edit permission", user.getUserName(), entityId));
+                    }
+                    return client.withTransaction(tx -> applyRlsActions(tx, entityId, actions));
+                });
+    }
+
+    private Uni<Void> applyRlsActions(SqlClient tx, UUID entityId, List<RlsActionDTO> actions) {
+        return RlsActionUtil.applyRlsActions(tx, entityData.getRlsName(), entityId, actions);
+    }
+
+    public Uni<List<DocumentAccessInfo>> getDocumentAccessInfo(UUID documentId, IUser user) {
+        return getDocumentAccessInfo(documentId, entityData, user);
     }
 
     private OtsDefinition from(Row row) {

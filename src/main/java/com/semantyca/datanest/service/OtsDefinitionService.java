@@ -1,7 +1,12 @@
 package com.semantyca.datanest.service;
 
+import com.semantyca.core.dto.DocumentAccessDTO;
 import com.semantyca.core.llm.AnthropicTextClient;
+import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.user.IUser;
+import com.semantyca.core.model.user.SuperUser;
+import com.semantyca.core.service.AbstractService;
+import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.OtsDefinitionDTO;
@@ -12,6 +17,7 @@ import com.semantyca.mixpla.model.stream.OtsDefinition;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.jboss.logging.Logger;
 
 import java.util.List;
 import java.util.Map;
@@ -19,7 +25,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
-public class OtsDefinitionService {
+public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefinitionDTO> {
+    private static final Logger LOGGER = Logger.getLogger(OtsDefinitionService.class);
     private static final long NAME_MAX_TOKENS = 30;
     private static final String NAME_SYSTEM_PROMPT = """
             You generate short, friendly display names for a listener's personal radio stream, \
@@ -31,18 +38,13 @@ public class OtsDefinitionService {
     private final AnthropicTextClient anthropicTextClient;
     private final DatanestConfig config;
 
-    protected OtsDefinitionService() {
-        this.repository = null;
-        this.scriptService = null;
-        this.anthropicTextClient = null;
-        this.config = null;
-    }
-
     @Inject
-    public OtsDefinitionService(OtsDefinitionRepository repository,
+    public OtsDefinitionService(UserService userService,
+                                 OtsDefinitionRepository repository,
                                  ScriptService scriptService,
                                  AnthropicTextClient anthropicTextClient,
                                  DatanestConfig config) {
+        super(userService);
         this.repository = repository;
         this.scriptService = scriptService;
         this.anthropicTextClient = anthropicTextClient;
@@ -50,22 +52,29 @@ public class OtsDefinitionService {
     }
 
     public Uni<List<OtsDefinitionDTO>> getAllDTO(final int limit, final int offset, final IUser user, final OtsDefinitionFilter filter) {
-        assert repository != null;
         return repository.getAll(limit, offset, false, user, filter)
-                .map(list -> list.stream().map(this::mapToDTO).collect(Collectors.toList()));
+                .chain(list -> {
+                    if (list.isEmpty()) {
+                        return Uni.createFrom().item(List.of());
+                    }
+                    List<Uni<OtsDefinitionDTO>> unis = list.stream()
+                            .map(this::mapToDTO)
+                            .collect(Collectors.toList());
+                    return Uni.join().all(unis).andFailFast();
+                });
     }
 
     public Uni<Integer> getAllCount(final IUser user, final OtsDefinitionFilter filter) {
-        assert repository != null;
         return repository.getAllCount(user, false, filter);
     }
 
-    public Uni<OtsDefinitionDTO> getDTO(UUID id, IUser user) {
-        assert repository != null;
-        return repository.findById(id, user).map(this::mapToDTO);
+    @Override
+    public Uni<OtsDefinitionDTO> getDTO(UUID id, IUser user, LanguageCode language) {
+        return repository.findById(id, user, false).chain(this::mapToDTO);
     }
 
-    public Uni<OtsDefinitionDTO> upsert(String id, OtsDefinitionDTO dto, IUser user) {
+    @Override
+    public Uni<OtsDefinitionDTO> upsert(String id, OtsDefinitionDTO dto, IUser user, LanguageCode code) {
         if (dto.getBrandId() == null && dto.getAgentId() == null) {
             return Uni.createFrom().failure(
                     new IllegalArgumentException("agentId is required when brandId is not set"));
@@ -76,48 +85,52 @@ public class OtsDefinitionService {
         return update(UUID.fromString(id), dto, user);
     }
 
-    public Uni<Integer> archive(String id, IUser user) {
-        assert repository != null;
+    @Override
+    public Uni<Integer> delete(String id, IUser user) {
         return repository.archive(UUID.fromString(id), user);
     }
 
     private Uni<OtsDefinitionDTO> update(UUID id, OtsDefinitionDTO dto, IUser user) {
-        assert repository != null;
+        OtsDefinition entity = buildEntity(dto);
+        return repository.update(id, entity, user).chain(this::mapToDTO);
+    }
+
+    private Uni<OtsDefinitionDTO> create(OtsDefinitionDTO dto, IUser user) {
+        return scriptService.getById(dto.getScriptId(), SuperUser.build())
+                .chain(script -> generateName(script, dto.getUserVariables())
+                        .chain(name -> {
+                            String slug = WebHelper.generateSlug(name + "-" + user.getUserName());
+                            return repository.existsBySlug(slug)
+                                    .chain(exists -> {
+                                        if (exists) {
+                                            return Uni.createFrom().failure(
+                                                    new IllegalArgumentException("An ots definition with slug '" + slug + "' already exists"));
+                                        }
+                                        OtsDefinition entity = buildEntity(dto);
+                                        entity.setName(name);
+                                        entity.setSlugName(slug);
+                                        return repository.insert(entity, user);
+                                    });
+                        })
+                )
+                .chain(this::mapToDTO);
+    }
+
+    private OtsDefinition buildEntity(OtsDefinitionDTO dto) {
         OtsDefinition entity = new OtsDefinition();
         entity.setName(dto.getName());
         entity.setScriptId(dto.getScriptId());
         entity.setUserVariables(dto.getUserVariables());
         entity.setBrandId(dto.getBrandId());
         entity.setAgentId(dto.getAgentId());
-        return repository.update(id, entity, user).map(this::mapToDTO);
-    }
-
-    private Uni<OtsDefinitionDTO> create(OtsDefinitionDTO dto, IUser user) {
-        assert repository != null;
-        assert scriptService != null;
-
-        return scriptService.getById(dto.getScriptId(), user)
-                .chain(script -> generateName(script, dto.getUserVariables())
-                        .chain(name -> generateUniqueSlug(name)
-                                .chain(slug -> {
-                                    OtsDefinition entity = new OtsDefinition();
-                                    entity.setName(name);
-                                    entity.setSlugName(slug);
-                                    entity.setScriptId(dto.getScriptId());
-                                    entity.setUserVariables(dto.getUserVariables());
-                                    entity.setBrandId(dto.getBrandId());
-                                    entity.setAgentId(dto.getAgentId());
-                                    return repository.insert(entity, user);
-                                })
-                        )
-                )
-                .map(this::mapToDTO);
+        return entity;
     }
 
     private Uni<String> generateName(Script script, Map<String, Object> userVariables) {
-        assert anthropicTextClient != null;
-        assert config != null;
+        // LLM name generation temporarily disabled - Anthropic model config out of date.
+        return Uni.createFrom().item(script.getName());
 
+        /*
         String variablesText = userVariables == null || userVariables.isEmpty()
                 ? "(no variables)"
                 : userVariables.entrySet().stream()
@@ -132,32 +145,38 @@ public class OtsDefinitionService {
                         NAME_MAX_TOKENS,
                         NAME_SYSTEM_PROMPT,
                         userMessage)
-                .map(result -> result.text().trim());
+                .map(result -> result.text().trim())
+                .onFailure().invoke(throwable -> LOGGER.errorf("Failed to generate ots definition name for script: %s", script.getId(), throwable));
+        */
     }
 
-    private Uni<String> generateUniqueSlug(String name) {
-        String baseSlug = WebHelper.generateSlug(name);
-        return tryUniqueSlug(baseSlug, 0);
+    public Uni<List<DocumentAccessDTO>> getDocumentAccess(UUID documentId, IUser user) {
+        return repository.getDocumentAccessInfo(documentId, user)
+                .onItem().transform(accessInfoList ->
+                        accessInfoList.stream()
+                                .map(this::mapToDocumentAccessDTO)
+                                .collect(Collectors.toList())
+                );
     }
 
-    private Uni<String> tryUniqueSlug(String baseSlug, int attempt) {
-        assert repository != null;
-        String candidate = attempt == 0 ? baseSlug : baseSlug + "-" + UUID.randomUUID().toString().substring(0, 6);
-        return repository.existsBySlug(candidate)
-                .chain(exists -> exists
-                        ? tryUniqueSlug(baseSlug, attempt + 1)
-                        : Uni.createFrom().item(candidate));
-    }
-
-    private OtsDefinitionDTO mapToDTO(OtsDefinition ots) {
-        OtsDefinitionDTO dto = new OtsDefinitionDTO();
-        dto.setId(ots.getId());
-        dto.setName(ots.getName());
-        dto.setSlugName(ots.getSlugName());
-        dto.setScriptId(ots.getScriptId());
-        dto.setUserVariables(ots.getUserVariables());
-        dto.setBrandId(ots.getBrandId());
-        dto.setAgentId(ots.getAgentId());
-        return dto;
+    private Uni<OtsDefinitionDTO> mapToDTO(OtsDefinition ots) {
+        return Uni.combine().all().unis(
+                userService.getUserName(ots.getAuthor()),
+                userService.getUserName(ots.getLastModifier())
+        ).asTuple().map(tuple -> {
+            OtsDefinitionDTO dto = new OtsDefinitionDTO();
+            dto.setId(ots.getId());
+            dto.setAuthor(tuple.getItem1());
+            dto.setRegDate(ots.getRegDate());
+            dto.setLastModifier(tuple.getItem2());
+            dto.setLastModifiedDate(ots.getLastModifiedDate());
+            dto.setName(ots.getName());
+            dto.setSlugName(ots.getSlugName());
+            dto.setScriptId(ots.getScriptId());
+            dto.setUserVariables(ots.getUserVariables());
+            dto.setBrandId(ots.getBrandId());
+            dto.setAgentId(ots.getAgentId());
+            return dto;
+        });
     }
 }

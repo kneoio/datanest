@@ -6,6 +6,7 @@ import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.form.FormPage;
 import com.semantyca.core.dto.view.View;
 import com.semantyca.core.dto.view.ViewPage;
+import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.ProblemDetailsUtil;
 import com.semantyca.core.util.RuntimeUtil;
@@ -54,6 +55,7 @@ public class OtsDefinitionController extends AbstractSecuredController<OtsDefini
         router.get(path + "/:id").handler(this::getById);
         router.post(path + "/:id?").handler(this::upsert);
         router.delete(path + "/:id").handler(this::delete);
+        router.get(path + "/:id/access").handler(this::getDocumentAccess);
     }
 
     private void getAll(RoutingContext rc) {
@@ -123,13 +125,14 @@ public class OtsDefinitionController extends AbstractSecuredController<OtsDefini
 
     private void getById(RoutingContext rc) {
         String id = rc.pathParam("id");
+        LanguageCode languageCode = LanguageCode.valueOf(rc.request().getParam("lang", LanguageCode.en.name()));
 
         getContextUser(rc, false, true)
                 .chain(user -> {
                     if ("new".equals(id)) {
                         return Uni.createFrom().item(new OtsDefinitionDTO());
                     }
-                    return service.getDTO(UUID.fromString(id), user);
+                    return service.getDTO(UUID.fromString(id), user, languageCode);
                 })
                 .subscribe().with(
                         doc -> {
@@ -167,9 +170,12 @@ public class OtsDefinitionController extends AbstractSecuredController<OtsDefini
             }
 
             getContextUser(rc, false, true)
-                    .chain(user -> service.upsert(id, dto, user))
+                    .chain(user -> service.upsert(id, dto, user, LanguageCode.en))
                     .subscribe().with(
-                            doc -> sendUpsertResponse(rc, doc, id),
+                            doc -> rc.response()
+                                    .setStatusCode(id == null ? 201 : 200)
+                                    .putHeader("Content-Type", "application/json")
+                                    .end(io.vertx.core.json.JsonObject.mapFrom(doc).encode()),
                             throwable -> {
                                 if (throwable instanceof IllegalArgumentException) {
                                     rc.fail(400, throwable);
@@ -190,10 +196,41 @@ public class OtsDefinitionController extends AbstractSecuredController<OtsDefini
     private void delete(RoutingContext rc) {
         String id = rc.pathParam("id");
         getContextUser(rc, false, true)
-                .chain(user -> service.archive(id, user))
+                .chain(user -> service.delete(id, user))
                 .subscribe().with(
                         count -> rc.response().setStatusCode(count > 0 ? 204 : 404).end(),
                         rc::fail
                 );
+    }
+
+    private void getDocumentAccess(RoutingContext rc) {
+        String id = rc.pathParam("id");
+
+        try {
+            UUID documentId = UUID.fromString(id);
+
+            getContextUser(rc, false, true)
+                    .chain(user -> service.getDocumentAccess(documentId, user))
+                    .subscribe().with(
+                            accessList -> {
+                                JsonObject response = new JsonObject();
+                                response.put("documentId", id);
+                                response.put("accessList", accessList);
+                                rc.response()
+                                        .setStatusCode(200)
+                                        .putHeader("Content-Type", "application/json")
+                                        .end(response.encode());
+                            },
+                            throwable -> {
+                                if (throwable instanceof IllegalArgumentException) {
+                                    rc.fail(400, throwable);
+                                } else {
+                                    rc.fail(500, throwable);
+                                }
+                            }
+                    );
+        } catch (IllegalArgumentException e) {
+            rc.fail(400, new IllegalArgumentException("Invalid document ID format"));
+        }
     }
 }
