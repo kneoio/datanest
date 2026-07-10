@@ -10,6 +10,7 @@ import com.semantyca.datanest.rest.DraftController;
 import com.semantyca.datanest.rest.EventController;
 import com.semantyca.datanest.rest.LabelController;
 import com.semantyca.datanest.rest.ListenerController;
+import com.semantyca.datanest.rest.OtsDefinitionController;
 import com.semantyca.datanest.rest.ProfileController;
 import com.semantyca.datanest.rest.PromptController;
 import com.semantyca.datanest.rest.PublicScriptController;
@@ -97,6 +98,9 @@ public class DatanestApplication {
     @Inject
     BrandAgentStatsController brandAgentStatsController;
 
+    @Inject
+    OtsDefinitionController otsDefinitionController;
+
     void setupRoutes(@Observes Router router) {
         artistController.setupRoutes(router);
         brandController.setupRoutes(router);
@@ -120,5 +124,6 @@ public class DatanestApplication {
         bulkACLController.setupRoutes(router);
         userAdController.setupRoutes(router);
         brandAgentStatsController.setupRoutes(router);
+        otsDefinitionController.setupRoutes(router);
     }
 }
