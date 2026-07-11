@@ -12,11 +12,15 @@ import com.semantyca.core.repository.exception.DocumentModificationAccessExcepti
 import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.rls.RlsActionUtil;
 import com.semantyca.core.repository.table.EntityData;
+import com.semantyca.mixpla.model.cnst.OtsRunStatus;
+import com.semantyca.mixpla.model.cnst.OtsRunType;
 import com.semantyca.mixpla.model.filter.OtsDefinitionFilter;
 import com.semantyca.mixpla.model.stream.OtsDefinition;
+import com.semantyca.mixpla.model.stream.OtsStatusHistoryEntry;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
@@ -28,6 +32,8 @@ import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -156,8 +162,8 @@ public class OtsDefinitionRepository extends AsyncRepository {
         return Uni.createFrom().deferred(() -> {
             try {
                 String sql = "INSERT INTO " + entityData.getTableName() +
-                        " (author, reg_date, last_mod_user, last_mod_date, name, slug_name, script_id, user_variables, brand_id, agent_id) " +
-                        "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id";
+                        " (author, reg_date, last_mod_user, last_mod_date, name, slug_name, script_id, user_variables, brand_id, agent_id, status, status_history, type, estimated_duration_min) " +
+                        "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id";
 
                 OffsetDateTime now = OffsetDateTime.now();
 
@@ -165,6 +171,14 @@ public class OtsDefinitionRepository extends AsyncRepository {
                 if (ots.getUserVariables() != null && !ots.getUserVariables().isEmpty()) {
                     userVarsJson = new JsonObject(mapper.writeValueAsString(ots.getUserVariables()));
                 }
+
+                OtsRunStatus status = ots.getStatus() != null ? ots.getStatus() : OtsRunStatus.PENDING;
+                OtsRunType type = ots.getType() != null ? ots.getType() : OtsRunType.ONE_SHOT;
+
+                OtsStatusHistoryEntry initialEntry = new OtsStatusHistoryEntry();
+                initialEntry.setStatus(status);
+                initialEntry.setTimestamp(now.toZonedDateTime());
+                JsonArray statusHistoryJson = new JsonArray(List.of(JsonObject.mapFrom(initialEntry)));
 
                 Tuple params = Tuple.tuple()
                         .addLong(user.getId())
@@ -176,7 +190,11 @@ public class OtsDefinitionRepository extends AsyncRepository {
                         .addUUID(ots.getScriptId())
                         .addJsonObject(userVarsJson)
                         .addUUID(ots.getBrandId())
-                        .addUUID(ots.getAgentId());
+                        .addUUID(ots.getAgentId())
+                        .addString(status.name())
+                        .addJsonArray(statusHistoryJson)
+                        .addString(type.name())
+                        .addInteger(ots.getEstimatedDurationMin());
 
                 return client.withTransaction(tx ->
                         tx.preparedQuery(sql)
@@ -218,10 +236,11 @@ public class OtsDefinitionRepository extends AsyncRepository {
                             }
 
                             String sql = "UPDATE " + entityData.getTableName() +
-                                    " SET name=$1, script_id=$2, user_variables=$3, brand_id=$4, agent_id=$5, last_mod_user=$6, last_mod_date=$7 " +
-                                    "WHERE id=$8";
+                                    " SET name=$1, script_id=$2, user_variables=$3, brand_id=$4, agent_id=$5, type=$6, estimated_duration_min=$7, last_mod_user=$8, last_mod_date=$9 " +
+                                    "WHERE id=$10";
 
                             OffsetDateTime now = OffsetDateTime.now();
+                            OtsRunType type = ots.getType() != null ? ots.getType() : OtsRunType.ONE_SHOT;
 
                             Tuple params = Tuple.tuple()
                                     .addString(ots.getName())
@@ -229,6 +248,8 @@ public class OtsDefinitionRepository extends AsyncRepository {
                                     .addJsonObject(finalUserVarsJson)
                                     .addUUID(ots.getBrandId())
                                     .addUUID(ots.getAgentId())
+                                    .addString(type.name())
+                                    .addInteger(ots.getEstimatedDurationMin())
                                     .addLong(user.getId())
                                     .addOffsetDateTime(now)
                                     .addUUID(id);
@@ -249,6 +270,32 @@ public class OtsDefinitionRepository extends AsyncRepository {
                 return Uni.createFrom().failure(e);
             }
         });
+    }
+
+    public Uni<OtsDefinition> updateStatus(UUID id, OtsRunStatus status, IUser user) {
+        OtsStatusHistoryEntry entry = new OtsStatusHistoryEntry();
+        entry.setStatus(status);
+        entry.setTimestamp(ZonedDateTime.now());
+
+        String sql = "UPDATE " + entityData.getTableName() +
+                " SET status=$1, status_history = status_history || $2::jsonb, last_mod_user=$3, last_mod_date=$4 " +
+                "WHERE id=$5";
+
+        Tuple params = Tuple.tuple()
+                .addString(status.name())
+                .addJsonArray(new JsonArray(List.of(JsonObject.mapFrom(entry))))
+                .addLong(user.getId())
+                .addOffsetDateTime(OffsetDateTime.now())
+                .addUUID(id);
+
+        return client.preparedQuery(sql)
+                .execute(params)
+                .onItem().transformToUni(rowSet -> {
+                    if (rowSet.rowCount() == 0) {
+                        return Uni.createFrom().failure(new DocumentHasNotFoundException(id));
+                    }
+                    return findById(id, user, true);
+                });
     }
 
     public Uni<Integer> archive(UUID id, IUser user) {
@@ -286,6 +333,27 @@ public class OtsDefinitionRepository extends AsyncRepository {
         doc.setScriptId(row.getUUID("script_id"));
         doc.setBrandId(row.getUUID("brand_id"));
         doc.setAgentId(row.getUUID("agent_id"));
+
+        String statusValue = row.getString("status");
+        if (statusValue != null) {
+            doc.setStatus(OtsRunStatus.valueOf(statusValue));
+        }
+
+        String typeValue = row.getString("type");
+        if (typeValue != null) {
+            doc.setType(OtsRunType.valueOf(typeValue));
+        }
+
+        doc.setEstimatedDurationMin(row.getInteger("estimated_duration_min"));
+
+        JsonArray statusHistoryJson = row.getJsonArray("status_history");
+        if (statusHistoryJson != null && !statusHistoryJson.isEmpty()) {
+            List<OtsStatusHistoryEntry> history = new ArrayList<>();
+            for (int i = 0; i < statusHistoryJson.size(); i++) {
+                history.add(statusHistoryJson.getJsonObject(i).mapTo(OtsStatusHistoryEntry.class));
+            }
+            doc.setStatusHistory(history);
+        }
 
         JsonObject userVarsJson = row.getJsonObject("user_variables");
         if (userVarsJson != null && !userVarsJson.isEmpty()) {

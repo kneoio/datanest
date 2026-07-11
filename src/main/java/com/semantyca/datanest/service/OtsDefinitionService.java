@@ -12,6 +12,7 @@ import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.OtsDefinitionDTO;
 import com.semantyca.datanest.repository.OtsDefinitionRepository;
 import com.semantyca.mixpla.model.Script;
+import com.semantyca.mixpla.model.cnst.OtsRunStatus;
 import com.semantyca.mixpla.model.filter.OtsDefinitionFilter;
 import com.semantyca.mixpla.model.stream.OtsDefinition;
 import io.smallrye.mutiny.Uni;
@@ -123,7 +124,13 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
         entity.setUserVariables(dto.getUserVariables());
         entity.setBrandId(dto.getBrandId());
         entity.setAgentId(dto.getAgentId());
+        entity.setType(dto.getType());
+        entity.setEstimatedDurationMin(dto.getEstimatedDurationMin());
         return entity;
+    }
+
+    public Uni<OtsDefinitionDTO> updateStatus(UUID id, OtsRunStatus status, IUser user) {
+        return repository.updateStatus(id, status, user).chain(this::mapToDTO);
     }
 
     private Uni<String> generateName(Script script, Map<String, Object> userVariables) {
@@ -176,6 +183,10 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
             dto.setUserVariables(ots.getUserVariables());
             dto.setBrandId(ots.getBrandId());
             dto.setAgentId(ots.getAgentId());
+            dto.setStatus(ots.getStatus());
+            dto.setStatusHistory(ots.getStatusHistory());
+            dto.setType(ots.getType());
+            dto.setEstimatedDurationMin(ots.getEstimatedDurationMin());
             return dto;
         });
     }
