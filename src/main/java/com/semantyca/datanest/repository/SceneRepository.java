@@ -14,6 +14,7 @@ import com.semantyca.datanest.repository.prompt.PromptRepository;
 import com.semantyca.mixpla.model.CustomAction;
 import com.semantyca.mixpla.model.PlaylistRequest;
 import com.semantyca.mixpla.model.Scene;
+import com.semantyca.mixpla.model.cnst.SceneTimingMode;
 import com.semantyca.mixpla.model.filter.SceneFilter;
 import com.semantyca.mixpla.repository.MixplaNameResolver;
 import io.smallrye.mutiny.Multi;
@@ -60,7 +61,7 @@ public class SceneRepository extends AsyncRepository {
     }
 
     public Uni<List<Scene>> getAll(int limit, int offset, boolean includeArchived, IUser user, SceneFilter filter) {
-        String sql = "SELECT t.*, s.name as script_title FROM " + entityData.getTableName() + " t, " + entityData.getRlsName() + " rls, mixpla__scripts s " +
+        String sql = "SELECT t.*, s.name as script_title, s.timing_mode as timing_mode FROM " + entityData.getTableName() + " t, " + entityData.getRlsName() + " rls, mixpla__scripts s " +
                 "WHERE t.id = rls.entity_id AND t.script_id = s.id AND rls.reader = $1";
         if (!includeArchived) {
             sql += " AND t.archived = 0";
@@ -107,8 +108,8 @@ public class SceneRepository extends AsyncRepository {
 
     // Per-script listing
     public Uni<List<Scene>> listByScript(UUID scriptId, int limit, int offset, boolean includeArchived, IUser user) {
-        String sql = "SELECT t.* FROM " + entityData.getTableName() + " t, " + entityData.getRlsName() + " rls " +
-                "WHERE t.id = rls.entity_id AND rls.reader = $1 AND t.script_id = $2";
+        String sql = "SELECT t.*, s.timing_mode as timing_mode FROM " + entityData.getTableName() + " t, " + entityData.getRlsName() + " rls, mixpla__scripts s " +
+                "WHERE t.id = rls.entity_id AND t.script_id = s.id AND rls.reader = $1 AND t.script_id = $2";
         if (!includeArchived) {
             sql += " AND t.archived = 0";
         }
@@ -148,7 +149,7 @@ public class SceneRepository extends AsyncRepository {
     }
 
     public Uni<Scene> findById(UUID id, IUser user, boolean includeArchived) {
-        String sql = "SELECT theTable.*, rls.* FROM %s theTable JOIN %s rls ON theTable.id = rls.entity_id WHERE rls.reader = $1 AND theTable.id = $2";
+        String sql = "SELECT theTable.*, rls.*, s.timing_mode as timing_mode FROM %s theTable JOIN %s rls ON theTable.id = rls.entity_id JOIN mixpla__scripts s ON theTable.script_id = s.id WHERE rls.reader = $1 AND theTable.id = $2";
         if (!includeArchived) {
             sql += " AND theTable.archived = 0";
         }
@@ -315,6 +316,8 @@ public class SceneRepository extends AsyncRepository {
         if (durationSeconds != null) doc.setDurationSeconds(durationSeconds);
         Integer seqNum = row.getInteger("seq_num");
         if (seqNum != null) doc.setSeqNum(seqNum);
+        String timingMode = row.getString("timing_mode");
+        if (timingMode != null) doc.setTimingMode(SceneTimingMode.valueOf(timingMode));
         Boolean oneTimeRun = row.getBoolean("one_time_run");
         if (oneTimeRun != null) doc.setOneTimeRun(oneTimeRun);
         Boolean allowJingles = row.getBoolean("allow_jingles");
