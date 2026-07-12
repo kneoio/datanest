@@ -586,19 +586,4 @@ public class ScriptRepository extends AsyncRepository {
                 .onItem().transform(rows -> rows.iterator().next().getInteger(0));
     }
 
-    public Uni<Void> patchRequiredVariables(UUID scriptId, List<ScriptVariable> requiredVariables) {
-        String sql = "UPDATE " + entityData.getTableName() + " SET required_variables = $1 WHERE id = $2";
-        JsonArray jsonArray = null;
-        if (requiredVariables != null && !requiredVariables.isEmpty()) {
-            try {
-                jsonArray = new JsonArray(mapper.writeValueAsString(requiredVariables));
-            } catch (JsonProcessingException e) {
-                return Uni.createFrom().failure(e);
-            }
-        }
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(jsonArray, scriptId))
-                .replaceWithVoid();
-    }
-
 }
