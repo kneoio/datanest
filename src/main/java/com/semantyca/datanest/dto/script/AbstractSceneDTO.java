@@ -29,6 +29,7 @@ public abstract class AbstractSceneDTO extends AbstractDTO {
     private PlaylistRequestDTO playlistRequest;
     private boolean allowJingles;
     private boolean allowAds;
+    private boolean oneTimeRun;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<RlsActionDTO> rlsActions = new ArrayList<>();
 }

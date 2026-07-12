@@ -14,5 +14,4 @@ public class AbsoluteSceneDTO extends AbstractSceneDTO {
     private List<LocalTime> startTime;
     @NotEmpty
     private List<Integer> weekdays;
-    private boolean oneTimeRun;
 }

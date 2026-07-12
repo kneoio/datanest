@@ -113,9 +113,9 @@ public class SceneService extends AbstractService<Scene, AbstractSceneDTO> {
                 AbsoluteSceneDTO absoluteDto = new AbsoluteSceneDTO();
                 absoluteDto.setStartTime(doc.getStartTime());
                 absoluteDto.setWeekdays(doc.getWeekdays());
-                absoluteDto.setOneTimeRun(doc.isOneTimeRun());
                 dto = absoluteDto;
             }
+            dto.setOneTimeRun(doc.isOneTimeRun());
             dto.setTimingMode(doc.getTimingMode());
             dto.setId(doc.getId());
             dto.setTitle(doc.getTitle());
@@ -177,8 +177,8 @@ public class SceneService extends AbstractService<Scene, AbstractSceneDTO> {
         } else if (dto instanceof AbsoluteSceneDTO absoluteDto) {
             entity.setStartTime(absoluteDto.getStartTime());
             entity.setWeekdays(absoluteDto.getWeekdays());
-            entity.setOneTimeRun(absoluteDto.isOneTimeRun());
         }
+        entity.setOneTimeRun(dto.isOneTimeRun());
         entity.setTalkativity(dto.getTalkativity());
         entity.setAllowJingles(dto.isAllowJingles());
         entity.setAllowAds(dto.isAllowAds());
