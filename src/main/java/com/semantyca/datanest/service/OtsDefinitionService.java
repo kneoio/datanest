@@ -110,6 +110,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
                                         OtsDefinition entity = buildEntity(dto);
                                         entity.setName(name);
                                         entity.setSlugName(slug);
+                                        entity.setChatContext(buildChatContext(script, dto.getUserVariables()));
                                         return repository.insert(entity, user);
                                     });
                         })
@@ -129,8 +130,14 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
         return entity;
     }
 
-    public Uni<OtsDefinitionDTO> updateStatus(UUID id, OtsRunStatus status, IUser user) {
-        return repository.updateStatus(id, status, user).chain(this::mapToDTO);
+    private String buildChatContext(Script script, Map<String, Object> userVariables) {
+        StringBuilder sb = new StringBuilder("Event: ").append(script.getName());
+        if (userVariables != null) {
+            for (Map.Entry<String, Object> entry : userVariables.entrySet()) {
+                sb.append("\n").append(entry.getKey()).append(": ").append(entry.getValue());
+            }
+        }
+        return sb.toString();
     }
 
     private Uni<String> generateName(Script script, Map<String, Object> userVariables) {
