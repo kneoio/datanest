@@ -92,8 +92,13 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
     }
 
     private Uni<OtsDefinitionDTO> update(UUID id, OtsDefinitionDTO dto, IUser user) {
-        OtsDefinition entity = buildEntity(dto);
-        return repository.update(id, entity, user).chain(this::mapToDTO);
+        return scriptService.getById(dto.getScriptId(), SuperUser.build())
+                .chain(script -> {
+                    OtsDefinition entity = buildEntity(dto);
+                    entity.setChatContext(buildChatContext(script, dto.getUserVariables()));
+                    return repository.update(id, entity, user);
+                })
+                .chain(this::mapToDTO);
     }
 
     private Uni<OtsDefinitionDTO> create(OtsDefinitionDTO dto, IUser user) {
@@ -194,6 +199,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
             dto.setStatusHistory(ots.getStatusHistory());
             dto.setType(ots.getType());
             dto.setEstimatedDurationMin(ots.getEstimatedDurationMin());
+            dto.setChatContext(ots.getChatContext());
             return dto;
         });
     }

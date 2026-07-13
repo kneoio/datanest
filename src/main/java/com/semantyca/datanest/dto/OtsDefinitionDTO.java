@@ -28,4 +28,5 @@ public class OtsDefinitionDTO extends AbstractDTO {
     private List<OtsStatusHistoryEntry> statusHistory;
     private OtsRunType type;
     private Integer estimatedDurationMin;
+    private String chatContext;
 }

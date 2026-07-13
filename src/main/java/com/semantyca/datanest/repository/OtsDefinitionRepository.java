@@ -162,8 +162,8 @@ public class OtsDefinitionRepository extends AsyncRepository {
         return Uni.createFrom().deferred(() -> {
             try {
                 String sql = "INSERT INTO " + entityData.getTableName() +
-                        " (author, reg_date, last_mod_user, last_mod_date, name, slug_name, script_id, user_variables, brand_id, agent_id, status, status_history, type, estimated_duration_min) " +
-                        "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id";
+                        " (author, reg_date, last_mod_user, last_mod_date, name, slug_name, script_id, user_variables, brand_id, agent_id, status, status_history, type, estimated_duration_min, chat_context) " +
+                        "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id";
 
                 OffsetDateTime now = OffsetDateTime.now();
 
@@ -194,7 +194,8 @@ public class OtsDefinitionRepository extends AsyncRepository {
                         .addString(status.name())
                         .addJsonArray(statusHistoryJson)
                         .addString(type.name())
-                        .addInteger(ots.getEstimatedDurationMin());
+                        .addInteger(ots.getEstimatedDurationMin())
+                        .addString(ots.getChatContext());
 
                 return client.withTransaction(tx ->
                         tx.preparedQuery(sql)
@@ -236,8 +237,8 @@ public class OtsDefinitionRepository extends AsyncRepository {
                             }
 
                             String sql = "UPDATE " + entityData.getTableName() +
-                                    " SET name=$1, script_id=$2, user_variables=$3, brand_id=$4, agent_id=$5, type=$6, estimated_duration_min=$7, last_mod_user=$8, last_mod_date=$9 " +
-                                    "WHERE id=$10";
+                                    " SET name=$1, script_id=$2, user_variables=$3, brand_id=$4, agent_id=$5, type=$6, estimated_duration_min=$7, chat_context=$8, last_mod_user=$9, last_mod_date=$10 " +
+                                    "WHERE id=$11";
 
                             OffsetDateTime now = OffsetDateTime.now();
                             OtsRunType type = ots.getType() != null ? ots.getType() : OtsRunType.ONE_SHOT;
@@ -250,6 +251,7 @@ public class OtsDefinitionRepository extends AsyncRepository {
                                     .addUUID(ots.getAgentId())
                                     .addString(type.name())
                                     .addInteger(ots.getEstimatedDurationMin())
+                                    .addString(ots.getChatContext())
                                     .addLong(user.getId())
                                     .addOffsetDateTime(now)
                                     .addUUID(id);
@@ -345,14 +347,17 @@ public class OtsDefinitionRepository extends AsyncRepository {
         }
 
         doc.setEstimatedDurationMin(row.getInteger("estimated_duration_min"));
+        doc.setChatContext(row.getString("chat_context"));
 
         JsonArray statusHistoryJson = row.getJsonArray("status_history");
         if (statusHistoryJson != null && !statusHistoryJson.isEmpty()) {
-            List<OtsStatusHistoryEntry> history = new ArrayList<>();
-            for (int i = 0; i < statusHistoryJson.size(); i++) {
-                history.add(statusHistoryJson.getJsonObject(i).mapTo(OtsStatusHistoryEntry.class));
+            try {
+                List<OtsStatusHistoryEntry> history = mapper.readValue(statusHistoryJson.encode(), new TypeReference<>() {
+                });
+                doc.setStatusHistory(history);
+            } catch (JsonProcessingException e) {
+                doc.setStatusHistory(null);
             }
-            doc.setStatusHistory(history);
         }
 
         JsonObject userVarsJson = row.getJsonObject("user_variables");
