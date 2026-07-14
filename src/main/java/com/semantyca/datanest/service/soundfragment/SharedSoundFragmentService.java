@@ -113,19 +113,20 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
             return repository.applyPatch(fragmentId, remove, List.of());
         }
 
+        boolean notifyOnPlay = patch.isNotifyOnPlay();
         Uni<SoundFragment> fragmentUni = soundFragmentRepository.findById(fragmentId, user.getId(), false, true, false);
         Uni<List<SharedSoundFragment>> entitiesUni = NO_BRAND_SLUG.equals(slug)
-                ? fragmentUni.chain(fragment -> validateAndBuildEntities(fragment, add, user.getId(), user.getUserName(), user.getEmail(), incognito))
+                ? fragmentUni.chain(fragment -> validateAndBuildEntities(fragment, add, user.getId(), user.getUserName(), user.getEmail(), incognito, notifyOnPlay))
                 : fragmentUni.chain(fragment -> brandService.getBySlugNameForUser(slug, user)
                         .chain(sourceBrand -> validateAndBuildEntities(fragment, add,
                                 sourceBrand.getOwner().getUserId(), sourceBrand.getOwner().getName(),
-                                sourceBrand.getOwner().getEmail(), incognito)));
+                                sourceBrand.getOwner().getEmail(), incognito, notifyOnPlay)));
         return entitiesUni.chain(entities -> repository.applyPatch(fragmentId, remove, entities));
     }
 
     private Uni<List<SharedSoundFragment>> validateAndBuildEntities(SoundFragment fragment, List<UUID> targetBrandIds,
                                                                      Long sourceUserId, String sourceUserName, String sourceUserEmail,
-                                                                     boolean stayIncognito) {
+                                                                     boolean stayIncognito, boolean notifyOnPlay) {
         List<Uni<SharedSoundFragment>> unis = targetBrandIds.stream()
                 .map(targetBrandId -> brandService.getById(targetBrandId, SuperUser.build())
                         .onItem().transformToUni(targetBrand -> {
@@ -141,6 +142,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
                             }
                             entity.setTargetBrandId(targetBrandId);
                             entity.setSoundFragmentId(fragment.getId());
+                            entity.setNotifyOnPlay(notifyOnPlay);
                             // Every new share starts PENDING regardless of genre fit — no automatic
                             // accept/reject decision. Genre stays visible to the reviewing station
                             // owner as context (rendered as tags), it's not an automated gate.
@@ -188,6 +190,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         dto.setTargetBrandName(e.getTargetBrandName());
         dto.setBoost(e.getBoost() != null ? e.getBoost() : 0);
         dto.setStatus(e.getStatus());
+        dto.setNotifyOnPlay(Boolean.TRUE.equals(e.getNotifyOnPlay()));
         if (e.getFileMetadataList() != null && !e.getFileMetadataList().isEmpty()) {
             dto.setUploadedFiles(e.getFileMetadataList().stream().map(meta -> {
                 UploadFileDTO fileDto = new UploadFileDTO();
@@ -205,6 +208,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         ShareDTO dto = new ShareDTO();
         dto.setStatus(e.getStatus());
         dto.setShared(e.getStatus() == null || e.getStatus() != ApprovalStatus.REJECTED.value());
+        dto.setNotifyOnPlay(Boolean.TRUE.equals(e.getNotifyOnPlay()));
         String brandName = null;
         if (e.getTargetBrandName() != null && !e.getTargetBrandName().isEmpty()) {
             brandName = e.getTargetBrandName().get(LanguageCode.en);

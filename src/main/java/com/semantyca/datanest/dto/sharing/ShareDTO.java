@@ -13,4 +13,5 @@ public class ShareDTO {
     private String targetBrand;
     private Integer status;
     private boolean shared;
+    private boolean notifyOnPlay;
 }

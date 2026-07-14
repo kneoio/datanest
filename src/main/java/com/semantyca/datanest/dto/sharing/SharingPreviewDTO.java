@@ -30,6 +30,7 @@ public class SharingPreviewDTO extends AbstractDTO {
     private EnumMap<LanguageCode, String> targetBrandName;
     private int boost;
     private Integer status;
+    private boolean notifyOnPlay;
     // Lets the receiver preview audio before accepting/rejecting - only populated on the
     // single-item fetch (getById), not the paged received list.
     private List<UploadFileDTO> uploadedFiles;

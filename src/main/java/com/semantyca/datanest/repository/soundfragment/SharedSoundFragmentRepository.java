@@ -231,11 +231,12 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
 
     private Uni<Void> insertInTx(SqlClient tx, SharedSoundFragment entity) {
         String upsertSql = "INSERT INTO " + entityData.getTableName() + " " +
-                "(source_user_id, target_brand_id, sound_fragment_id, expires_at, played_count, rated_count, status, archived, source_user_name, source_user_email, author, last_mod_user, reg_date, last_mod_date) " +
-                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW()) " +
+                "(source_user_id, target_brand_id, sound_fragment_id, expires_at, played_count, rated_count, status, archived, source_user_name, source_user_email, notify_on_play, author, last_mod_user, reg_date, last_mod_date) " +
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW()) " +
                 "ON CONFLICT ON CONSTRAINT unique_brand_shared_fragment " +
                 "DO UPDATE SET archived = 0, status = EXCLUDED.status, source_user_id = EXCLUDED.source_user_id, " +
                 "source_user_name = EXCLUDED.source_user_name, source_user_email = EXCLUDED.source_user_email, " +
+                "notify_on_play = EXCLUDED.notify_on_play, " +
                 "last_mod_user = EXCLUDED.last_mod_user, last_mod_date = NOW() " +
                 "RETURNING id";
         return tx.preparedQuery(upsertSql)
@@ -264,7 +265,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
 
     public Uni<List<SharedSoundFragment>> getReceivedList(int limit, int offset, long userId) {
         String sql = "SELECT ssf.id AS ssf_id, sf.id AS sf_id, sf.title, sf.artist, sf.type, sf.album, sf.reg_date, " +
-                "ssf.source_user_name, ssf.source_user_email, ssf.boost, ssf.status, b.loc_name AS target_brand_name " +
+                "ssf.source_user_name, ssf.source_user_email, ssf.boost, ssf.status, ssf.notify_on_play, b.loc_name AS target_brand_name " +
                 "FROM " + SF_TABLE + " sf " +
                 "JOIN " + entityData.getTableName() + " ssf ON ssf.sound_fragment_id = sf.id " +
                 "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = ssf.id " +
@@ -291,7 +292,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
 
     public Uni<SharedSoundFragment> findById(UUID id, long userId) {
         String sql = "SELECT ssf.id AS ssf_id, sf.id AS sf_id, sf.title, sf.artist, sf.type, sf.album, sf.reg_date, " +
-                "ssf.source_user_name, ssf.source_user_email, ssf.boost, ssf.status, b.loc_name AS target_brand_name " +
+                "ssf.source_user_name, ssf.source_user_email, ssf.boost, ssf.status, ssf.notify_on_play, b.loc_name AS target_brand_name " +
                 "FROM " + SF_TABLE + " sf " +
                 "JOIN " + entityData.getTableName() + " ssf ON ssf.sound_fragment_id = sf.id " +
                 "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = ssf.id " +
@@ -368,6 +369,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         e.setSourceUserEmail(row.getString("source_user_email"));
         e.setBoost(row.getInteger("boost") != null ? row.getInteger("boost") : 0);
         e.setStatus(row.getInteger("status"));
+        e.setNotifyOnPlay(row.getBoolean("notify_on_play"));
         e.setRegDate(row.getOffsetDateTime("reg_date").toZonedDateTime());
         JsonObject locNameJson = row.getJsonObject("target_brand_name");
         if (locNameJson != null) {
@@ -445,6 +447,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .addInteger(0)
                 .addValue(entity.getSourceUserName())
                 .addValue(entity.getSourceUserEmail())
+                .addValue(Boolean.TRUE.equals(entity.getNotifyOnPlay()))
                 .addValue(entity.getSourceUserId())
                 .addValue(entity.getSourceUserId());
     }
@@ -475,6 +478,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         e.setRatedCount(row.getInteger("rated_count"));
         e.setBoost(row.getInteger("boost") != null ? row.getInteger("boost") : 0);
         e.setStatus(row.getInteger("status"));
+        e.setNotifyOnPlay(row.getBoolean("notify_on_play"));
         e.setArchived(row.getInteger("archived"));
         return e;
     }
