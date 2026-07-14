@@ -10,6 +10,7 @@ import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.OtsDefinitionDTO;
+import com.semantyca.datanest.dto.script.RelativeSceneDTO;
 import com.semantyca.datanest.repository.OtsDefinitionRepository;
 import com.semantyca.mixpla.model.Script;
 import com.semantyca.mixpla.model.cnst.OtsRunStatus;
@@ -93,11 +94,13 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
 
     private Uni<OtsDefinitionDTO> update(UUID id, OtsDefinitionDTO dto, IUser user) {
         return scriptService.getById(dto.getScriptId(), SuperUser.build())
-                .chain(script -> {
-                    OtsDefinition entity = buildEntity(dto);
-                    entity.setChatContext(buildChatContext(script, dto.getUserVariables()));
-                    return repository.update(id, entity, user);
-                })
+                .chain(script -> calculateEstimatedDurationMin(dto.getScriptId(), user)
+                        .chain(estimatedDurationMin -> {
+                            OtsDefinition entity = buildEntity(dto);
+                            entity.setEstimatedDurationMin(estimatedDurationMin);
+                            entity.setChatContext(buildChatContext(script, dto.getUserVariables()));
+                            return repository.update(id, entity, user);
+                        }))
                 .chain(this::mapToDTO);
     }
 
@@ -112,15 +115,30 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
                                             return Uni.createFrom().failure(
                                                     new IllegalArgumentException("An ots definition with slug '" + slug + "' already exists"));
                                         }
-                                        OtsDefinition entity = buildEntity(dto);
-                                        entity.setName(name);
-                                        entity.setSlugName(slug);
-                                        entity.setChatContext(buildChatContext(script, dto.getUserVariables()));
-                                        return repository.insert(entity, user);
+                                        return calculateEstimatedDurationMin(dto.getScriptId(), user)
+                                                .chain(estimatedDurationMin -> {
+                                                    OtsDefinition entity = buildEntity(dto);
+                                                    entity.setName(name);
+                                                    entity.setSlugName(slug);
+                                                    entity.setEstimatedDurationMin(estimatedDurationMin);
+                                                    entity.setChatContext(buildChatContext(script, dto.getUserVariables()));
+                                                    return repository.insert(entity, user);
+                                                });
                                     });
                         })
                 )
                 .chain(this::mapToDTO);
+    }
+
+    private Uni<Integer> calculateEstimatedDurationMin(UUID scriptId, IUser user) {
+        return scriptService.getScenesByScriptId(scriptId, user)
+                .map(scenes -> {
+                    int totalSeconds = scenes.stream()
+                            .filter(scene -> scene instanceof RelativeSceneDTO)
+                            .mapToInt(scene -> ((RelativeSceneDTO) scene).getDurationSeconds())
+                            .sum();
+                    return totalSeconds / 60;
+                });
     }
 
     private OtsDefinition buildEntity(OtsDefinitionDTO dto) {
@@ -131,7 +149,6 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
         entity.setBrandId(dto.getBrandId());
         entity.setAgentId(dto.getAgentId());
         entity.setType(dto.getType());
-        entity.setEstimatedDurationMin(dto.getEstimatedDurationMin());
         return entity;
     }
 
