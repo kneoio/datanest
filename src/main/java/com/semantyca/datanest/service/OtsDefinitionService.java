@@ -11,9 +11,11 @@ import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.OtsDefinitionDTO;
 import com.semantyca.datanest.dto.script.RelativeSceneDTO;
+import com.semantyca.datanest.messaging.CommandPublisher;
 import com.semantyca.datanest.repository.OtsDefinitionRepository;
 import com.semantyca.mixpla.model.Script;
 import com.semantyca.mixpla.model.cnst.OtsRunStatus;
+import com.semantyca.mixpla.dto.queue.command.CommandType;
 import com.semantyca.mixpla.model.filter.OtsDefinitionFilter;
 import com.semantyca.mixpla.model.stream.OtsDefinition;
 import io.smallrye.mutiny.Uni;
@@ -39,18 +41,21 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
     private final ScriptService scriptService;
     private final AnthropicTextClient anthropicTextClient;
     private final DatanestConfig config;
+    private final CommandPublisher commandPublisher;
 
     @Inject
     public OtsDefinitionService(UserService userService,
                                  OtsDefinitionRepository repository,
                                  ScriptService scriptService,
                                  AnthropicTextClient anthropicTextClient,
-                                 DatanestConfig config) {
+                                 DatanestConfig config,
+                                 CommandPublisher commandPublisher) {
         super(userService);
         this.repository = repository;
         this.scriptService = scriptService;
         this.anthropicTextClient = anthropicTextClient;
         this.config = config;
+        this.commandPublisher = commandPublisher;
     }
 
     public Uni<List<OtsDefinitionDTO>> getAllDTO(final int limit, final int offset, final IUser user, final OtsDefinitionFilter filter) {
@@ -89,7 +94,15 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
 
     @Override
     public Uni<Integer> delete(String id, IUser user) {
-        return repository.archive(UUID.fromString(id), user);
+        UUID otsId = UUID.fromString(id);
+        return repository.findById(otsId, user, false)
+                .chain(ots -> repository.archive(otsId, user)
+                        .invoke(count -> {
+                            if (count > 0 && ots.getSlugName() != null) {
+                                commandPublisher.publishCommand(CommandType.JESOOS_STOP_OTS, "ots_deleted",
+                                        Map.of("slug", ots.getSlugName()));
+                            }
+                        }));
     }
 
     private Uni<OtsDefinitionDTO> update(UUID id, OtsDefinitionDTO dto, IUser user) {
