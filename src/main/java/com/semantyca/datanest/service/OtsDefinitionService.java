@@ -105,7 +105,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
         return scriptService.getById(dto.getScriptId(), SuperUser.build())
                 .chain(script -> generateName(script, dto.getUserVariables())
                         .chain(name -> {
-                            String slug = WebHelper.generateSlug(name + "-" + user.getUserName());
+                            String slug = WebHelper.generateSlug(name + "-" + System.currentTimeMillis());
                             return repository.existsBySlug(slug)
                                     .chain(exists -> {
                                         if (exists) {
