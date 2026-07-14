@@ -97,6 +97,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
                 .chain(script -> calculateEstimatedDurationMin(dto.getScriptId(), user)
                         .chain(estimatedDurationMin -> {
                             OtsDefinition entity = buildEntity(dto);
+                            entity.setName(script.getName());
                             entity.setEstimatedDurationMin(estimatedDurationMin);
                             entity.setChatContext(buildChatContext(script, dto.getUserVariables()));
                             return repository.update(id, entity, user);
