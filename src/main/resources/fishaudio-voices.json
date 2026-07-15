@@ -144,6 +144,14 @@
     "engineType": "fishaudio"
   },
   {
+    "id": "a2346273eb314b6cb82ba83dbc9d9fee",
+    "name": "Markiplier",
+    "gender": "male",
+    "language": "en-US",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
     "id": "46745543e52548238593a3962be77e3a",
     "name": "Fuuka",
     "gender": "female",
