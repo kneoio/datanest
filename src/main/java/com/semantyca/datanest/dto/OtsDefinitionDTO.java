@@ -2,6 +2,7 @@ package com.semantyca.datanest.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
+import com.semantyca.core.model.ScriptVariable;
 import com.semantyca.mixpla.model.cnst.OtsRunStatus;
 import com.semantyca.mixpla.model.cnst.OtsRunType;
 import com.semantyca.mixpla.model.stream.OtsStatusHistoryEntry;
@@ -29,4 +30,6 @@ public class OtsDefinitionDTO extends AbstractDTO {
     private OtsRunType type;
     private Integer estimatedDurationMin;
     private String chatContext;
+    private String color;
+    private List<ScriptVariable> requiredVariables;
 }

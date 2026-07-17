@@ -80,6 +80,18 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
         return repository.findById(id, user, false).chain(this::mapToDTO);
     }
 
+    public Uni<OtsDefinitionDTO> getNewDTO(UUID scriptId, IUser user) {
+        return scriptService.getById(scriptId, SuperUser.build())
+                .map(script -> {
+                    OtsDefinitionDTO dto = new OtsDefinitionDTO();
+                    dto.setScriptId(script.getId());
+                    dto.setName(script.getName());
+                    dto.setColor(script.getColor());
+                    dto.setRequiredVariables(script.getRequiredVariables());
+                    return dto;
+                });
+    }
+
     @Override
     public Uni<OtsDefinitionDTO> upsert(String id, OtsDefinitionDTO dto, IUser user, LanguageCode code) {
         if (dto.getBrandId() == null && dto.getAgentId() == null) {

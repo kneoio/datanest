@@ -130,7 +130,11 @@ public class OtsDefinitionController extends AbstractSecuredController<OtsDefini
         getContextUser(rc, false, true)
                 .chain(user -> {
                     if ("new".equals(id)) {
-                        return Uni.createFrom().item(new OtsDefinitionDTO());
+                        String scriptId = rc.request().getParam("scriptId");
+                        if (scriptId == null || scriptId.isBlank()) {
+                            return Uni.createFrom().item(new OtsDefinitionDTO());
+                        }
+                        return service.getNewDTO(UUID.fromString(scriptId), user);
                     }
                     return service.getDTO(UUID.fromString(id), user, languageCode);
                 })
