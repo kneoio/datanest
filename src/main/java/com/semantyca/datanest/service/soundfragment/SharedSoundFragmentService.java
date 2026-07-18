@@ -11,10 +11,12 @@ import com.semantyca.datanest.dto.SharePatchDTO;
 import com.semantyca.datanest.dto.UploadFileDTO;
 import com.semantyca.datanest.dto.sharing.ShareDTO;
 import com.semantyca.datanest.dto.sharing.SharingPreviewDTO;
+import com.semantyca.datanest.messaging.CommandPublisher;
 import com.semantyca.datanest.model.cnst.ApprovalStatus;
 import com.semantyca.datanest.repository.soundfragment.SharedSoundFragmentRepository;
 import com.semantyca.datanest.repository.soundfragment.SoundFragmentRepository;
 import com.semantyca.datanest.service.BrandService;
+import com.semantyca.mixpla.dto.queue.command.CommandType;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
 import com.semantyca.mixpla.model.soundfragment.SharedSoundFragment;
 import com.semantyca.mixpla.model.soundfragment.SoundFragment;
@@ -23,6 +25,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -32,16 +35,19 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
     private final SharedSoundFragmentRepository repository;
     private final SoundFragmentRepository soundFragmentRepository;
     private final BrandService brandService;
+    private final CommandPublisher commandPublisher;
 
     @Inject
     public SharedSoundFragmentService(UserService userService,
                                       SharedSoundFragmentRepository repository,
                                       SoundFragmentRepository soundFragmentRepository,
-                                      BrandService brandService) {
+                                      BrandService brandService,
+                                      CommandPublisher commandPublisher) {
         super(userService);
         this.repository = repository;
         this.soundFragmentRepository = soundFragmentRepository;
         this.brandService = brandService;
+        this.commandPublisher = commandPublisher;
     }
 
     public Uni<Integer> rejectShareByReceiver(UUID shareId, IUser user) {
@@ -53,7 +59,17 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
     }
 
     public Uni<Integer> acceptShareByReceiver(UUID shareId, IUser user) {
-        return repository.acceptByReceiver(shareId, user.getId());
+        return repository.acceptByReceiver(shareId, user.getId())
+                .invoke(result -> {
+                    if (result.rowsAffected() > 0) {
+                        commandPublisher.publishCommand(
+                                CommandType.REBUILD_AGENDA,
+                                "share_accepted",
+                                Map.of("brandId", result.targetBrandId().toString(), "soundFragmentId", result.soundFragmentId().toString())
+                        );
+                    }
+                })
+                .onItem().transform(SharedSoundFragmentRepository.AcceptResult::rowsAffected);
     }
 
     public Uni<Integer> delete(UUID shareId, IUser user) {

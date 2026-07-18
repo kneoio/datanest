@@ -153,7 +153,11 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .onItem().transform(SqlResult::rowCount);
     }
 
-    public Uni<Integer> acceptByReceiver(UUID shareId, long userId) {
+    public record AcceptResult(int rowsAffected, UUID soundFragmentId, UUID targetBrandId) {
+        public static final AcceptResult NONE = new AcceptResult(0, null, null);
+    }
+
+    public Uni<AcceptResult> acceptByReceiver(UUID shareId, long userId) {
         String selectSql = "SELECT id, sound_fragment_id, target_brand_id FROM " + entityData.getTableName() +
                 " WHERE id = $1 AND archived = 0 AND id IN (SELECT entity_id FROM " + entityData.getRlsName() + " WHERE reader = $2)";
         String updateStatusSql = "UPDATE " + entityData.getTableName() + " SET status = " + ApprovalStatus.ACCEPTED.value() + ", last_mod_date = NOW() WHERE id = $1";
@@ -165,7 +169,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                         .execute(Tuple.of(shareId, userId))
                         .onItem().transformToUni(rows -> {
                             if (!rows.iterator().hasNext()) {
-                                return Uni.createFrom().item(0);
+                                return Uni.createFrom().item(AcceptResult.NONE);
                             }
                             var row = rows.iterator().next();
                             UUID entityId = row.getUUID("id");
@@ -174,7 +178,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                             return tx.preparedQuery(updateStatusSql).execute(Tuple.of(entityId))
                                     .chain(() -> tx.preparedQuery(insertBsfSql).execute(Tuple.of(targetBrandId, soundFragmentId)))
                                     .chain(() -> grantFragmentRlsToBrand(tx, soundFragmentId, targetBrandId))
-                                    .replaceWith(1);
+                                    .replaceWith(new AcceptResult(1, soundFragmentId, targetBrandId));
                         })
         );
     }

@@ -82,6 +82,11 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
     private static final String SOUND_FRAGMENT_LABEL_CATEGORY = "sound_fragment";
     private static final String USER_LABEL_COLOR = "#000000";
     private static final String USER_LABEL_FONT_COLOR = "#FFFFFF";
+    private static final String NEW_LABEL_IDENTIFIER = "new";
+    private static final long NEW_LABEL_TTL_MS = 6 * 60 * 60 * 1000L; // 6 hours
+
+    private volatile UUID newLabelId;
+    private volatile long newLabelCachedAt;
 
     private final SoundFragmentRepository repository;
     private final SoundFragmentBrandRepository brandRepository;
@@ -829,6 +834,21 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 });
     }
 
+    private Uni<UUID> getNewLabelId() {
+        long now = System.currentTimeMillis();
+        if (newLabelId != null && (now - newLabelCachedAt) < NEW_LABEL_TTL_MS) {
+            return Uni.createFrom().item(newLabelId);
+        }
+        return labelService.findByIdentifier(NEW_LABEL_IDENTIFIER)
+                .onItem().transform(label -> {
+                    if (label != null) {
+                        newLabelId = label.getId();
+                        newLabelCachedAt = System.currentTimeMillis();
+                    }
+                    return newLabelId;
+                });
+    }
+
     public Uni<SoundFragment> createFromBulkUpload(UploadFileDTO uploadFile, UUID brandId, IUser user, boolean requiresApproval, PublicSubmissionMetaDTO meta) {
         if (uploadFile.getFullPath() == null) {
             return Uni.createFrom().failure(new IllegalArgumentException("Upload file has no fullPath"));
@@ -883,7 +903,13 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                 return repository.insert(fragment, brandIds, Collections.emptyList(), user);
                             }
                             String submitterEmail = meta != null ? meta.submitterEmail() : null;
-                            return resolveSubmitterAccount(submitterEmail)
+                            return getNewLabelId()
+                                    .chain(newLabelId -> {
+                                        if (newLabelId != null) {
+                                            fragment.setLabels(List.of(newLabelId));
+                                        }
+                                        return resolveSubmitterAccount(submitterEmail);
+                                    })
                                     .chain(submitterUserId -> {
                                         List<RlsActionDTO> rlsActions = new ArrayList<>();
                                         rlsActions.add(userGrant(SuperUser.build().getId()));
