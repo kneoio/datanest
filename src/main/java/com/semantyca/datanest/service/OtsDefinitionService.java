@@ -15,6 +15,7 @@ import com.semantyca.datanest.messaging.CommandPublisher;
 import com.semantyca.datanest.repository.OtsDefinitionRepository;
 import com.semantyca.mixpla.model.Script;
 import com.semantyca.mixpla.model.cnst.OtsRunStatus;
+import com.semantyca.mixpla.model.cnst.SceneTimingMode;
 import com.semantyca.mixpla.dto.queue.command.CommandType;
 import com.semantyca.mixpla.model.filter.OtsDefinitionFilter;
 import com.semantyca.mixpla.model.stream.OtsDefinition;
@@ -119,7 +120,8 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
 
     private Uni<OtsDefinitionDTO> update(UUID id, OtsDefinitionDTO dto, IUser user) {
         return scriptService.getById(dto.getScriptId(), SuperUser.build())
-                .chain(script -> calculateEstimatedDurationMin(dto.getScriptId(), user)
+                .chain(script -> validateOtsCompatible(script)
+                        .chain(v -> calculateEstimatedDurationMin(dto.getScriptId(), user))
                         .chain(estimatedDurationMin -> {
                             OtsDefinition entity = buildEntity(dto);
                             entity.setName(script.getName());
@@ -132,7 +134,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
 
     private Uni<OtsDefinitionDTO> create(OtsDefinitionDTO dto, IUser user) {
         return scriptService.getById(dto.getScriptId(), SuperUser.build())
-                .chain(script -> generateName(script, dto.getUserVariables())
+                .chain(script -> validateOtsCompatible(script).chain(v -> generateName(script, dto.getUserVariables()))
                         .chain(name -> {
                             String slug = WebHelper.generateSlug(name + "-" + System.currentTimeMillis());
                             return repository.existsBySlug(slug)
@@ -154,6 +156,14 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
                         })
                 )
                 .chain(this::mapToDTO);
+    }
+
+    private Uni<Void> validateOtsCompatible(Script script) {
+        if (script.getTimingMode() == SceneTimingMode.ABSOLUTE_TIME) {
+            return Uni.createFrom().failure(new IllegalArgumentException(
+                    "Script '" + script.getName() + "' uses ABSOLUTE_TIME timing and cannot be used for a one-time stream"));
+        }
+        return Uni.createFrom().voidItem();
     }
 
     private Uni<Integer> calculateEstimatedDurationMin(UUID scriptId, IUser user) {
