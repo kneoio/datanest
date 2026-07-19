@@ -40,9 +40,6 @@ public class OtpService {
         ));
     }
 
-    // Verification is re-checked on every chunk of a multi-chunk upload (and again for
-    // "submit another track"), so a successful check must NOT consume the code — it stays
-    // valid until its TTL naturally expires, rather than single-use.
     public boolean isVerifyFail(String email, String code) {
         if (config.getOtpTestBypassEmail().equalsIgnoreCase(email) && config.getOtpTestBypassCode().equals(code)) {
             return false;
