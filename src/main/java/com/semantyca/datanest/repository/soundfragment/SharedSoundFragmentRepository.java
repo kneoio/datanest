@@ -66,6 +66,25 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 });
     }
 
+    // 42next admin browse: every non-archived share, not scoped to a reader's RLS inbox (that's
+    // what /received is for) - matches the existing sender/admin archive()/findById(id) on this
+    // table, which are likewise not reader-gated.
+    public Uni<List<SharedSoundFragment>> getAllAdmin(int limit, int offset) {
+        String sql = "SELECT * FROM " + entityData.getTableName() +
+                " WHERE archived = 0 ORDER BY reg_date DESC LIMIT $1 OFFSET $2";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(limit, offset))
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transform(this::from)
+                .collect().asList();
+    }
+
+    public Uni<Integer> getAllAdminCount() {
+        String sql = "SELECT COUNT(*) FROM " + entityData.getTableName() + " WHERE archived = 0";
+        return client.query(sql).execute()
+                .onItem().transform(rows -> rows.iterator().next().getInteger(0));
+    }
+
     public Uni<List<SharedSoundFragment>> listBySoundFragmentId(UUID soundFragmentId) {
         String sql = "SELECT ssf.*, b.slug_name AS brand_slug_name, b.loc_name AS brand_loc_name " +
                 "FROM " + entityData.getTableName() + " ssf " +
@@ -234,6 +253,10 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     }
 
     private Uni<Void> insertInTx(SqlClient tx, SharedSoundFragment entity) {
+        return insertInTxReturningId(tx, entity).replaceWithVoid();
+    }
+
+    private Uni<UUID> insertInTxReturningId(SqlClient tx, SharedSoundFragment entity) {
         String upsertSql = "INSERT INTO " + entityData.getTableName() + " " +
                 "(source_user_id, target_brand_id, sound_fragment_id, expires_at, played_count, rated_count, status, archived, source_user_name, source_user_email, notify_on_play, author, last_mod_user, reg_date, last_mod_date) " +
                 "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW()) " +
@@ -247,11 +270,44 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .execute(buildInsertTuple(entity))
                 .onItem().transformToUni(rows -> {
                     if (!rows.iterator().hasNext()) {
-                        return Uni.createFrom().voidItem();
+                        return Uni.createFrom().nullItem();
                     }
                     UUID id = rows.iterator().next().getUUID("id");
-                    return insertRlsForReceivers(tx, id, entity.getSourceUserId(), entity.getTargetBrandId());
+                    return insertRlsForReceivers(tx, id, entity.getSourceUserId(), entity.getTargetBrandId())
+                            .replaceWith(id);
                 });
+    }
+
+    // 42next admin create: same upsert-by-natural-key as the Mixdeck bulk patch flow
+    // (unique_brand_shared_fragment), just entered from a single-entity form instead of an
+    // add/remove list.
+    public Uni<UUID> insert(SharedSoundFragment entity) {
+        return client.withTransaction(tx -> insertInTxReturningId(tx, entity));
+    }
+
+    // 42next admin edit: mutable business fields only. target_brand_id/sound_fragment_id are the
+    // share's natural key (see unique_brand_shared_fragment) and the RLS reader grant in
+    // insertRlsForReceivers is derived from them - changing either here would leave stale RLS
+    // rows behind, so those two are set on create only. To move a share to a different brand/
+    // fragment, delete and recreate it instead.
+    public Uni<Integer> update(UUID id, SharedSoundFragment entity) {
+        String sql = "UPDATE " + entityData.getTableName() + " SET " +
+                "source_user_id = $1, source_user_name = $2, source_user_email = $3, " +
+                "expires_at = $4, boost = $5, status = $6, notify_on_play = $7, " +
+                "last_mod_user = $1, last_mod_date = NOW() " +
+                "WHERE id = $8";
+        Tuple params = Tuple.tuple()
+                .addValue(entity.getSourceUserId())
+                .addValue(entity.getSourceUserName())
+                .addValue(entity.getSourceUserEmail())
+                .addOffsetDateTime(entity.getExpiresAt())
+                .addInteger(entity.getBoost() != null ? entity.getBoost() : 0)
+                .addInteger(entity.getStatus())
+                .addValue(Boolean.TRUE.equals(entity.getNotifyOnPlay()))
+                .addUUID(id);
+        return client.preparedQuery(sql)
+                .execute(params)
+                .onItem().transform(SqlResult::rowCount);
     }
 
     public Uni<Void> applyPatch(UUID fragmentId, List<UUID> removeTargetBrandIds, List<SharedSoundFragment> toAdd) {
@@ -267,7 +323,10 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         });
     }
 
-    public Uni<List<SharedSoundFragment>> getReceivedList(int limit, int offset, long userId) {
+    private static final String RECEIVED_SEARCH_CLAUSE =
+            " AND (sf.title ILIKE $4 OR sf.artist ILIKE $4 OR ssf.source_user_name ILIKE $4)";
+
+    public Uni<List<SharedSoundFragment>> getReceivedList(int limit, int offset, long userId, String search) {
         String sql = "SELECT ssf.id AS ssf_id, sf.id AS sf_id, sf.title, sf.artist, sf.type, sf.album, sf.reg_date, " +
                 "ssf.source_user_name, ssf.source_user_email, ssf.boost, ssf.status, ssf.notify_on_play, b.loc_name AS target_brand_name " +
                 "FROM " + SF_TABLE + " sf " +
@@ -275,22 +334,32 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = ssf.id " +
                 "LEFT JOIN " + BRANDS_TABLE + " b ON b.id = ssf.target_brand_id " +
                 "WHERE rls.reader = $1 AND sf.archived = 0 AND ssf.archived = 0 " +
-                "ORDER BY sf.reg_date DESC LIMIT $2 OFFSET $3";
+                (search != null ? RECEIVED_SEARCH_CLAUSE : "") +
+                " ORDER BY sf.reg_date DESC LIMIT $2 OFFSET $3";
+        Tuple params = Tuple.of(userId, limit, offset);
+        if (search != null) {
+            params = params.addString("%" + search + "%");
+        }
         return client.preparedQuery(sql)
-                .execute(Tuple.of(userId, limit, offset))
+                .execute(params)
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
                 .onItem().transformToUni(this::fromSoundFragmentPreviewRow)
                 .concatenate()
                 .collect().asList();
     }
 
-    public Uni<Integer> getReceivedListCount(long userId) {
+    public Uni<Integer> getReceivedListCount(long userId, String search) {
         String sql = "SELECT COUNT(DISTINCT sf.id) FROM " + SF_TABLE + " sf " +
                 "JOIN " + entityData.getTableName() + " ssf ON ssf.sound_fragment_id = sf.id " +
                 "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = ssf.id " +
-                "WHERE rls.reader = $1 AND sf.archived = 0 AND ssf.archived = 0";
+                "WHERE rls.reader = $1 AND sf.archived = 0 AND ssf.archived = 0" +
+                (search != null ? " AND (sf.title ILIKE $2 OR sf.artist ILIKE $2 OR ssf.source_user_name ILIKE $2)" : "");
+        Tuple params = Tuple.of(userId);
+        if (search != null) {
+            params = params.addString("%" + search + "%");
+        }
         return client.preparedQuery(sql)
-                .execute(Tuple.of(userId))
+                .execute(params)
                 .onItem().transform(rows -> rows.iterator().next().getInteger(0));
     }
 

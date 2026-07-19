@@ -9,6 +9,7 @@ import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.SharePatchDTO;
 import com.semantyca.datanest.dto.UploadFileDTO;
+import com.semantyca.datanest.dto.sharing.ShareAdminDTO;
 import com.semantyca.datanest.dto.sharing.ShareDTO;
 import com.semantyca.datanest.dto.sharing.SharingPreviewDTO;
 import com.semantyca.datanest.messaging.CommandPublisher;
@@ -76,6 +77,61 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return repository.archive(shareId);
     }
 
+    // 42next admin single-share upsert - distinct from patchShares (Mixdeck's add/remove list
+    // for a fragment across brands). "new"/blank id creates (or upserts onto the existing
+    // natural-key row, see unique_brand_shared_fragment); otherwise updates the mutable fields
+    // of the share at that id. See SharedSoundFragmentRepository#insert/update.
+    public Uni<ShareAdminDTO> upsert(String id, ShareAdminDTO dto) {
+        SharedSoundFragment entity = new SharedSoundFragment();
+        entity.setSourceUserId(dto.getSourceUserId());
+        entity.setSourceUserName(dto.getSourceUserName());
+        entity.setSourceUserEmail(dto.getSourceUserEmail());
+        entity.setTargetBrandId(dto.getTargetBrandId());
+        entity.setSoundFragmentId(dto.getSoundFragmentId());
+        entity.setExpiresAt(dto.getExpiresAt());
+        entity.setBoost(dto.getBoost());
+        entity.setStatus(dto.getStatus() != null ? dto.getStatus() : ApprovalStatus.PENDING.value());
+        entity.setNotifyOnPlay(dto.isNotifyOnPlay());
+
+        if ("new".equalsIgnoreCase(id) || id == null || id.isBlank()) {
+            return repository.insert(entity)
+                    .chain(repository::findById)
+                    .map(this::toShareAdminDTO);
+        }
+        UUID shareId = UUID.fromString(id);
+        return repository.update(shareId, entity)
+                .chain(count -> repository.findById(shareId))
+                .map(this::toShareAdminDTO);
+    }
+
+    public Uni<ShareAdminDTO> getByIdAdmin(UUID id) {
+        return repository.findById(id).map(this::toShareAdminDTO);
+    }
+
+    public Uni<List<ShareAdminDTO>> getAllAdmin(int limit, int offset) {
+        return repository.getAllAdmin(limit, offset)
+                .map(list -> list.stream().map(this::toShareAdminDTO).collect(Collectors.toList()));
+    }
+
+    public Uni<Integer> getAllAdminCount() {
+        return repository.getAllAdminCount();
+    }
+
+    private ShareAdminDTO toShareAdminDTO(SharedSoundFragment e) {
+        ShareAdminDTO dto = new ShareAdminDTO();
+        dto.setId(e.getId());
+        dto.setSourceUserId(e.getSourceUserId());
+        dto.setSourceUserName(e.getSourceUserName());
+        dto.setSourceUserEmail(e.getSourceUserEmail());
+        dto.setTargetBrandId(e.getTargetBrandId());
+        dto.setSoundFragmentId(e.getSoundFragmentId());
+        dto.setExpiresAt(e.getExpiresAt());
+        dto.setBoost(e.getBoost());
+        dto.setStatus(e.getStatus());
+        dto.setNotifyOnPlay(Boolean.TRUE.equals(e.getNotifyOnPlay()));
+        return dto;
+    }
+
     public Uni<Integer> archiveBySoundFragmentId(UUID soundFragmentId) {
         return repository.archiveBySoundFragmentId(soundFragmentId);
     }
@@ -102,13 +158,13 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return repository.applyPatch(soundFragmentId, List.of(), List.of(entity));
     }
 
-    public Uni<List<SharingPreviewDTO>> getSharingPreviewList(int limit, int offset, IUser user) {
-        return repository.getReceivedList(limit, offset, user.getId())
+    public Uni<List<SharingPreviewDTO>> getSharingPreviewList(int limit, int offset, IUser user, String search) {
+        return repository.getReceivedList(limit, offset, user.getId(), search)
                 .map(list -> list.stream().map(this::toSharingPreviewDTO).collect(Collectors.toList()));
     }
 
-    public Uni<Integer> getSharingPreviewCount(IUser user) {
-        return repository.getReceivedListCount(user.getId());
+    public Uni<Integer> getSharingPreviewCount(IUser user, String search) {
+        return repository.getReceivedListCount(user.getId(), search);
     }
 
     public Uni<SharingPreviewDTO> getById(UUID id, IUser user) {

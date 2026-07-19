@@ -66,16 +66,27 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
         router.route(HttpMethod.GET,    path + "/received/:id/access").handler(this::getDocumentAccess);
         // sender/admin: archive a share — sets archived=1, excluded from sharedWith going forward
         router.route(HttpMethod.DELETE, path + "/shared/:id").handler(this::delete);
+        // 42next admin: create or update a single share directly (id omitted/"new" -> create)
+        router.route(HttpMethod.POST, path + "/shared/:id?").handler(jsonBodyHandler).handler(this::upsertShare);
+        // 42next admin: browse all shares (not scoped to the current user's inbox)
+        router.route(HttpMethod.GET, path + "/shared").handler(this::getAllShares);
+        // 42next admin: fetch a single share for the edit form
+        router.route(HttpMethod.GET, path + "/shared/:id").handler(this::getShareById);
     }
 
     private void getReceived(RoutingContext rc) {
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
+        String search = rc.request().getParam("search");
+        if (search != null && search.isBlank()) {
+            search = null;
+        }
+        String searchParam = search;
 
         getContextUser(rc, false, true)
                 .chain(user -> Uni.combine().all().unis(
-                        sharedSoundFragmentService.getSharingPreviewCount(user),
-                        sharedSoundFragmentService.getSharingPreviewList(size, (page - 1) * size, user)
+                        sharedSoundFragmentService.getSharingPreviewCount(user, searchParam),
+                        sharedSoundFragmentService.getSharingPreviewList(size, (page - 1) * size, user, searchParam)
                 ).asTuple().map(tuple -> {
                     ViewPage viewPage = new ViewPage();
                     View<SharingPreviewDTO> dtoEntries = new View<>(tuple.getItem2(),
@@ -165,6 +176,65 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
         }
     }
 
+
+    private void upsertShare(RoutingContext rc) {
+        try {
+            if (!validateJsonBody(rc)) return;
+
+            com.semantyca.datanest.dto.sharing.ShareAdminDTO dto =
+                    rc.body().asJsonObject().mapTo(com.semantyca.datanest.dto.sharing.ShareAdminDTO.class);
+            if (!validateDTO(rc, dto, validator)) return;
+            String id = rc.pathParam("id");
+
+            getContextUser(rc, false, true)
+                    .chain(user -> sharedSoundFragmentService.upsert(id, dto))
+                    .subscribe().with(
+                            doc -> sendUpsertResponse(rc, doc, id),
+                            throwable -> handleUpsertFailure(rc, throwable)
+                    );
+        } catch (Exception e) {
+            rc.fail(400, new IllegalArgumentException("Invalid JSON payload"));
+        }
+    }
+
+    private void getAllShares(RoutingContext rc) {
+        int page = Integer.parseInt(rc.request().getParam("page", "1"));
+        int size = Integer.parseInt(rc.request().getParam("size", "10"));
+
+        getContextUser(rc, false, true)
+                .chain(user -> Uni.combine().all().unis(
+                        sharedSoundFragmentService.getAllAdminCount(),
+                        sharedSoundFragmentService.getAllAdmin(size, (page - 1) * size)
+                ).asTuple().map(tuple -> {
+                    ViewPage viewPage = new ViewPage();
+                    View<com.semantyca.datanest.dto.sharing.ShareAdminDTO> dtoEntries = new View<>(tuple.getItem2(),
+                            tuple.getItem1(), page,
+                            RuntimeUtil.countMaxPage(tuple.getItem1(), size),
+                            size);
+                    viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
+                    return viewPage;
+                }))
+                .subscribe().with(
+                        viewPage -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(io.vertx.core.json.Json.encode(viewPage)),
+                        t -> handleFailure(rc, t)
+                );
+    }
+
+    private void getShareById(RoutingContext rc) {
+        UUID id = UUID.fromString(rc.pathParam("id"));
+        getContextUser(rc, false, true)
+                .chain(user -> sharedSoundFragmentService.getByIdAdmin(id))
+                .subscribe().with(
+                        dto -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(JsonObject.mapFrom(dto).encode()),
+                        t -> handleFailure(rc, t)
+                );
+    }
 
     private void delete(RoutingContext rc) {
         UUID shareId = UUID.fromString(rc.pathParam("id"));
