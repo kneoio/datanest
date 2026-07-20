@@ -153,13 +153,14 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
     // fragment has no brand association until this is accepted, so it shows up for the submitter's
     // own account as "unassigned to brands" in the meantime.
     public Uni<Void> shareContribution(UUID soundFragmentId, UUID targetBrandId, Long submitterUserId,
-                                        String submitterName, String submitterEmail) {
+                                        String submitterName, String submitterEmail, boolean notifyOnPlay) {
         SharedSoundFragment entity = new SharedSoundFragment();
         entity.setSourceUserId(submitterUserId);
         entity.setSourceUserName(submitterName);
         entity.setSourceUserEmail(submitterEmail);
         entity.setTargetBrandId(targetBrandId);
         entity.setSoundFragmentId(soundFragmentId);
+        entity.setNotifyOnPlay(notifyOnPlay);
         entity.setStatus(ApprovalStatus.PENDING.value());
         return repository.applyPatch(soundFragmentId, List.of(), List.of(entity));
     }

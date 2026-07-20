@@ -919,7 +919,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                                         ? Uni.createFrom().item(insertedFragment)
                                                         : sharedSoundFragmentService.shareContribution(
                                                                 insertedFragment.getId(), brandId, submitterUserId,
-                                                                submitterArtistName, submitterEmail)
+                                                                submitterArtistName, submitterEmail,
+                                                                meta != null && meta.notifyOnPlay())
                                                                 .replaceWith(insertedFragment));
                                     });
                         })

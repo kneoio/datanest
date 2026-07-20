@@ -113,6 +113,7 @@ public class   PublicSongSubmissionController {
         String stationSlug = rc.request().getParam("stationSlug");
         String artistName = rc.request().getParam("artistName");
         String description = rc.request().getParam("description");
+        boolean notifyOnPlay = Boolean.parseBoolean(rc.request().getParam("notifyOnPlay"));
 
         if (email == null || code == null) {
             fail(rc, 400, "email and code are required");
@@ -129,7 +130,7 @@ public class   PublicSongSubmissionController {
 
         String batchId = UUID.randomUUID().toString();
         String fileId  = UUID.randomUUID().toString();
-        PublicSubmissionMetaDTO meta = new PublicSubmissionMetaDTO(email.trim(), artistName, description);
+        PublicSubmissionMetaDTO meta = new PublicSubmissionMetaDTO(email.trim(), artistName, description, notifyOnPlay);
 
         fileUploadService.processDirectBulkStreamAsync(rc, batchId, fileId, stationSlug, CONTROLLER_KEY, SuperUser.build(), meta)
                 .subscribe().with(
@@ -159,6 +160,7 @@ public class   PublicSongSubmissionController {
         String stationSlug    = rc.request().getParam("stationSlug");
         String artistName     = rc.request().getParam("artistName");
         String description    = rc.request().getParam("description");
+        boolean notifyOnPlay  = Boolean.parseBoolean(rc.request().getParam("notifyOnPlay"));
 
         if (email == null || code == null)           { fail(rc, 400, "email and code are required"); return; }
         if (batchId == null || batchId.isBlank())    { fail(rc, 400, "batchId required"); return; }
@@ -189,7 +191,7 @@ public class   PublicSongSubmissionController {
         }
 
         final int ci = chunkIndex, tc = totalChunks;
-        PublicSubmissionMetaDTO meta = new PublicSubmissionMetaDTO(email.trim(), artistName, description);
+        PublicSubmissionMetaDTO meta = new PublicSubmissionMetaDTO(email.trim(), artistName, description, notifyOnPlay);
         fileUploadService.processChunkUpload(rc, batchId, fileId, ci, tc, fileName, null, stationSlug, CONTROLLER_KEY, SuperUser.build(), meta)
                 .subscribe().with(
                         dto -> rc.response().setStatusCode(200)
