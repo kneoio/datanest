@@ -262,7 +262,7 @@
     "language": "en-US",
     "labels": "premium",
     "engineType": "fishaudio"
-  } ,
+  },
   {
     "id": "e64e97ef91304e2894cd72ff03b86d97",
     "name": "Wizzy",
@@ -276,6 +276,30 @@
     "name": "Rachel",
     "gender": "female",
     "language": "en-UK",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "fbe02f8306fc4d3d915e9871722a39d5",
+    "name": "嘉岚3.0",
+    "gender": "female",
+    "language": "zn-CN",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "4f201abba2574feeae11e5ebf737859e",
+    "name": "王琨声音模型10.17t1",
+    "gender": "male",
+    "language": "zn-CN",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "f9ae9be4831448acb831ee1990ef9605",
+    "name": "قرد",
+    "gender": "male",
+    "language": "ar-SA",
     "labels": "premium",
     "engineType": "fishaudio"
   }
