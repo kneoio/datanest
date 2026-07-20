@@ -283,7 +283,7 @@
     "id": "fbe02f8306fc4d3d915e9871722a39d5",
     "name": "嘉岚3.0",
     "gender": "female",
-    "language": "zn-CN",
+    "language": "zh-CN",
     "labels": "premium",
     "engineType": "fishaudio"
   },
@@ -291,7 +291,7 @@
     "id": "4f201abba2574feeae11e5ebf737859e",
     "name": "王琨声音模型10.17t1",
     "gender": "male",
-    "language": "zn-CN",
+    "language": "zh-CN",
     "labels": "premium",
     "engineType": "fishaudio"
   },
