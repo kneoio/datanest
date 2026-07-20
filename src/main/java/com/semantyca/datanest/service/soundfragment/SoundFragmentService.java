@@ -849,7 +849,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 });
     }
 
-    public Uni<SoundFragment> createFromBulkUpload(UploadFileDTO uploadFile, UUID brandId, IUser user, boolean requiresApproval, PublicSubmissionMetaDTO meta) {
+    public Uni<SoundFragment> createFromBulkUpload(UploadFileDTO uploadFile, List<UUID> targetBrandIds, IUser user, boolean requiresApproval, PublicSubmissionMetaDTO meta) {
         if (uploadFile.getFullPath() == null) {
             return Uni.createFrom().failure(new IllegalArgumentException("Upload file has no fullPath"));
         }
@@ -887,13 +887,12 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         FileMetadata fileMetadata = new FileMetadata();
         fileMetadata.setFilePath(Paths.get(uploadFile.getFullPath()));
         fragment.setFileMetadataList(List.of(fileMetadata));
-        List<UUID> brandIds = requiresApproval ? List.of() : (brandId != null ? List.of(brandId) : List.of());
+        List<UUID> brandIds = requiresApproval ? List.of() : targetBrandIds;
 
         assert refService != null;
         String genreIdentifier = metadata != null && metadata.getGenre() != null ? metadata.getGenre() : "other";
-        List<UUID> checkBrands = brandId != null ? List.of(brandId) : List.of();
         return checkSubscriptionSongLimit(user)
-                .chain(() -> checkBrandSongLimits(checkBrands, user))
+                .chain(() -> checkBrandSongLimits(targetBrandIds, user))
                 .chain(() -> genreService.getByFuzzyIdentifier(genreIdentifier)
                         .chain(genres -> {
                             List<UUID> genreIds = genres.stream().map(DataEntity::getId).collect(Collectors.toList());
@@ -915,16 +914,20 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                         rlsActions.add(userGrant(SuperUser.build().getId()));
                                         if (submitterUserId != null) rlsActions.add(userGrant(submitterUserId));
                                         return repository.insert(fragment, brandIds, rlsActions, user)
-                                                .chain(insertedFragment -> brandId == null
+                                                .chain(insertedFragment -> targetBrandIds.isEmpty()
                                                         ? Uni.createFrom().item(insertedFragment)
-                                                        : sharedSoundFragmentService.shareContribution(
-                                                                insertedFragment.getId(), brandId, submitterUserId,
-                                                                submitterArtistName, submitterEmail,
-                                                                meta != null && meta.notifyOnPlay())
+                                                        : Uni.join().all(targetBrandIds.stream()
+                                                                        .map(targetBrandId -> sharedSoundFragmentService.shareContribution(
+                                                                                insertedFragment.getId(), targetBrandId, submitterUserId,
+                                                                                submitterArtistName, submitterEmail,
+                                                                                meta != null && meta.notifyOnPlay()))
+                                                                        .collect(Collectors.toList()))
+                                                                .andFailFast()
                                                                 .replaceWith(insertedFragment));
                                     });
                         })
-                        .invoke(insertedFragment -> triggerOpusEncoding(insertedFragment, brandId, Paths.get(uploadFile.getFullPath()))));
+                        .invoke(insertedFragment -> triggerOpusEncoding(insertedFragment,
+                                targetBrandIds.isEmpty() ? null : targetBrandIds.getFirst(), Paths.get(uploadFile.getFullPath()))));
     }
 
     // Silently resolve-or-create a real core user account for the submitter's (OTP-verified)

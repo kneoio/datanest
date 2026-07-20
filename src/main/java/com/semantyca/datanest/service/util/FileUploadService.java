@@ -23,8 +23,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -45,7 +47,7 @@ public class FileUploadService {
     private final Vertx vertx;
     public final ConcurrentHashMap<String, UploadFileDTO> uploadProgressMap = new ConcurrentHashMap<>();
     public final ConcurrentHashMap<String, ConcurrentHashMap<String, UploadFileDTO>> bulkUploadProgressMap = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, UUID> batchBrandIdMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, List<UUID>> batchBrandIdMap = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, ChunkAssemblyState> chunkStateMap = new ConcurrentHashMap<>();
 
     private static final class ChunkAssemblyState {
@@ -82,32 +84,43 @@ public class FileUploadService {
     }
 
     private Uni<Void> resolveBrandSlugIfNeeded(String batchId, String brandSlug) {
-        if (brandSlug == null || brandSlug.trim().isEmpty()) {
+        return resolveBrandSlugsIfNeeded(batchId, brandSlug == null || brandSlug.trim().isEmpty() ? List.of() : List.of(brandSlug));
+    }
+
+    // Resolves each station slug to a brand UUID once per batch (cached, so later chunks of the
+    // same upload don't need to resend/re-resolve them). A submission may target multiple
+    // stations — each becomes its own independent PENDING share on the same SoundFragment, see
+    // SharedSoundFragmentService.shareContribution and SHARING_WORKFLOW.md §3.
+    private Uni<Void> resolveBrandSlugsIfNeeded(String batchId, List<String> brandSlugs) {
+        if (brandSlugs.isEmpty()) {
             return Uni.createFrom().voidItem();
         }
-        
+
         // Check if already resolved for this batch
         if (batchBrandIdMap.containsKey(batchId)) {
             return Uni.createFrom().voidItem();
         }
-        
-        // Resolve brandSlug to UUID once
-        return soundFragmentService.resolveBrandSlug(brandSlug)
-                .map(brandId -> {
-                    if (brandId != null) {
-                        batchBrandIdMap.put(batchId, brandId);
+
+        return Uni.join().all(
+                        brandSlugs.stream().map(soundFragmentService::resolveBrandSlug).collect(Collectors.toList()))
+                .andFailFast()
+                .map(brandIds -> {
+                    List<UUID> resolved = brandIds.stream().filter(java.util.Objects::nonNull).collect(Collectors.toList());
+                    if (!resolved.isEmpty()) {
+                        batchBrandIdMap.put(batchId, resolved);
                     }
                     return null;
                 });
     }
 
     public Uni<UploadFileDTO> processDirectBulkStreamAsync(RoutingContext rc, String batchId, String fileId, String brandSlug, String controllerKey, IUser user) {
-        return processDirectBulkStreamAsync(rc, batchId, fileId, brandSlug, controllerKey, user, null);
+        return resolveBrandSlugIfNeeded(batchId, brandSlug)
+                .chain(() -> processFileUpload(rc, batchId, fileId, controllerKey, user, null));
     }
 
-    public Uni<UploadFileDTO> processDirectBulkStreamAsync(RoutingContext rc, String batchId, String fileId, String brandSlug, String controllerKey, IUser user, PublicSubmissionMetaDTO meta) {
-        // Resolve brandSlug once for the batch before processing
-        return resolveBrandSlugIfNeeded(batchId, brandSlug)
+    public Uni<UploadFileDTO> processDirectBulkStreamAsync(RoutingContext rc, String batchId, String fileId, List<String> brandSlugs, String controllerKey, IUser user, PublicSubmissionMetaDTO meta) {
+        // Resolve all target stations once for the batch before processing
+        return resolveBrandSlugsIfNeeded(batchId, brandSlugs)
                 .chain(() -> processFileUpload(rc, batchId, fileId, controllerKey, user, meta));
     }
 
@@ -192,10 +205,10 @@ public class FileUploadService {
                                             .build();
                                     batchMap.put(fileId, creatingDto);
                                     
-                                    // Get cached brandId for this batch
-                                    UUID brandId = batchBrandIdMap.get(batchId);
-                                    
-                                    return soundFragmentService.createFromBulkUpload(metadataDto, brandId, user,
+                                    // Get cached target brand ids for this batch
+                                    List<UUID> targetBrandIds = batchBrandIdMap.getOrDefault(batchId, List.of());
+
+                                    return soundFragmentService.createFromBulkUpload(metadataDto, targetBrandIds, user,
                                                     PUBLIC_SUBMISSIONS_CONTROLLER_KEY.equals(controllerKey), meta)
                                             .map(fragment -> {
                                                 UploadFileDTO finalDto = UploadFileDTO.builder()
@@ -260,15 +273,16 @@ public class FileUploadService {
     public Uni<UploadFileDTO> processChunkUpload(RoutingContext rc, String batchId, String fileId,
             int chunkIndex, int totalChunks, String originalFileName,
             String entityId, String brandSlug, String controllerKey, IUser user) {
-        return processChunkUpload(rc, batchId, fileId, chunkIndex, totalChunks, originalFileName,
-                entityId, brandSlug, controllerKey, user, null);
+        validateFileId(fileId);
+        return resolveBrandSlugIfNeeded(batchId, brandSlug)
+                .chain(() -> writeChunk(rc, batchId, fileId, chunkIndex, totalChunks, originalFileName, entityId, controllerKey, user, null));
     }
 
     public Uni<UploadFileDTO> processChunkUpload(RoutingContext rc, String batchId, String fileId,
             int chunkIndex, int totalChunks, String originalFileName,
-            String entityId, String brandSlug, String controllerKey, IUser user, PublicSubmissionMetaDTO meta) {
+            String entityId, List<String> brandSlugs, String controllerKey, IUser user, PublicSubmissionMetaDTO meta) {
         validateFileId(fileId);
-        return resolveBrandSlugIfNeeded(batchId, brandSlug)
+        return resolveBrandSlugsIfNeeded(batchId, brandSlugs)
                 .chain(() -> writeChunk(rc, batchId, fileId, chunkIndex, totalChunks, originalFileName, entityId, controllerKey, user, meta));
     }
 
@@ -387,8 +401,8 @@ public class FileUploadService {
                     .batchId(batchId).name(state.safeFileName).url(fileUrl)
                     .fullPath(metadataDto.getFullPath()).metadata(metadataDto.getMetadata()).build();
             batchMap.put(fileId, creatingDto);
-            UUID brandId = batchBrandIdMap.get(batchId);
-            return soundFragmentService.createFromBulkUpload(metadataDto, brandId, user,
+            List<UUID> targetBrandIds = batchBrandIdMap.getOrDefault(batchId, List.of());
+            return soundFragmentService.createFromBulkUpload(metadataDto, targetBrandIds, user,
                             PUBLIC_SUBMISSIONS_CONTROLLER_KEY.equals(controllerKey), meta)
                     .map(fragment -> {
                         UploadFileDTO finalDto = UploadFileDTO.builder()

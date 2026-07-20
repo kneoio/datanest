@@ -17,6 +17,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
@@ -110,7 +111,7 @@ public class   PublicSongSubmissionController {
     private void upload(RoutingContext rc) {
         String email = rc.request().getParam("email");
         String code  = rc.request().getParam("code");
-        String stationSlug = rc.request().getParam("stationSlug");
+        List<String> stationSlugs = rc.request().params().getAll("stationSlug");
         String artistName = rc.request().getParam("artistName");
         String description = rc.request().getParam("description");
         boolean notifyOnPlay = Boolean.parseBoolean(rc.request().getParam("notifyOnPlay"));
@@ -119,7 +120,7 @@ public class   PublicSongSubmissionController {
             fail(rc, 400, "email and code are required");
             return;
         }
-        if (stationSlug == null || stationSlug.isBlank()) {
+        if (stationSlugs.isEmpty()) {
             fail(rc, 400, "stationSlug is required");
             return;
         }
@@ -132,7 +133,7 @@ public class   PublicSongSubmissionController {
         String fileId  = UUID.randomUUID().toString();
         PublicSubmissionMetaDTO meta = new PublicSubmissionMetaDTO(email.trim(), artistName, description, notifyOnPlay);
 
-        fileUploadService.processDirectBulkStreamAsync(rc, batchId, fileId, stationSlug, CONTROLLER_KEY, SuperUser.build(), meta)
+        fileUploadService.processDirectBulkStreamAsync(rc, batchId, fileId, stationSlugs, CONTROLLER_KEY, SuperUser.build(), meta)
                 .subscribe().with(
                         dto -> rc.response().setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")
@@ -157,7 +158,7 @@ public class   PublicSongSubmissionController {
         String fileName       = rc.request().getParam("fileName");
         String chunkIndexStr  = rc.request().getParam("chunkIndex");
         String totalChunksStr = rc.request().getParam("totalChunks");
-        String stationSlug    = rc.request().getParam("stationSlug");
+        List<String> stationSlugs = rc.request().params().getAll("stationSlug");
         String artistName     = rc.request().getParam("artistName");
         String description    = rc.request().getParam("description");
         boolean notifyOnPlay  = Boolean.parseBoolean(rc.request().getParam("notifyOnPlay"));
@@ -182,17 +183,17 @@ public class   PublicSongSubmissionController {
             return;
         }
 
-        // stationSlug is only resolved (and cached per batchId) once, on the first chunk — see
-        // FileUploadService.resolveBrandSlugIfNeeded. Only require it there; later chunks don't
-        // need to resend it.
-        if (chunkIndex == 0 && (stationSlug == null || stationSlug.isBlank())) {
+        // stationSlugs are only resolved (and cached per batchId) once, on the first chunk — see
+        // FileUploadService.resolveBrandSlugsIfNeeded. Only require them there; later chunks don't
+        // need to resend them.
+        if (chunkIndex == 0 && stationSlugs.isEmpty()) {
             fail(rc, 400, "stationSlug is required");
             return;
         }
 
         final int ci = chunkIndex, tc = totalChunks;
         PublicSubmissionMetaDTO meta = new PublicSubmissionMetaDTO(email.trim(), artistName, description, notifyOnPlay);
-        fileUploadService.processChunkUpload(rc, batchId, fileId, ci, tc, fileName, null, stationSlug, CONTROLLER_KEY, SuperUser.build(), meta)
+        fileUploadService.processChunkUpload(rc, batchId, fileId, ci, tc, fileName, null, stationSlugs, CONTROLLER_KEY, SuperUser.build(), meta)
                 .subscribe().with(
                         dto -> rc.response().setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")
