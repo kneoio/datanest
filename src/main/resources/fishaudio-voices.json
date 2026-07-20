@@ -262,5 +262,21 @@
     "language": "en-US",
     "labels": "premium",
     "engineType": "fishaudio"
+  } ,
+  {
+    "id": "e64e97ef91304e2894cd72ff03b86d97",
+    "name": "Wizzy",
+    "gender": "male",
+    "language": "en-UK",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "12948ae865274748828214bb30165a1d",
+    "name": "Rachel",
+    "gender": "female",
+    "language": "en-UK",
+    "labels": "premium",
+    "engineType": "fishaudio"
   }
 ]
