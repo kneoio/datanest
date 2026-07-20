@@ -11,8 +11,8 @@ import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.rls.RlsActionUtil;
 import com.semantyca.core.repository.table.EntityData;
-import com.semantyca.datanest.model.cnst.ApprovalStatus;
 
+import com.semantyca.mixpla.model.cnst.ApprovalStatus;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.soundfragment.SharedSoundFragment;
 import io.smallrye.mutiny.Multi;

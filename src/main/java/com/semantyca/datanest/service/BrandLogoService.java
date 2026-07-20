@@ -61,17 +61,17 @@ public class BrandLogoService {
                             return;
                         }
 
-                        String safeFileName = appendVersion(FileSecurityUtils.sanitizeFilename(originalFileName));
+                        String slugName = appendVersion(FileSecurityUtils.sanitizeFilename(originalFileName));
                         Path entityDir = Files.createDirectories(
                                 Paths.get(uploadDirectory, CONTROLLER_KEY, user.getUserName(), brandId.toString()));
-                        Path destination = FileSecurityUtils.secureResolve(entityDir, safeFileName);
+                        Path destination = FileSecurityUtils.secureResolve(entityDir, slugName);
 
                         if (!FileSecurityUtils.isPathWithinBase(entityDir, destination)) {
                             emitter.fail(new SecurityException("Invalid file path"));
                             return;
                         }
 
-                        Path tempFile = entityDir.resolve(".tmp_" + safeFileName);
+                        Path tempFile = entityDir.resolve(".tmp_" + slugName);
                         upload.streamToFileSystem(tempFile.toString());
 
                         upload.endHandler(v -> {
@@ -87,7 +87,6 @@ public class BrandLogoService {
                                 }
                                 Files.move(tempFile, destination, StandardCopyOption.REPLACE_EXISTING);
 
-                                String slugName = safeFileName;
                                 FileMetadata meta = new FileMetadata();
                                 meta.setMimeType(contentType != null ? contentType : Files.probeContentType(destination));
                                 meta.setFileOriginalName(originalFileName);

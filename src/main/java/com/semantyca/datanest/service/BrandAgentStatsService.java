@@ -30,6 +30,7 @@ public class BrandAgentStatsService extends AbstractService<BrandAgentStats, Bra
     }
 
     public Uni<List<BrandAgentStatsDTO>> getAll(int limit, int offset, BrandAgentStatsFilter filter) {
+        assert repository != null;
         return repository.getAll(limit, offset, filter)
                 .chain(list -> {
                     if (list.isEmpty()) return Uni.createFrom().item(List.of());
@@ -41,10 +42,12 @@ public class BrandAgentStatsService extends AbstractService<BrandAgentStats, Bra
     }
 
     public Uni<Integer> getAllCount(BrandAgentStatsFilter filter) {
+        assert repository != null;
         return repository.getAllCount(filter);
     }
 
     public Uni<BrandAgentStatsDTO> getById(Integer id) {
+        assert repository != null;
         return repository.findById(id).chain(this::toDTO);
     }
 

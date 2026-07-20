@@ -13,17 +13,18 @@ import com.semantyca.datanest.dto.sharing.ShareAdminDTO;
 import com.semantyca.datanest.dto.sharing.ShareDTO;
 import com.semantyca.datanest.dto.sharing.SharingPreviewDTO;
 import com.semantyca.datanest.messaging.CommandPublisher;
-import com.semantyca.datanest.model.cnst.ApprovalStatus;
 import com.semantyca.datanest.repository.soundfragment.SharedSoundFragmentRepository;
 import com.semantyca.datanest.repository.soundfragment.SoundFragmentRepository;
 import com.semantyca.datanest.service.BrandService;
 import com.semantyca.mixpla.dto.queue.command.CommandType;
+import com.semantyca.mixpla.model.cnst.ApprovalStatus;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
 import com.semantyca.mixpla.model.soundfragment.SharedSoundFragment;
 import com.semantyca.mixpla.model.soundfragment.SoundFragment;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.jspecify.annotations.NonNull;
 
 import java.util.List;
 import java.util.Map;
@@ -82,16 +83,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
     // natural-key row, see unique_brand_shared_fragment); otherwise updates the mutable fields
     // of the share at that id. See SharedSoundFragmentRepository#insert/update.
     public Uni<ShareAdminDTO> upsert(String id, ShareAdminDTO dto) {
-        SharedSoundFragment entity = new SharedSoundFragment();
-        entity.setSourceUserId(dto.getSourceUserId());
-        entity.setSourceUserName(dto.getSourceUserName());
-        entity.setSourceUserEmail(dto.getSourceUserEmail());
-        entity.setTargetBrandId(dto.getTargetBrandId());
-        entity.setSoundFragmentId(dto.getSoundFragmentId());
-        entity.setExpiresAt(dto.getExpiresAt());
-        entity.setBoost(dto.getBoost());
-        entity.setStatus(dto.getStatus() != null ? dto.getStatus() : ApprovalStatus.PENDING.value());
-        entity.setNotifyOnPlay(dto.isNotifyOnPlay());
+        SharedSoundFragment entity = buildEntity(dto);
 
         if ("new".equalsIgnoreCase(id) || id == null || id.isBlank()) {
             return repository.insert(entity)
@@ -102,6 +94,20 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return repository.update(shareId, entity)
                 .chain(count -> repository.findById(shareId))
                 .map(this::toShareAdminDTO);
+    }
+
+    private static @NonNull SharedSoundFragment buildEntity(ShareAdminDTO dto) {
+        SharedSoundFragment entity = new SharedSoundFragment();
+        entity.setSourceUserId(dto.getSourceUserId());
+        entity.setSourceUserName(dto.getSourceUserName());
+        entity.setSourceUserEmail(dto.getSourceUserEmail());
+        entity.setTargetBrandId(dto.getTargetBrandId());
+        entity.setSoundFragmentId(dto.getSoundFragmentId());
+        entity.setExpiresAt(dto.getExpiresAt());
+        entity.setBoost(dto.getBoost());
+        entity.setStatus(dto.getStatus() != null ? dto.getStatus() : ApprovalStatus.PENDING.value());
+        entity.setNotifyOnPlay(dto.isNotifyOnPlay());
+        return entity;
     }
 
     public Uni<ShareAdminDTO> getByIdAdmin(UUID id) {
@@ -123,12 +129,12 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         dto.setSourceUserId(e.getSourceUserId());
         dto.setSourceUserName(e.getSourceUserName());
         dto.setSourceUserEmail(e.getSourceUserEmail());
+        dto.setNotifyOnPlay(Boolean.TRUE.equals(e.getNotifyOnPlay()));
         dto.setTargetBrandId(e.getTargetBrandId());
         dto.setSoundFragmentId(e.getSoundFragmentId());
         dto.setExpiresAt(e.getExpiresAt());
         dto.setBoost(e.getBoost());
         dto.setStatus(e.getStatus());
-        dto.setNotifyOnPlay(Boolean.TRUE.equals(e.getNotifyOnPlay()));
         return dto;
     }
 

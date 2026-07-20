@@ -298,7 +298,7 @@ public class EventService extends AbstractService<Event, EventDTO> {
         for (String key : List.of("title", "date", "content")) {
             String v = article.getString(key);
             if (v != null && !v.isBlank()) {
-                if (sb.length() > 0) {
+                if (!sb.isEmpty()) {
                     sb.append(' ');
                 }
                 sb.append(v.trim());
@@ -333,9 +333,9 @@ public class EventService extends AbstractService<Event, EventDTO> {
     }
 
     private static String normalizeSeparatorsForScan(String text) {
-        return text.replace('\u2013', '-')
-                .replace('\u2014', '-')
-                .replace('\u2212', '-');
+        return text.replace('–', '-')
+                .replace('—', '-')
+                .replace('−', '-');
     }
 
     private static String normalizeFlexibleDateInput(String s) {
@@ -453,7 +453,6 @@ public class EventService extends AbstractService<Event, EventDTO> {
             dto.setLastModifier(tuple.getItem2());
             dto.setLastModifiedDate(doc.getLastModifiedDate());
             dto.setBrandId(tuple.getItem3().getId().toString());
-            //dto.setBrand(tuple.getItem3().getSlugName());
             dto.setType(doc.getType().name());
             dto.setDescription(doc.getDescription());
             dto.setPriority(doc.getPriority().name());

@@ -13,6 +13,7 @@ import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
 import org.jboss.logging.Logger;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -38,6 +39,7 @@ public class MetricPublisher {
                     eventType,
                     processType,
                     traceId,
+                    List.of(),
                     code,
                     payload
             );

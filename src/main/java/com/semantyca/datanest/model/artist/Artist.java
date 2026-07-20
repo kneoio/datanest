@@ -13,6 +13,7 @@ import java.util.UUID;
 
 @Setter
 @Getter
+@Deprecated
 public class Artist extends SecureDataEntity<UUID> {
     private EnumMap<LanguageCode, String> localizedName;
     private String country;
