@@ -102,32 +102,12 @@ public class RefController extends BaseController {
 
         switch (type) {
             case "agents":
-                String brand = rc.request().getParam("brand");
-                Uni<ViewPage> agentsUni;
-                if (brand != null && !brand.isBlank()) {
-                    agentsUni = userSubscriptionService.getActiveSubscriptionForBrand(brand)
-                            .chain(subscription -> {
-                                List<String> djTypes = (subscription != null && subscription.getDjType() != null)
-                                        ? subscription.getDjType() : List.of();
-                                if (djTypes.isEmpty()) {
-                                    return Uni.createFrom().item(buildEmptyAgentsPage(page, size));
-                                }
-                                return Uni.combine().all().unis(
-                                                aiAgentService.getAllCountByLabelIdentifiers(superUser, djTypes),
-                                                aiAgentService.getAllFlatByLabelIdentifiers(size, (page - 1) * size, superUser, djTypes)
-                                        )
-                                        .asTuple()
-                                        .map(tuple -> buildAgentsPage(tuple.getItem2(), tuple.getItem1(), page, size));
-                            });
-                } else {
-                    List<String> freePlanDjTypes = List.of("free");
-                    agentsUni = Uni.combine().all().unis(
-                                    aiAgentService.getAllCountByLabelIdentifiers(superUser, freePlanDjTypes),
-                                    aiAgentService.getAllFlatByLabelIdentifiers(size, (page - 1) * size, superUser, freePlanDjTypes)
-                            )
-                            .asTuple()
-                            .map(tuple -> buildAgentsPage(tuple.getItem2(), tuple.getItem1(), page, size));
-                }
+                Uni<ViewPage> agentsUni = Uni.combine().all().unis(
+                                aiAgentService.getAllCount(superUser),
+                                aiAgentService.getAllFlat(size, (page - 1) * size, superUser)
+                        )
+                        .asTuple()
+                        .map(tuple -> buildAgentsPage(tuple.getItem2(), tuple.getItem1(), page, size));
                 agentsUni.subscribe().with(
                         viewPage -> rc.response()
                                 .setStatusCode(200)
