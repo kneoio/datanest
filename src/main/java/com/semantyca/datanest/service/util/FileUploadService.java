@@ -29,7 +29,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @ApplicationScoped
 public class FileUploadService {
@@ -49,23 +48,6 @@ public class FileUploadService {
     public final ConcurrentHashMap<String, ConcurrentHashMap<String, UploadFileDTO>> bulkUploadProgressMap = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, List<UUID>> batchBrandIdMap = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, ChunkAssemblyState> chunkStateMap = new ConcurrentHashMap<>();
-
-    private static final class ChunkAssemblyState {
-        final int totalChunks;
-        final AtomicInteger receivedCount = new AtomicInteger(0);
-        final String originalFileName;
-        final String safeFileName;
-        final String batchId;
-        final String entityId; // null = bulk mode; UUID string = single-entity mode
-
-        ChunkAssemblyState(int totalChunks, String originalFileName, String safeFileName, String batchId, String entityId) {
-            this.totalChunks = totalChunks;
-            this.originalFileName = originalFileName;
-            this.safeFileName = safeFileName;
-            this.batchId = batchId;
-            this.entityId = entityId;
-        }
-    }
 
     @Inject
     public FileUploadService(DatanestConfig config, AudioMetadataService audioMetadataService,

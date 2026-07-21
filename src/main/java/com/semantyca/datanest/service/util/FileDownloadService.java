@@ -8,8 +8,7 @@ import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -21,7 +20,7 @@ import java.util.UUID;
 
 @ApplicationScoped
 public class FileDownloadService {
-    private static final Logger LOGGER = LoggerFactory.getLogger(FileDownloadService.class);
+    private static final Logger LOGGER = Logger.getLogger(FileDownloadService.class);
 
     private final String uploadDir;
     private final SoundFragmentService soundFragmentService;
@@ -50,7 +49,7 @@ public class FileDownloadService {
         try {
             safeFileName = FileSecurityUtils.sanitizeFilename(requestedFileName);
         } catch (SecurityException e) {
-            LOGGER.warn("Unsafe filename in temp file request: {} from user: {}", requestedFileName,
+            LOGGER.warnf("Unsafe filename in temp file request: %s from user: %s", requestedFileName,
                     user.getUserName());
             return Uni.createFrom().failure(new SecurityException("Invalid filename"));
         }
@@ -59,7 +58,7 @@ public class FileDownloadService {
         Path secureFilePath = FileSecurityUtils.secureResolve(baseDir, safeFileName);
 
         if (!FileSecurityUtils.isPathWithinBase(baseDir, secureFilePath)) {
-            LOGGER.error("Security violation: Path traversal attempt by user {} for temp file {}",
+            LOGGER.errorf("Security violation: Path traversal attempt by user %s for temp file %s",
                     user.getUserName(), requestedFileName);
             return Uni.createFrom().failure(new SecurityException("Invalid file path"));
         }
@@ -70,7 +69,7 @@ public class FileDownloadService {
                 Path canonicalFile = file.toPath().toRealPath();
                 Path canonicalBase = baseDir.toRealPath();
                 if (!canonicalFile.startsWith(canonicalBase)) {
-                    LOGGER.error("Security violation: Temp file outside base directory accessed by user {}",
+                    LOGGER.errorf("Security violation: Temp file outside base directory accessed by user %s",
                             user.getUserName());
                     return Uni.createFrom().failure(new SecurityException("File access denied"));
                 }
@@ -81,7 +80,7 @@ public class FileDownloadService {
                         fileBytes,
                         mimeType != null ? mimeType : "application/octet-stream"));
             } catch (IOException e) {
-                LOGGER.error("Temp file read error for user {}, file: {}", user.getUserName(), safeFileName, e);
+                LOGGER.errorf("Temp file read error for user %s, file: %s", user.getUserName(), safeFileName, e);
                 return Uni.createFrom().failure(e);
             }
         } else {
@@ -93,7 +92,7 @@ public class FileDownloadService {
         try {
             UUID.fromString(id);
         } catch (IllegalArgumentException e) {
-            LOGGER.warn("Invalid entity ID in file request: {} from user: {}", id, user.getUserName());
+            LOGGER.warnf("Invalid entity ID in file request: %s from user: %s", id, user.getUserName());
             return Uni.createFrom().failure(new IllegalArgumentException("Invalid entity ID"));
         }
 
@@ -101,7 +100,7 @@ public class FileDownloadService {
         try {
             safeFileName = FileSecurityUtils.sanitizeFilename(requestedFileName);
         } catch (SecurityException e) {
-            LOGGER.warn("Unsafe filename in file request: {} from user: {}", requestedFileName, user.getUserName());
+            LOGGER.warnf("Unsafe filename in file request: %s from user: %s", requestedFileName, user.getUserName());
             return Uni.createFrom().failure(new SecurityException("Invalid filename"));
         }
 
@@ -109,7 +108,7 @@ public class FileDownloadService {
         Path secureFilePath = FileSecurityUtils.secureResolve(baseDir, safeFileName);
 
         if (!FileSecurityUtils.isPathWithinBase(baseDir, secureFilePath)) {
-            LOGGER.error("Security violation: Path traversal attempt by user {} for file {}",
+            LOGGER.errorf("Security violation: Path traversal attempt by user %s for file %s",
                     user.getUserName(), requestedFileName);
             return Uni.createFrom().failure(new SecurityException("Invalid file path"));
         }
@@ -121,7 +120,7 @@ public class FileDownloadService {
                 Path canonicalFile = file.toPath().toRealPath();
                 Path canonicalBase = baseDir.toRealPath();
                 if (!canonicalFile.startsWith(canonicalBase)) {
-                    LOGGER.error("Security violation: File outside base directory accessed by user {}",
+                    LOGGER.errorf("Security violation: File outside base directory accessed by user %s",
                             user.getUserName());
                     return Uni.createFrom().failure(new SecurityException("File access denied"));
                 }
@@ -132,7 +131,7 @@ public class FileDownloadService {
                         fileBytes,
                         mimeType != null ? mimeType : "application/octet-stream"));
             } catch (IOException e) {
-                LOGGER.error("File read error for user {}, file: {}", user.getUserName(), safeFileName, e);
+                LOGGER.errorf("File read error for user %s, file: %s", user.getUserName(), safeFileName, e);
                 return Uni.createFrom().failure(e);
             }
         }
