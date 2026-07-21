@@ -176,8 +176,16 @@
     "engineType": "fishaudio"
   },
   {
-    "id": "1d46950bbd13417cab44280fec00b4b9",
-    "name": "Юрий Брежнев",
+    "id": "01824726cd8e41e08df130787028e55e",
+    "name": "Гнусавый из фильмов 90-х",
+    "gender": "male",
+    "language": "ru-RU",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
+    "id": "d9247a00779649adbe7f4fdde2ac11c8",
+    "name": "Брэд Питт (Кузнецов)",
     "gender": "male",
     "language": "ru-RU",
     "labels": "premium",
