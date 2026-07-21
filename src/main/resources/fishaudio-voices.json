@@ -176,6 +176,14 @@
     "engineType": "fishaudio"
   },
   {
+    "id": "b5d250277f3e49f1a3dda486bf569360",
+    "name": "Исаги злой",
+    "gender": "male",
+    "language": "ru-RU",
+    "labels": "premium",
+    "engineType": "fishaudio"
+  },
+  {
     "id": "6dc11f3f67a543f6ad4537a4a347e224",
     "name": "Mita",
     "gender": "female",
