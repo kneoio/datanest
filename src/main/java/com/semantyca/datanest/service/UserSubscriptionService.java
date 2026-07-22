@@ -1,5 +1,6 @@
 package com.semantyca.datanest.service;
 
+import com.semantyca.core.model.user.IUser;
 import com.semantyca.datanest.repository.BrandRepository;
 import com.semantyca.mixpla.model.MixplaUserSubscription;
 import com.semantyca.mixpla.repository.UserSubscriptionRepository;
@@ -15,6 +16,10 @@ public class UserSubscriptionService {
 
     @Inject
     UserSubscriptionRepository userSubscriptionRepository;
+
+    public Uni<MixplaUserSubscription> getActiveSubscription(IUser user) {
+        return userSubscriptionRepository.findActiveByUserId(user.getId());
+    }
 
     public Uni<MixplaUserSubscription> getActiveSubscriptionForBrand(String slug) {
         return brandRepository.getBySlugName(slug)

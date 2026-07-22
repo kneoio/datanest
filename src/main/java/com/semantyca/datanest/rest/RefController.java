@@ -1,12 +1,13 @@
 package com.semantyca.datanest.rest;
 
-import com.semantyca.core.controller.BaseController;
+import com.semantyca.core.controller.AbstractController;
 import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.view.View;
 import com.semantyca.core.dto.view.ViewPage;
 import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.model.user.SuperUser;
+import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.datanest.dto.GenreFlatDTO;
 import com.semantyca.datanest.dto.LabelFlatDTO;
@@ -49,7 +50,7 @@ import static com.semantyca.core.util.RuntimeUtil.countMaxPage;
 
 
 @ApplicationScoped
-public class RefController extends BaseController {
+public class RefController extends AbstractController<Void, Void> {
     private final SuperUser superUser = SuperUser.build();
 
     @Inject
@@ -69,6 +70,15 @@ public class RefController extends BaseController {
 
     @Inject
     LabelService labelService;
+
+    public RefController() {
+        super(null);
+    }
+
+    @Inject
+    public RefController(UserService userService) {
+        super(userService);
+    }
 
     private volatile UUID freeLabelId;
     private volatile long freeLabelCachedAt;
@@ -102,12 +112,18 @@ public class RefController extends BaseController {
 
         switch (type) {
             case "agents":
-                Uni<ViewPage> agentsUni = Uni.combine().all().unis(
-                                aiAgentService.getAllCount(superUser),
-                                aiAgentService.getAllFlat(size, (page - 1) * size, superUser)
-                        )
-                        .asTuple()
-                        .map(tuple -> buildAgentsPage(tuple.getItem2(), tuple.getItem1(), page, size));
+                Uni<ViewPage> agentsUni = getContextUser(rc, false, true)
+                        .chain(user -> userSubscriptionService.getActiveSubscription(user))
+                        .chain(subscription -> {
+                            List<String> djTypes = (subscription != null && subscription.getDjType() != null && !subscription.getDjType().isEmpty())
+                                    ? subscription.getDjType() : List.of("free");
+                            return Uni.combine().all().unis(
+                                            aiAgentService.getAllCountByLabelIdentifiers(superUser, djTypes),
+                                            aiAgentService.getAllFlatByLabelIdentifiers(size, (page - 1) * size, superUser, djTypes)
+                                    )
+                                    .asTuple()
+                                    .map(tuple -> buildAgentsPage(tuple.getItem2(), tuple.getItem1(), page, size));
+                        });
                 agentsUni.subscribe().with(
                         viewPage -> rc.response()
                                 .setStatusCode(200)
