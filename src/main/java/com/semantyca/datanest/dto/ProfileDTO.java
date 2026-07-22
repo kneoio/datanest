@@ -16,7 +16,6 @@ import java.util.List;
 public class ProfileDTO extends AbstractDTO {
     @NotBlank
     private String name;
-    @NotBlank
     private String description;
     private boolean explicitContent;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
