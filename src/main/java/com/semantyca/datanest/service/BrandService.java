@@ -32,6 +32,7 @@ import com.semantyca.mixpla.model.brand.BrandScriptEntry;
 import com.semantyca.mixpla.model.brand.Owner;
 import com.semantyca.mixpla.model.brand.ProfileOverriding;
 import com.semantyca.mixpla.model.cnst.ManagedBy;
+import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
 import com.semantyca.mixpla.model.filter.BrandFilter;
 import com.semantyca.officeframe.model.cnst.CountryCode;
 import io.smallrye.mutiny.Uni;
@@ -463,7 +464,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         doc.setBitRate(dto.getBitRate());
         doc.setAiAgentId(dto.getAiAgentId());
         doc.setProfileId(dto.getProfileId());
-        doc.setOneTimeStreamPolicy(dto.getOneTimeStreamPolicy());
+        doc.setOneTimeStreamPolicy(SubmissionPolicy.NO_RESTRICTIONS);
         doc.setSubmissionPolicy(dto.getSubmissionPolicy());
         doc.setMessagingPolicy(dto.getMessagingPolicy());
 
