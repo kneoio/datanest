@@ -406,7 +406,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         return customScene;
     }
 
-    private Uni<BrandDTO> resolveOwnerUserIds(BrandDTO dto) {
+    protected Uni<BrandDTO> resolveOwnerUserIds(BrandDTO dto) {
         if (dto.getOwner() == null) return Uni.createFrom().item(dto);
 
         List<Uni<Void>> resolutions = new ArrayList<>();

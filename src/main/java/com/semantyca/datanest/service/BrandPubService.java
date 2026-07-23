@@ -70,7 +70,8 @@ public class BrandPubService extends BrandService {
         boolean isNew = "new".equalsIgnoreCase(id) || id == null || id.isBlank();
         boolean isCustom = ScriptMode.CUSTOM.equals(dto.getScriptMode());
         LOGGER.infof("BrandPubService.upsert: id=%s isNew=%s isCustom=%s user=%s", id, isNew, isCustom, user.getUserName());
-        return doUpsert(id, dto, isNew, isCustom, user)
+        return resolveOwnerUserIds(dto)
+                .chain(resolvedDto -> doUpsert(id, resolvedDto, isNew, isCustom, user))
                 .invoke(saved -> {
                     LOGGER.infof("BrandPubService.upsert: brand saved id=%s slug=%s", saved.getId(), saved.getSlugName());
                     commandPublisher.publishCommand(
