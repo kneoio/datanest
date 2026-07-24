@@ -18,6 +18,7 @@ import com.semantyca.datanest.model.cnst.ScriptMode;
 import com.semantyca.datanest.repository.BrandPubRepository;
 import com.semantyca.datanest.repository.BrandRepository;
 import com.semantyca.mixpla.dto.queue.command.CommandType;
+import com.semantyca.mixpla.repository.UserSubscriptionRepository;
 import com.semantyca.mixpla.model.CustomAction;
 import com.semantyca.mixpla.model.PlaylistRequest;
 import com.semantyca.mixpla.model.Scene;
@@ -60,9 +61,10 @@ public class BrandPubService extends BrandService {
             DatanestConfig datanestConfig,
             MetricPublisher metricPublisher,
             CommandPublisher commandPublisher,
+            UserSubscriptionRepository userSubscriptionRepository,
             BrandPubRepository brandPubRepository
     ) {
-        super(userService, scriptService, sceneService, repository, datanestConfig, metricPublisher, commandPublisher);
+        super(userService, scriptService, sceneService, repository, datanestConfig, metricPublisher, commandPublisher, userSubscriptionRepository);
         this.brandPubRepository = brandPubRepository;
     }
 

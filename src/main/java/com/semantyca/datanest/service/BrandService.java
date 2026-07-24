@@ -34,6 +34,7 @@ import com.semantyca.mixpla.model.brand.ProfileOverriding;
 import com.semantyca.mixpla.model.cnst.ManagedBy;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
 import com.semantyca.mixpla.model.filter.BrandFilter;
+import com.semantyca.mixpla.repository.UserSubscriptionRepository;
 import com.semantyca.officeframe.model.cnst.CountryCode;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -60,6 +61,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     protected final SceneService sceneService;
     private final MetricPublisher metricPublisher;
     protected final DatanestConfig datanestConfig;
+    private final UserSubscriptionRepository userSubscriptionRepository;
     protected BrandService() {
         super();
         this.scriptService = null;
@@ -68,6 +70,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         this.datanestConfig = null;
         this.metricPublisher = null;
         this.commandPublisher = null;
+        this.userSubscriptionRepository = null;
     }
 
     @Inject
@@ -78,7 +81,8 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             BrandRepository repository,
             DatanestConfig datanestConfig,
             MetricPublisher metricPublisher,
-            CommandPublisher commandPublisher
+            CommandPublisher commandPublisher,
+            UserSubscriptionRepository userSubscriptionRepository
     ) {
         super(userService);
         this.scriptService = scriptService;
@@ -87,6 +91,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         this.datanestConfig = datanestConfig;
         this.metricPublisher = metricPublisher;
         this.commandPublisher = commandPublisher;
+        this.userSubscriptionRepository = userSubscriptionRepository;
     }
 
     public Uni<List<BrandDTO>> getAllDTO(final int limit, final int offset, final IUser user, final BrandFilter filter) {
@@ -180,7 +185,8 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 .chain(entity -> {
                     if (isNew) {
                         entity.setPopularityRate(5);
-                        return repository.insert(entity, rlsActions, user);
+                        return checkSubscriptionStationLimit(user)
+                                .chain(() -> repository.insert(entity, rlsActions, user));
                     } else {
                         return repository.update(UUID.fromString(id), entity, rlsActions, user);
                     }
@@ -197,6 +203,23 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     }
 
 
+
+    private Uni<Void> checkSubscriptionStationLimit(IUser user) {
+        assert userSubscriptionRepository != null;
+        assert repository != null;
+        return userSubscriptionRepository.findActiveByUserId(user.getId())
+                .onItem().transformToUni(subscription -> {
+                    if (subscription == null || subscription.getMaxStations() == null) {
+                        return Uni.createFrom().failure(new IllegalStateException(
+                                "Station limit reached: no active subscription found"));
+                    }
+                    return repository.getAllCount(user, false, null)
+                            .chain(count -> count >= subscription.getMaxStations()
+                                    ? Uni.createFrom().failure(new IllegalStateException(
+                                            "Station limit reached: your subscription allows " + subscription.getMaxStations() + " stations"))
+                                    : Uni.createFrom().voidItem());
+                });
+    }
 
     public Uni<List<BrandDTO>> getAllOpenForSubmissionDTO(int limit, int offset, IUser user) {
         assert repository != null;
