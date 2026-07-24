@@ -1,6 +1,7 @@
 package com.semantyca.datanest.repository.soundfragment;
 
 import com.semantyca.core.model.user.IUser;
+import com.semantyca.mixpla.model.cnst.ApprovalStatus;
 import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.sqlclient.SqlClient;
 import io.vertx.mutiny.sqlclient.Tuple;
@@ -57,9 +58,17 @@ public class SoundFragmentBrandAssociationHandler {
 
         String deleteBrandsSql = "DELETE FROM mixpla__brand_sound_fragments WHERE sound_fragment_id = $1 AND brand_id = ANY($2)";
         UUID[] brandsArray = brandsToRemove.toArray(new UUID[0]);
-        return tx.preparedQuery(deleteBrandsSql)
+        Uni<Void> deleteUni = tx.preparedQuery(deleteBrandsSql)
                 .execute(Tuple.of(soundFragmentId, brandsArray))
                 .onItem().ignore().andContinueWithNull();
+
+        String rejectSharesSql = "UPDATE mixpla__shared_sound_fragments SET status = " + ApprovalStatus.REJECTED.value() +
+                ", last_mod_date = NOW() WHERE sound_fragment_id = $1 AND target_brand_id = ANY($2) AND status = " + ApprovalStatus.ACCEPTED.value();
+        Uni<Void> rejectSharesUni = tx.preparedQuery(rejectSharesSql)
+                .execute(Tuple.of(soundFragmentId, brandsArray))
+                .onItem().ignore().andContinueWithNull();
+
+        return Uni.combine().all().unis(deleteUni, rejectSharesUni).discardItems();
     }
 
     private Uni<Void> addBrands(SqlClient tx, UUID soundFragmentId, List<UUID> brandsToAdd) {
