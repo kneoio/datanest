@@ -935,7 +935,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                     });
                         })
                         .invoke(insertedFragment -> triggerOpusEncoding(insertedFragment,
-                                targetBrandIds.isEmpty() ? null : targetBrandIds.getFirst(), Paths.get(uploadFile.getFullPath()))));
+                                targetBrandIds.isEmpty() ? null : targetBrandIds.getFirst(), Paths.get(uploadFile.getFullPath())))
+                        .invoke(insertedFragment -> triggerSpectraAnalysis(insertedFragment, fragment.getFileMetadataList())));
     }
 
     // Silently resolve-or-create a real core user account for the submitter's (OTP-verified)
