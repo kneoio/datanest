@@ -426,7 +426,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         return userSubscriptionRepository.findActiveByUserId(user.getId())
                 .onItem().transformToUni(subscription -> {
                     if (subscription == null || subscription.getMaxSongs() == null) {
-                        return Uni.createFrom().voidItem();
+                        return Uni.createFrom().failure(new IllegalStateException(
+                                "Song upload limit reached: no active subscription found"));
                     }
                     SoundFragmentFilter filter = new SoundFragmentFilter();
                     filter.setSource(List.of(SourceType.USER_UPLOAD));
