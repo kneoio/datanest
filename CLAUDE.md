@@ -16,6 +16,8 @@ datanest is a CRUD backend; it works with the `Mixdeck` (user) and `42next` (adm
   station shares **and** artist contributions (chatbot + public web form) — same
   `SharedSoundFragment`/`ApprovalStatus` mechanism for both, plus submitter-account resolution and
   the "received" inbox.
+- `src/main/java/com/semantyca/datanest/repository/soundfragment/BRAND_TEAM_VISIBILITY.md` — why every
+  owner + co-owner of a brand sees all songs the team saved, and the two fragment-RLS grant points.
 - _(candidates)_ — one-time-stream data flow.
 
 ## datanest Conventions
