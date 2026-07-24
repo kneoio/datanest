@@ -70,6 +70,11 @@ public abstract class SoundFragmentRepositoryAbstract extends AsyncRepository {
         doc.setDescription(row.getString("description"));
         doc.setExpiresAt(row.getOffsetDateTime("expires_at"));
 
+        JsonObject addInfoJson = row.getJsonObject("add_info");
+        if (addInfoJson != null) {
+            doc.setAddInfo(addInfoJson.getMap());
+        }
+
         JsonObject schedulerJson = row.getJsonObject("scheduler");
         if (schedulerJson != null) {
             try {

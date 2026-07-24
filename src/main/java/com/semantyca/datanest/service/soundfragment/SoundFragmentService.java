@@ -596,6 +596,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
             dto.setBoost(doc.getBoost());
             dto.setDescription(doc.getDescription());
             dto.setExpiresAt(doc.getExpiresAt());
+            dto.setAddInfo(doc.getAddInfo());
             dto.setScheduled(doc.getScheduler() != null && doc.getScheduler().isEnabled());
             return dto;
         });
@@ -645,6 +646,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
             dto.setBoost(doc.getBoost());
             dto.setDescription(doc.getDescription());
             dto.setExpiresAt(doc.getExpiresAt());
+            dto.setAddInfo(doc.getAddInfo());
             dto.setPlayHistory(doc.getPlayHistory());
             if (doc.getScheduler() != null) {
                 Scheduler scheduler = doc.getScheduler();

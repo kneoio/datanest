@@ -17,6 +17,7 @@ import lombok.Setter;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Setter
@@ -55,4 +56,6 @@ public class SoundFragmentFlatDTO extends AbstractDTO {
     private int likes;
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private int dislikes;
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    private Map<String, Object> addInfo;
 }
