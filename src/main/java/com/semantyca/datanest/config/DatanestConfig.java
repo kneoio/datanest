@@ -16,6 +16,10 @@ public interface DatanestConfig {
     @WithDefault("http://localhost:38799")
     String getAgentUrl();
 
+    @WithName("spectra.url")
+    @WithDefault("http://127.0.0.1:38795")
+    String getSpectraUrl();
+
     @WithName("controller.upload.files.path")
     @WithDefault("controller-uploads")
     String getPathUploads();

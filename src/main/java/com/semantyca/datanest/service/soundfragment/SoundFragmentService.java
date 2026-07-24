@@ -33,6 +33,7 @@ import com.semantyca.datanest.dto.SoundFragmentDTO;
 import com.semantyca.datanest.dto.SoundFragmentFlatDTO;
 import com.semantyca.datanest.dto.UploadFileDTO;
 import com.semantyca.datanest.dto.sharing.ShareDTO;
+import com.semantyca.datanest.external.SpectraApiClient;
 import com.semantyca.datanest.messaging.CommandPublisher;
 import com.semantyca.datanest.repository.soundfragment.SoundFragmentBrandRepository;
 import com.semantyca.datanest.repository.soundfragment.SoundFragmentRepository;
@@ -100,6 +101,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
     private final CommandPublisher commandPublisher;
     private final UserSubscriptionRepository userSubscriptionRepository;
     private final LabelService labelService;
+    private final SpectraApiClient spectraApiClient;
     private String uploadDir;
     Validator validator;
 
@@ -118,6 +120,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         this.commandPublisher = null;
         this.userSubscriptionRepository = null;
         this.labelService = null;
+        this.spectraApiClient = null;
     }
 
     @Inject
@@ -134,7 +137,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                 HetznerStorageService fileStorage,
                                 CommandPublisher commandPublisher,
                                 UserSubscriptionRepository userSubscriptionRepository,
-                                LabelService labelService) {
+                                LabelService labelService,
+                                SpectraApiClient spectraApiClient) {
         super(userService);
         this.genreService = genreService;
         this.localFileCleanupService = localFileCleanupService;
@@ -149,6 +153,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         this.commandPublisher = commandPublisher;
         this.userSubscriptionRepository = userSubscriptionRepository;
         this.labelService = labelService;
+        this.spectraApiClient = spectraApiClient;
         uploadDir = config.getPathUploads() + "/sound-fragments-controller";
     }
 
@@ -354,6 +359,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                     .chain(() -> buildRlsActionsWithCoOwners(dto.getRepresentedInBrands(), dto.getRlsActions())
                             .chain(rlsActions -> repository.insert(entity, dto.getRepresentedInBrands(), rlsActions, user))
                             .chain(doc -> moveFilesForNewEntity(doc, fileMetadataList, user))
+                            .invoke(doc -> triggerSpectraAnalysis(doc, fileMetadataList))
                             .chain(doc -> mapToDTO(doc, true, null, null))
                             .onFailure().invoke(failure -> {
                                 LOGGER.warnf("Entity creation failed, cleaning up temp files for user: %s", user.getUserName());
@@ -392,6 +398,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
             return buildRlsActionsWithCoOwners(dto.getRepresentedInBrands(), dto.getRlsActions())
                     .chain(rlsActions -> repository.update(UUID.fromString(id), entity, dto.getRepresentedInBrands(), rlsActions, user))
                     .invoke(doc -> triggerOpusEncodingIfMissing(doc, brandId, fileMetadataList))
+                    .invoke(doc -> triggerSpectraAnalysis(doc, fileMetadataList))
                     .chain(doc -> mapToDTO(doc, true, null, null))
                     .onFailure().invoke(failure -> {
                         LOGGER.warnf("Entity update failed, cleaning up files for user: %s, entity: %s",
@@ -960,6 +967,25 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         grant.setCanEdit(true);
         grant.setCanDelete(true);
         return grant;
+    }
+
+    private void triggerSpectraAnalysis(SoundFragment fragment, List<FileMetadata> newlyUploadedFiles) {
+        if (newlyUploadedFiles == null || newlyUploadedFiles.isEmpty()) return;
+        if (fragment.getSource() == SourceType.STREAM) return;
+        if (spectraApiClient == null) return;
+
+        String path = newlyUploadedFiles.stream()
+                .map(FileMetadata::getFilePath)
+                .filter(p -> p != null && Files.exists(p) && Files.isReadable(p))
+                .findFirst()
+                .map(Path::toString)
+                .orElse(null);
+
+        spectraApiClient.analyze(fragment.getId(), path)
+                .subscribe().with(
+                        ignored -> LOGGER.infof("Spectra analysis triggered for fragment %s", fragment.getId()),
+                        err -> LOGGER.warnf("Failed to trigger spectra analysis for fragment %s: %s", fragment.getId(), err.getMessage())
+                );
     }
 
     private void triggerOpusEncodingIfMissing(SoundFragment fragment, UUID brandId, List<FileMetadata> newlyUploadedFiles) {
