@@ -83,6 +83,28 @@ public class SoundFragmentBrandAssociationHandler {
 
         return tx.preparedQuery(insertBrandsSql)
                 .executeBatch(insertParams)
-                .onItem().ignore().andContinueWithNull();
+                .onItem().ignore().andContinueWithNull()
+                .chain(() -> grantFragmentRlsToBrands(tx, soundFragmentId, brandsToAdd));
+    }
+
+    // Every owner + co-owner of a brand the fragment is assigned to gets full fragment RLS, so the
+    // whole brand team sees each other's songs in the brand library (findForBrandFlat is scoped by
+    // per-user fragment RLS). Mirrors SharedSoundFragmentRepository.grantFragmentRlsToBrand.
+    private Uni<Void> grantFragmentRlsToBrands(SqlClient tx, UUID soundFragmentId, List<UUID> brandIds) {
+        String ownerSql = "INSERT INTO mixpla__sound_fragment_readers (reader, entity_id, can_edit, can_delete) " +
+                "SELECT (b.owner->>'userId')::bigint, $1, true, true " +
+                "FROM mixpla__brands b WHERE b.id = $2 AND b.owner->>'userId' IS NOT NULL " +
+                "ON CONFLICT DO NOTHING";
+        String coOwnersSql = "INSERT INTO mixpla__sound_fragment_readers (reader, entity_id, can_edit, can_delete) " +
+                "SELECT (co->>'userId')::bigint, $1, true, true " +
+                "FROM mixpla__brands b, jsonb_array_elements(COALESCE(b.owner->'coOwners', '[]'::jsonb)) co " +
+                "WHERE b.id = $2 AND co->>'userId' IS NOT NULL " +
+                "ON CONFLICT DO NOTHING";
+        List<Tuple> params = brandIds.stream()
+                .map(brandId -> Tuple.of(soundFragmentId, brandId))
+                .collect(Collectors.toList());
+        return tx.preparedQuery(ownerSql).executeBatch(params)
+                .chain(() -> tx.preparedQuery(coOwnersSql).executeBatch(params))
+                .replaceWithVoid();
     }
 }

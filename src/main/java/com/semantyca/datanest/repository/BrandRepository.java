@@ -321,6 +321,7 @@ public class BrandRepository extends AsyncRepository {
                                                 .onItem().transformToUni(v -> upsertLabels(tx, id, station.getLabels()))
                                                 .onItem().transformToUni(v -> applyRlsActions(tx, id, rlsActions))
                                                 .onItem().transformToUni(v -> insertCoOwnerRLSPermissions(tx, id, entityData, extractCoOwnerIds(station)))
+                                                .onItem().transformToUni(v -> backfillFragmentRlsForBrandMembers(tx, id))
                                                 .onItem().transform(v -> id);
                                     })
                     ).onItem().transformToUni(stationId -> findById(stationId, user, true));
@@ -572,6 +573,27 @@ public class BrandRepository extends AsyncRepository {
 
     private Uni<Void> applyRlsActions(SqlClient tx, UUID entityId, List<RlsActionDTO> actions) {
         return RlsActionUtil.applyRlsActions(tx, entityData.getRlsName(), entityId, actions);
+    }
+
+    // Re-check on brand save: grant every current owner + co-owner full fragment RLS on every
+    // sound fragment already assigned to this brand, so a newly added co-owner retroactively sees
+    // songs saved before they joined. Never revokes (deliberate — see SHARING_WORKFLOW §2a).
+    private Uni<Void> backfillFragmentRlsForBrandMembers(SqlClient tx, UUID brandId) {
+        String sfRls = soundFragmentEntityData.getRlsName();
+        String ownerSql = "INSERT INTO " + sfRls + " (reader, entity_id, can_edit, can_delete) " +
+                "SELECT (b.owner->>'userId')::bigint, bsf.sound_fragment_id, true, true " +
+                "FROM mixpla__brands b JOIN mixpla__brand_sound_fragments bsf ON bsf.brand_id = b.id " +
+                "WHERE b.id = $1 AND b.owner->>'userId' IS NOT NULL " +
+                "ON CONFLICT DO NOTHING";
+        String coOwnersSql = "INSERT INTO " + sfRls + " (reader, entity_id, can_edit, can_delete) " +
+                "SELECT (co->>'userId')::bigint, bsf.sound_fragment_id, true, true " +
+                "FROM mixpla__brands b JOIN mixpla__brand_sound_fragments bsf ON bsf.brand_id = b.id, " +
+                "jsonb_array_elements(COALESCE(b.owner->'coOwners', '[]'::jsonb)) co " +
+                "WHERE b.id = $1 AND co->>'userId' IS NOT NULL " +
+                "ON CONFLICT DO NOTHING";
+        return tx.preparedQuery(ownerSql).execute(Tuple.of(brandId))
+                .chain(() -> tx.preparedQuery(coOwnersSql).execute(Tuple.of(brandId)))
+                .replaceWithVoid();
     }
 
     public Uni<Integer> archive(UUID id, IUser user) {
