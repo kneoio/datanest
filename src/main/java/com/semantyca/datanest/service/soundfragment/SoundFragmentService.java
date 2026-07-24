@@ -974,14 +974,11 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         if (fragment.getSource() == SourceType.STREAM) return;
         if (spectraApiClient == null) return;
 
-        String path = newlyUploadedFiles.stream()
-                .map(FileMetadata::getFilePath)
-                .filter(p -> p != null && Files.exists(p) && Files.isReadable(p))
-                .findFirst()
-                .map(Path::toString)
-                .orElse(null);
-
-        spectraApiClient.analyze(fragment.getId(), path)
+        // spectra resolves the ORIGINAL (non-opus) file itself from _files by the
+        // fragment id and materializes it from Hetzner. No local path is passed:
+        // datanest's upload dir is not shared into the spectra container, so a
+        // container-local path would never resolve there.
+        spectraApiClient.analyze(fragment.getId())
                 .subscribe().with(
                         ignored -> LOGGER.infof("Spectra analysis triggered for fragment %s", fragment.getId()),
                         err -> LOGGER.warnf("Failed to trigger spectra analysis for fragment %s: %s", fragment.getId(), err.getMessage())

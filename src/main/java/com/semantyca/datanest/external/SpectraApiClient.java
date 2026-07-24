@@ -27,11 +27,8 @@ public class SpectraApiClient {
         this.webClient = WebClient.create(vertx);
     }
 
-    public Uni<Void> analyze(UUID soundFragmentId, String path) {
+    public Uni<Void> analyze(UUID soundFragmentId) {
         JsonObject body = new JsonObject().put("soundFragmentId", soundFragmentId.toString());
-        if (path != null) {
-            body.put("path", path);
-        }
 
         return webClient
                 .postAbs(config.getSpectraUrl() + "/analyze")
