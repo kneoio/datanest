@@ -359,7 +359,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                     .chain(() -> buildRlsActionsWithCoOwners(dto.getRepresentedInBrands(), dto.getRlsActions())
                             .chain(rlsActions -> repository.insert(entity, dto.getRepresentedInBrands(), rlsActions, user))
                             .chain(doc -> moveFilesForNewEntity(doc, fileMetadataList, user))
-                            .invoke(doc -> triggerSpectraAnalysis(doc, fileMetadataList))
+                            .invoke(doc -> triggerSpectraAnalysis(doc))
                             .chain(doc -> mapToDTO(doc, true, null, null))
                             .onFailure().invoke(failure -> {
                                 LOGGER.warnf("Entity creation failed, cleaning up temp files for user: %s", user.getUserName());
@@ -398,7 +398,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
             return buildRlsActionsWithCoOwners(dto.getRepresentedInBrands(), dto.getRlsActions())
                     .chain(rlsActions -> repository.update(UUID.fromString(id), entity, dto.getRepresentedInBrands(), rlsActions, user))
                     .invoke(doc -> triggerOpusEncodingIfMissing(doc, brandId, fileMetadataList))
-                    .invoke(doc -> triggerSpectraAnalysis(doc, fileMetadataList))
+                    .invoke(doc -> triggerSpectraAnalysis(doc))
                     .chain(doc -> mapToDTO(doc, true, null, null))
                     .onFailure().invoke(failure -> {
                         LOGGER.warnf("Entity update failed, cleaning up files for user: %s, entity: %s",
@@ -936,7 +936,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                         })
                         .invoke(insertedFragment -> triggerOpusEncoding(insertedFragment,
                                 targetBrandIds.isEmpty() ? null : targetBrandIds.getFirst(), Paths.get(uploadFile.getFullPath())))
-                        .invoke(insertedFragment -> triggerSpectraAnalysis(insertedFragment, fragment.getFileMetadataList())));
+                        .invoke(insertedFragment -> triggerSpectraAnalysis(insertedFragment)));
     }
 
     // Silently resolve-or-create a real core user account for the submitter's (OTP-verified)
@@ -970,15 +970,15 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         return grant;
     }
 
-    private void triggerSpectraAnalysis(SoundFragment fragment, List<FileMetadata> newlyUploadedFiles) {
-        if (newlyUploadedFiles == null || newlyUploadedFiles.isEmpty()) return;
+    private void triggerSpectraAnalysis(SoundFragment fragment) {
         if (fragment.getSource() == SourceType.STREAM) return;
         if (spectraApiClient == null) return;
 
-        // spectra resolves the ORIGINAL (non-opus) file itself from _files by the
-        // fragment id and materializes it from Hetzner. No local path is passed:
-        // datanest's upload dir is not shared into the spectra container, so a
-        // container-local path would never resolve there.
+        // Fire on any non-stream save: new upload, bulk, or re-save of an existing
+        // fragment. spectra resolves the ORIGINAL (non-opus) file itself from
+        // _files by id and materializes it from Hetzner; if there's no original it
+        // simply no-ops. No local path is passed (datanest's upload dir is not
+        // shared into the spectra container, so it would never resolve there).
         spectraApiClient.analyze(fragment.getId())
                 .subscribe().with(
                         ignored -> LOGGER.infof("Spectra analysis triggered for fragment %s", fragment.getId()),
