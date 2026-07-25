@@ -238,6 +238,22 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract imp
                 });
     }
 
+    public Uni<SoundFragment> findBySlugName(String slugName) {
+        String sql = "SELECT * FROM " + entityData.getTableName() + " WHERE slug_name = $1 AND archived = 0";
+
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(slugName))
+                .onItem().transform(RowSet::iterator)
+                .onItem().transformToUni(iterator -> {
+                    if (iterator.hasNext()) {
+                        Row row = iterator.next();
+                        return from(row, false, false, false);
+                    } else {
+                        return Uni.createFrom().failure(new DocumentHasNotFoundException(slugName));
+                    }
+                });
+    }
+
     public Uni<SoundFragment> insert(SoundFragment doc, List<UUID> representedInBrands, List<RlsActionDTO> rlsActions, IUser user) {
         OffsetDateTime nowTime = ZonedDateTime.now(ZoneOffset.UTC).toOffsetDateTime();
         final List<FileMetadata> originalFiles = doc.getFileMetadataList();

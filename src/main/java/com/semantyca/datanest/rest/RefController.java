@@ -3,6 +3,7 @@ package com.semantyca.datanest.rest;
 import com.semantyca.core.controller.AbstractController;
 import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.cnst.PayloadType;
+import com.semantyca.core.dto.form.FormPage;
 import com.semantyca.core.dto.view.View;
 import com.semantyca.core.dto.view.ViewPage;
 import com.semantyca.core.model.cnst.LanguageTag;
@@ -17,10 +18,12 @@ import com.semantyca.datanest.dto.actionbars.ProfileActionsFactory;
 import com.semantyca.datanest.dto.aiagent.AiAgentFlatDTO;
 import com.semantyca.datanest.dto.aiagent.VoiceDTO;
 import com.semantyca.datanest.dto.script.ScriptFlatDTO;
+import com.semantyca.datanest.dto.SoundFragmentFlatDTO;
 import com.semantyca.datanest.service.AiAgentService;
 import com.semantyca.datanest.service.ProfileService;
 import com.semantyca.datanest.service.RefService;
 import com.semantyca.datanest.service.ScriptService;
+import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
 import com.semantyca.datanest.service.UserSubscriptionService;
 import com.semantyca.mixpla.model.cnst.SceneTimingMode;
 import com.semantyca.mixpla.model.cnst.TTSEngineType;
@@ -71,6 +74,9 @@ public class RefController extends AbstractController<Void, Void> {
     @Inject
     LabelService labelService;
 
+    @Inject
+    SoundFragmentService soundFragmentService;
+
     public RefController() {
         super(null);
     }
@@ -102,6 +108,24 @@ public class RefController extends AbstractController<Void, Void> {
     public void setupRoutes(Router router) {
         router.route(HttpMethod.GET, "/datanest/dictionary/:type").handler(this::getDictionary);
         router.route(HttpMethod.GET, "/datanest/dictionary/:type/:category").handler(this::getDictionary);
+        router.route(HttpMethod.GET, "/datanest/soundfragments/light/:slugName").handler(this::getSoundFragmentLightBySlugName);
+    }
+
+    private void getSoundFragmentLightBySlugName(RoutingContext rc) {
+        String slugName = rc.pathParam("slugName");
+
+        soundFragmentService.getLightBySlugName(slugName)
+                .subscribe().with(
+                        dto -> {
+                            FormPage page = new FormPage();
+                            page.addPayload(PayloadType.DOC_DATA, dto);
+                            rc.response()
+                                    .setStatusCode(200)
+                                    .putHeader("Content-Type", "application/json")
+                                    .end(io.vertx.core.json.Json.encode(page));
+                        },
+                        rc::fail
+                );
     }
 
     private void getDictionary(RoutingContext rc) {

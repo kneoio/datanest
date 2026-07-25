@@ -210,6 +210,33 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         return repository.findById(uuid, SuperUser.ID, false, false, true);
     }
 
+    public Uni<SoundFragmentFlatDTO> getLightBySlugName(String slugName) {
+        assert repository != null;
+        return repository.findBySlugName(slugName).map(this::mapToLightFlatDTO);
+    }
+
+    private SoundFragmentFlatDTO mapToLightFlatDTO(SoundFragment doc) {
+        SoundFragmentFlatDTO dto = new SoundFragmentFlatDTO();
+        dto.setId(doc.getId());
+        dto.setRegDate(doc.getRegDate());
+        dto.setLastModifiedDate(doc.getLastModifiedDate());
+        dto.setSource(doc.getSource());
+        dto.setStreamUrl(doc.getStreamUrl());
+        dto.setStatus(doc.getStatus());
+        dto.setType(doc.getType());
+        dto.setTitle(doc.getTitle());
+        dto.setArtist(doc.getArtist());
+        dto.setArtistId(doc.getArtistId());
+        dto.setGenres(doc.getGenres());
+        dto.setLabels(doc.getLabels());
+        dto.setAlbum(doc.getAlbum());
+        dto.setSlugName(doc.getSlugName());
+        dto.setDescription(doc.getDescription());
+        dto.setAddInfo(doc.getAddInfo());
+        dto.setScheduled(doc.getScheduler() != null && doc.getScheduler().isEnabled());
+        return dto;
+    }
+
     @Override
     public Uni<SoundFragmentDTO> getDTO(UUID uuid, IUser user, LanguageCode code) {
         assert repository != null;
