@@ -15,7 +15,7 @@ import java.util.UUID;
 @Getter
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class BrandSoundFragmentFlatDTO {
-    private UUID id;
+    private String slugName;
     private UUID defaultBrandId;
     private int playedByBrandCount;
     private int boost;

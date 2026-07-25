@@ -31,6 +31,8 @@ import com.semantyca.datanest.dto.AudioMetadataDTO;
 import com.semantyca.datanest.dto.PublicSubmissionMetaDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
 import com.semantyca.datanest.dto.SoundFragmentFlatDTO;
+import com.semantyca.datanest.dto.SoundFragmentPublicDTO;
+import com.semantyca.datanest.dto.SoundFragmentPublicFlatDTO;
 import com.semantyca.datanest.dto.UploadFileDTO;
 import com.semantyca.datanest.dto.sharing.ShareDTO;
 import com.semantyca.datanest.external.SpectraApiClient;
@@ -181,6 +183,45 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 .chain(this::buildListFlatDTOs);
     }
 
+    public Uni<List<SoundFragmentPublicFlatDTO>> getAllPublicFlatDTO(final int limit, final int offset, final IUser user, final SoundFragmentFilter filter) {
+        return getAllFlatDTO(limit, offset, user, filter)
+                .map(list -> list.stream().map(this::toPublicFlatDTO).collect(Collectors.toList()));
+    }
+
+    public Uni<List<SoundFragmentPublicFlatDTO>> getAllPublicFlatDTOWithoutBrandAssociation(final int limit, final int offset,
+                                                                                            final IUser user, final SoundFragmentFilter filter) {
+        return getAllFlatDTOWithoutBrandAssociation(limit, offset, user, filter)
+                .map(list -> list.stream().map(this::toPublicFlatDTO).collect(Collectors.toList()));
+    }
+
+    private SoundFragmentPublicFlatDTO toPublicFlatDTO(SoundFragmentFlatDTO src) {
+        SoundFragmentPublicFlatDTO dto = new SoundFragmentPublicFlatDTO();
+        dto.setRegDate(src.getRegDate());
+        dto.setLastModifiedDate(src.getLastModifiedDate());
+        dto.setSource(src.getSource());
+        dto.setStreamUrl(src.getStreamUrl());
+        dto.setStatus(src.getStatus());
+        dto.setType(src.getType());
+        dto.setTitle(src.getTitle());
+        dto.setArtist(src.getArtist());
+        dto.setArtistId(src.getArtistId());
+        dto.setGenres(src.getGenres());
+        dto.setLabels(src.getLabels());
+        dto.setAlbum(src.getAlbum());
+        dto.setSlugName(src.getSlugName());
+        dto.setLength(src.getLength());
+        dto.setBoost(src.getBoost());
+        dto.setDescription(src.getDescription());
+        dto.setRepresentedInBrands(src.getRepresentedInBrands());
+        dto.setExpiresAt(src.getExpiresAt());
+        dto.setShared(src.isShared());
+        dto.setScheduled(src.isScheduled());
+        dto.setLikes(src.getLikes());
+        dto.setDislikes(src.getDislikes());
+        dto.setAddInfo(src.getAddInfo());
+        return dto;
+    }
+
     public Uni<Integer> getAllCountWithoutBrandAssociation(final IUser user, final SoundFragmentFilter filter) {
         assert repository != null;
         return repository.getAllCountWithoutBrandAssociation(user, filter);
@@ -210,33 +251,6 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         return repository.findById(uuid, SuperUser.ID, false, false, true);
     }
 
-    public Uni<SoundFragmentFlatDTO> getLightBySlugName(String slugName) {
-        assert repository != null;
-        return repository.findBySlugName(slugName).map(this::mapToLightFlatDTO);
-    }
-
-    private SoundFragmentFlatDTO mapToLightFlatDTO(SoundFragment doc) {
-        SoundFragmentFlatDTO dto = new SoundFragmentFlatDTO();
-        dto.setId(doc.getId());
-        dto.setRegDate(doc.getRegDate());
-        dto.setLastModifiedDate(doc.getLastModifiedDate());
-        dto.setSource(doc.getSource());
-        dto.setStreamUrl(doc.getStreamUrl());
-        dto.setStatus(doc.getStatus());
-        dto.setType(doc.getType());
-        dto.setTitle(doc.getTitle());
-        dto.setArtist(doc.getArtist());
-        dto.setArtistId(doc.getArtistId());
-        dto.setGenres(doc.getGenres());
-        dto.setLabels(doc.getLabels());
-        dto.setAlbum(doc.getAlbum());
-        dto.setSlugName(doc.getSlugName());
-        dto.setDescription(doc.getDescription());
-        dto.setAddInfo(doc.getAddInfo());
-        dto.setScheduled(doc.getScheduler() != null && doc.getScheduler().isEnabled());
-        return dto;
-    }
-
     @Override
     public Uni<SoundFragmentDTO> getDTO(UUID uuid, IUser user, LanguageCode code) {
         assert repository != null;
@@ -258,6 +272,73 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                 return dto;
                             });
                 });
+    }
+
+    public Uni<SoundFragmentPublicDTO> getDTOBySlug(String slugName, IUser user, LanguageCode code) {
+        assert repository != null;
+        return repository.findBySlugName(slugName, user.getId(), false, true, true)
+                .chain(doc -> {
+                    UUID uuid = doc.getId();
+                    Uni<List<UUID>> brandsUni = repository.getBrandsForSoundFragment(uuid, user);
+                    Uni<int[]> ratingsUni = repository.getRatings(uuid);
+
+                    return Uni.combine().all().unis(brandsUni, ratingsUni).asTuple()
+                            .chain(tuple -> {
+                                List<UUID> representedInBrands = tuple.getItem1();
+                                int[] ratings = tuple.getItem2();
+                                assert sharedSoundFragmentService != null;
+                                return sharedSoundFragmentService.listShareDTO(doc.getId())
+                                        .chain(shared -> mapToDTO(doc, true, representedInBrands, shared))
+                                        .map(dto -> {
+                                            dto.setLikes(ratings[0]);
+                                            dto.setDislikes(ratings[1]);
+                                            if (dto.getUploadedFiles() != null) {
+                                                dto.getUploadedFiles().forEach(f ->
+                                                        f.setUrl("/datanest/public/soundfragments/files/" + slugName + "/" + f.getId()));
+                                            }
+                                            return toPublicDTO(dto, slugName);
+                                        });
+                            });
+                });
+    }
+
+    private SoundFragmentPublicDTO toPublicDTO(SoundFragmentDTO src, String slugName) {
+        SoundFragmentPublicDTO dto = new SoundFragmentPublicDTO();
+        dto.setRegDate(src.getRegDate());
+        dto.setLastModifiedDate(src.getLastModifiedDate());
+        dto.setSource(src.getSource());
+        dto.setStreamUrl(src.getStreamUrl());
+        dto.setStatus(src.getStatus());
+        dto.setType(src.getType());
+        dto.setTitle(src.getTitle());
+        dto.setArtist(src.getArtist());
+        dto.setArtistId(src.getArtistId());
+        dto.setGenres(src.getGenres());
+        dto.setLabels(src.getLabels());
+        dto.setAlbum(src.getAlbum());
+        dto.setSlugName(slugName);
+        dto.setLength(src.getLength());
+        dto.setBoost(src.getBoost());
+        dto.setDescription(src.getDescription());
+        dto.setRepresentedInBrands(src.getRepresentedInBrands());
+        dto.setExpiresAt(src.getExpiresAt());
+        dto.setShared(src.isShared());
+        dto.setScheduled(src.isScheduled());
+        dto.setLikes(src.getLikes());
+        dto.setDislikes(src.getDislikes());
+        dto.setAddInfo(src.getAddInfo());
+        dto.setBrands(src.getBrands());
+        dto.setUploadedFiles(src.getUploadedFiles());
+        dto.setSchedule(src.getSchedule());
+        dto.setPlayHistory(src.getPlayHistory());
+        dto.setSharedWith(src.getSharedWith());
+        dto.setRlsActions(src.getRlsActions());
+        return dto;
+    }
+
+    public Uni<UUID> getIdBySlug(String slugName, IUser user) {
+        assert repository != null;
+        return repository.findBySlugName(slugName, user.getId(), false, false, false).map(SoundFragment::getId);
     }
 
     public Uni<SoundFragmentDTO> getDTOTemplate(IUser user, LanguageCode code) {

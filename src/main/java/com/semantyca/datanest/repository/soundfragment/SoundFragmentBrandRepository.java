@@ -35,7 +35,7 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
 
     public Uni<List<BrandSoundFragmentFlatDTO>> findForBrandFlat(UUID brandId, final int limit, final int offset,
                                                                   IUser user, SoundFragmentFilter filter) {
-        String sql = "SELECT t.id, t.title, t.artist, t.album, t.source, " +
+        String sql = "SELECT t.id, t.slug_name, t.title, t.artist, t.album, t.source, " +
                 "bsf.played_by_brand_count, bsf.boost, bsf.last_time_played_by_brand, " +
                 "EXISTS (SELECT 1 FROM mixpla__shared_sound_fragments ssf WHERE ssf.sound_fragment_id = t.id AND ssf.archived = 0) AS shared, " +
                 "COALESCE(r.likes, 0) AS likes, COALESCE(r.dislikes, 0) AS dislikes";
@@ -141,7 +141,7 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
         return Uni.combine().all().unis(loadLabels(soundFragmentId), loadGenres(soundFragmentId)).asTuple()
                 .onItem().transform(tuple -> {
                     BrandSoundFragmentFlatDTO dto = new BrandSoundFragmentFlatDTO();
-                    dto.setId(soundFragmentId);
+                    dto.setSlugName(row.getString("slug_name"));
                     dto.setDefaultBrandId(brandId);
                     dto.setPlayedByBrandCount(row.getInteger("played_by_brand_count"));
                     dto.setBoost(row.getInteger("boost") != null ? row.getInteger("boost") : 0);

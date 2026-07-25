@@ -9,45 +9,62 @@ import com.semantyca.core.dto.view.ViewPage;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.repository.exception.UserNotFoundException;
 import com.semantyca.core.service.UserService;
+import com.semantyca.core.util.FileSecurityUtils;
 import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.datanest.dto.BrandSoundFragmentFlatDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
-import com.semantyca.datanest.dto.SoundFragmentFlatDTO;
+import com.semantyca.datanest.dto.SoundFragmentPublicFlatDTO;
 import com.semantyca.datanest.dto.actionbars.SoundFragmentActionsFactory;
 import com.semantyca.datanest.service.soundfragment.BrandSoundFragmentService;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
+import com.semantyca.datanest.service.util.FileDownloadService;
+import com.semantyca.datanest.util.InputStreamReadStream;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.cnst.SourceType;
 import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
 import com.semantyca.mixpla.model.soundfragment.SoundFragment;
 import io.smallrye.mutiny.Uni;
-import io.smallrye.mutiny.tuples.Tuple2;
+import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpServerResponse;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.handler.BodyHandler;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.jboss.logging.Logger;
 import org.jspecify.annotations.NonNull;
 
 import java.util.List;
-import java.util.UUID;
 
 @ApplicationScoped
 public class PublicSoundFragmentController extends AbstractSecuredController<SoundFragment, SoundFragmentDTO> {
+    private static final Logger LOGGER = Logger.getLogger(PublicSoundFragmentController.class);
+    private static final int STREAM_BUFFER_SIZE = 524288; // 512KB buffer for file streaming
+
     private final SoundFragmentService service;
     private final BrandSoundFragmentService brandSoundFragmentService;
+    private final FileDownloadService fileDownloadService;
+    private final Vertx vertx;
 
     public PublicSoundFragmentController() {
         super(null);
         this.service = null;
         this.brandSoundFragmentService = null;
+        this.fileDownloadService = null;
+        this.vertx = null;
     }
 
     @Inject
-    public PublicSoundFragmentController(UserService userService, SoundFragmentService service, BrandSoundFragmentService brandSoundFragmentService) {
+    public PublicSoundFragmentController(UserService userService, SoundFragmentService service,
+                                         BrandSoundFragmentService brandSoundFragmentService,
+                                         FileDownloadService fileDownloadService, Vertx vertx) {
         super(userService);
         this.service = service;
         this.brandSoundFragmentService = brandSoundFragmentService;
+        this.fileDownloadService = fileDownloadService;
+        this.vertx = vertx;
     }
 
     public void setupRoutes(Router router) {
@@ -55,7 +72,9 @@ public class PublicSoundFragmentController extends AbstractSecuredController<Sou
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/unassigned-brands").handler(this::getUnassignedBrands); //it is archived from regular POV
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/sound-assets").handler(this::getSoundAssets);
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/available-soundfragments").handler(this::getForBrand);
-        router.route(HttpMethod.GET, "/datanest/public/soundfragments/:id").handler(this::getById);
+        router.route(HttpMethod.GET, "/datanest/public/soundfragments/files/:slugName/:fileSlug").handler(this::getFileBySlugName);
+        router.route(HttpMethod.PATCH, "/datanest/public/soundfragments/:slugName/boost/:brandId").handler(BodyHandler.create()).handler(this::updateBoostBySlugName);
+        router.route(HttpMethod.GET, "/datanest/public/soundfragments/:slugName").handler(this::getBySlugName);
     }
 
     private void get(RoutingContext rc) {
@@ -70,10 +89,10 @@ public class PublicSoundFragmentController extends AbstractSecuredController<Sou
                     assert service != null;
                     return Uni.combine().all().unis(
                             service.getAllCount(user, filter),
-                            service.getAllFlatDTO(size, (page - 1) * size, user, filter)
+                            service.getAllPublicFlatDTO(size, (page - 1) * size, user, filter)
                     ).asTuple().map(tuple -> {
                         ViewPage viewPage = new ViewPage();
-                        View<SoundFragmentFlatDTO> dtoEntries = new View<>(tuple.getItem2(),
+                        View<SoundFragmentPublicFlatDTO> dtoEntries = new View<>(tuple.getItem2(),
                                 tuple.getItem1(), page,
                                 RuntimeUtil.countMaxPage(tuple.getItem1(), size),
                                 size);
@@ -90,24 +109,17 @@ public class PublicSoundFragmentController extends AbstractSecuredController<Sou
                 );
     }
 
-    private void getById(RoutingContext rc) {
-        String id = rc.pathParam("id");
+    private void getBySlugName(RoutingContext rc) {
+        String slugName = rc.pathParam("slugName");
         LanguageCode languageCode = LanguageCode.valueOf(rc.request().getParam("lang", LanguageCode.en.name()));
 
         getContextUser(rc, false, true)
                 .chain(user -> {
-                    if ("new".equals(id)) {
-                        assert service != null;
-                        return service.getDTOTemplate(user, languageCode)
-                                .map(dto -> Tuple2.of(dto, user));
-                    }
                     assert service != null;
-                    return service.getDTO(UUID.fromString(id), user, languageCode)
-                            .map(doc -> Tuple2.of(doc, user));
+                    return service.getDTOBySlug(slugName, user, languageCode);
                 })
                 .subscribe().with(
-                        tuple -> {
-                            SoundFragmentDTO doc = tuple.getItem1();
+                        doc -> {
                             FormPage page = new FormPage();
                             page.addPayload(PayloadType.DOC_DATA, doc);
                             rc.response()
@@ -129,10 +141,10 @@ public class PublicSoundFragmentController extends AbstractSecuredController<Sou
                     assert service != null;
                     return Uni.combine().all().unis(
                             service.getAllCountWithoutBrandAssociation(user, filter),
-                            service.getAllFlatDTOWithoutBrandAssociation(size, (page - 1) * size, user, filter)
+                            service.getAllPublicFlatDTOWithoutBrandAssociation(size, (page - 1) * size, user, filter)
                     ).asTuple().map(tuple -> {
                         ViewPage viewPage = new ViewPage();
-                        View<SoundFragmentFlatDTO> dtoEntries = new View<>(tuple.getItem2(),
+                        View<SoundFragmentPublicFlatDTO> dtoEntries = new View<>(tuple.getItem2(),
                                 tuple.getItem1(), page,
                                 RuntimeUtil.countMaxPage(tuple.getItem1(), size),
                                 size);
@@ -161,10 +173,10 @@ public class PublicSoundFragmentController extends AbstractSecuredController<Sou
                     assert service != null;
                     return Uni.combine().all().unis(
                             service.getAllCount(user, filter),
-                            service.getAllFlatDTO(size, (page - 1) * size, user, filter)
+                            service.getAllPublicFlatDTO(size, (page - 1) * size, user, filter)
                     ).asTuple().map(tuple -> {
                         ViewPage viewPage = new ViewPage();
-                        View<SoundFragmentFlatDTO> dtoEntries = new View<>(tuple.getItem2(),
+                        View<SoundFragmentPublicFlatDTO> dtoEntries = new View<>(tuple.getItem2(),
                                 tuple.getItem1(), page,
                                 RuntimeUtil.countMaxPage(tuple.getItem1(), size),
                                 size);
@@ -226,6 +238,90 @@ public class PublicSoundFragmentController extends AbstractSecuredController<Sou
                                 .setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")
                                 .end(io.vertx.core.json.Json.encode(viewPage)),
+                        t -> handleFailure(rc, t)
+                );
+    }
+
+    private void updateBoostBySlugName(RoutingContext rc) {
+        String slugName = rc.pathParam("slugName");
+        String brandId = rc.pathParam("brandId");
+        try {
+            var body = rc.body().asJsonObject();
+            Integer boost = body.getInteger("boost");
+            String type = body.getString("type");
+            if (boost == null) {
+                rc.fail(400, new IllegalArgumentException("'boost' field is required"));
+                return;
+            }
+            if (type == null || (!type.equals("brand") && !type.equals("shared"))) {
+                rc.fail(400, new IllegalArgumentException("'type' must be 'brand' or 'shared'"));
+                return;
+            }
+            if (boost < -1 || boost > 2) {
+                rc.fail(400, new IllegalArgumentException("boost must be between -1 and 2"));
+                return;
+            }
+
+            getContextUser(rc, false, true)
+                    .chain(user -> {
+                        assert service != null;
+                        return service.getIdBySlug(slugName, user)
+                                .chain(id -> service.updateBoost(id.toString(), brandId, boost, type));
+                    })
+                    .subscribe().with(
+                            ignored -> rc.response().setStatusCode(204).end(),
+                            t -> handleFailure(rc, t)
+                    );
+        } catch (IllegalArgumentException e) {
+            rc.fail(400, new IllegalArgumentException("Invalid ID format"));
+        }
+    }
+
+    private void getFileBySlugName(RoutingContext rc) {
+        String slugName = rc.pathParam("slugName");
+        String requestedFileName = rc.pathParam("fileSlug");
+
+        getContextUser(rc, false, true)
+                .chain(user -> {
+                    assert service != null;
+                    return service.getIdBySlug(slugName, user)
+                            .chain(id -> {
+                                assert fileDownloadService != null;
+                                return fileDownloadService.getFile(id.toString(), requestedFileName, user);
+                            });
+                })
+                .subscribe().with(
+                        fileData -> {
+                            if (fileData == null ||
+                                    (fileData.getData() == null && fileData.getInputStream() == null) ||
+                                    (fileData.hasByteArray() && fileData.getData().length == 0)) {
+                                rc.fail(404, new IllegalArgumentException("File content not available"));
+                                return;
+                            }
+
+                            HttpServerResponse response = rc.response()
+                                    .putHeader("Content-Disposition", "attachment; filename=\"" +
+                                            FileSecurityUtils.sanitizeFilename(requestedFileName) + "\"")
+                                    .putHeader("Content-Type", fileData.getMimeType())
+                                    .putHeader("Content-Length", String.valueOf(fileData.getContentLength()));
+
+                            if (fileData.hasByteArray()) {
+                                response.end(Buffer.buffer(fileData.getData()));
+                            } else if (fileData.hasInputStream()) {
+                                response.setChunked(true);
+
+                                InputStreamReadStream inputStreamReadStream = new InputStreamReadStream(vertx, fileData.getInputStream(), STREAM_BUFFER_SIZE);
+                                inputStreamReadStream.pipeTo(response)
+                                        .onComplete(ar -> {
+                                            if (ar.failed()) {
+                                                LOGGER.error("Stream failed", ar.cause());
+                                                if (!response.ended()) {
+                                                    response.setStatusCode(500).end();
+                                                }
+                                            }
+                                        });
+                            }
+                        },
                         t -> handleFailure(rc, t)
                 );
     }
