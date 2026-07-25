@@ -27,6 +27,7 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.jspecify.annotations.NonNull;
 
 import java.util.List;
 import java.util.UUID;
@@ -65,18 +66,21 @@ public class PublicSoundFragmentController extends AbstractSecuredController<Sou
         filter.setActivated(true);
 
         getContextUser(rc, false, true)
-                .chain(user -> Uni.combine().all().unis(
-                        service.getAllCount(user, filter),
-                        service.getAllFlatDTO(size, (page - 1) * size, user, filter)
-                ).asTuple().map(tuple -> {
-                    ViewPage viewPage = new ViewPage();
-                    View<SoundFragmentFlatDTO> dtoEntries = new View<>(tuple.getItem2(),
-                            tuple.getItem1(), page,
-                            RuntimeUtil.countMaxPage(tuple.getItem1(), size),
-                            size);
-                    viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-                    return viewPage;
-                }))
+                .chain(user -> {
+                    assert service != null;
+                    return Uni.combine().all().unis(
+                            service.getAllCount(user, filter),
+                            service.getAllFlatDTO(size, (page - 1) * size, user, filter)
+                    ).asTuple().map(tuple -> {
+                        ViewPage viewPage = new ViewPage();
+                        View<SoundFragmentFlatDTO> dtoEntries = new View<>(tuple.getItem2(),
+                                tuple.getItem1(), page,
+                                RuntimeUtil.countMaxPage(tuple.getItem1(), size),
+                                size);
+                        viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
+                        return viewPage;
+                    });
+                })
                 .subscribe().with(
                         viewPage -> rc.response()
                                 .setStatusCode(200)
@@ -93,9 +97,11 @@ public class PublicSoundFragmentController extends AbstractSecuredController<Sou
         getContextUser(rc, false, true)
                 .chain(user -> {
                     if ("new".equals(id)) {
+                        assert service != null;
                         return service.getDTOTemplate(user, languageCode)
                                 .map(dto -> Tuple2.of(dto, user));
                     }
+                    assert service != null;
                     return service.getDTO(UUID.fromString(id), user, languageCode)
                             .map(doc -> Tuple2.of(doc, user));
                 })
@@ -119,20 +125,23 @@ public class PublicSoundFragmentController extends AbstractSecuredController<Sou
         SoundFragmentFilter filter = new SoundFragmentFilter();
 
         getContextUser(rc, false, true)
-                .chain(user -> Uni.combine().all().unis(
-                        service.getAllCountWithoutBrandAssociation(user, filter),
-                        service.getAllFlatDTOWithoutBrandAssociation(size, (page - 1) * size, user, filter)
-                ).asTuple().map(tuple -> {
-                    ViewPage viewPage = new ViewPage();
-                    View<SoundFragmentFlatDTO> dtoEntries = new View<>(tuple.getItem2(),
-                            tuple.getItem1(), page,
-                            RuntimeUtil.countMaxPage(tuple.getItem1(), size),
-                            size);
-                    viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-                    ActionBox actions = SoundFragmentActionsFactory.getViewActions();
-                    viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, actions);
-                    return viewPage;
-                }))
+                .chain(user -> {
+                    assert service != null;
+                    return Uni.combine().all().unis(
+                            service.getAllCountWithoutBrandAssociation(user, filter),
+                            service.getAllFlatDTOWithoutBrandAssociation(size, (page - 1) * size, user, filter)
+                    ).asTuple().map(tuple -> {
+                        ViewPage viewPage = new ViewPage();
+                        View<SoundFragmentFlatDTO> dtoEntries = new View<>(tuple.getItem2(),
+                                tuple.getItem1(), page,
+                                RuntimeUtil.countMaxPage(tuple.getItem1(), size),
+                                size);
+                        viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
+                        ActionBox actions = SoundFragmentActionsFactory.getViewActions();
+                        viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, actions);
+                        return viewPage;
+                    });
+                })
                 .subscribe().with(
                         viewPage -> rc.response()
                                 .setStatusCode(200)
@@ -145,6 +154,34 @@ public class PublicSoundFragmentController extends AbstractSecuredController<Sou
     private void getSoundAssets(RoutingContext rc) {
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
+        SoundFragmentFilter filter = createFilter();
+
+        getContextUser(rc, false, true)
+                .chain(user -> {
+                    assert service != null;
+                    return Uni.combine().all().unis(
+                            service.getAllCount(user, filter),
+                            service.getAllFlatDTO(size, (page - 1) * size, user, filter)
+                    ).asTuple().map(tuple -> {
+                        ViewPage viewPage = new ViewPage();
+                        View<SoundFragmentFlatDTO> dtoEntries = new View<>(tuple.getItem2(),
+                                tuple.getItem1(), page,
+                                RuntimeUtil.countMaxPage(tuple.getItem1(), size),
+                                size);
+                        viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
+                        return viewPage;
+                    });
+                })
+                .subscribe().with(
+                        viewPage -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(io.vertx.core.json.Json.encode(viewPage)),
+                        t -> handleFailure(rc, t)
+                );
+    }
+
+    private static @NonNull SoundFragmentFilter createFilter() {
         SoundFragmentFilter filter = new SoundFragmentFilter();
         filter.setType(List.of(
                 PlaylistItemType.ADVERTISEMENT,
@@ -158,27 +195,7 @@ public class PublicSoundFragmentController extends AbstractSecuredController<Sou
                 PlaylistItemType.WEATHER
         ));
         filter.setActivated(true);
-
-        getContextUser(rc, false, true)
-                .chain(user -> Uni.combine().all().unis(
-                        service.getAllCount(user, filter),
-                        service.getAllFlatDTO(size, (page - 1) * size, user, filter)
-                ).asTuple().map(tuple -> {
-                    ViewPage viewPage = new ViewPage();
-                    View<SoundFragmentFlatDTO> dtoEntries = new View<>(tuple.getItem2(),
-                            tuple.getItem1(), page,
-                            RuntimeUtil.countMaxPage(tuple.getItem1(), size),
-                            size);
-                    viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-                    return viewPage;
-                }))
-                .subscribe().with(
-                        viewPage -> rc.response()
-                                .setStatusCode(200)
-                                .putHeader("Content-Type", "application/json")
-                                .end(io.vertx.core.json.Json.encode(viewPage)),
-                        t -> handleFailure(rc, t)
-                );
+        return filter;
     }
 
     private void getForBrand(RoutingContext rc) {
@@ -189,18 +206,21 @@ public class PublicSoundFragmentController extends AbstractSecuredController<Sou
                 List.of(SourceType.USER_UPLOAD, SourceType.CONTRIBUTION), List.of(PlaylistItemType.SONG));
 
         getContextUser(rc, false, true)
-                .chain(user -> Uni.combine().all().unis(
-                        brandSoundFragmentService.getBrandSoundFragmentsFlat(brandName, size, (page - 1) * size, filter, user),
-                        brandSoundFragmentService.getBrandSoundFragmentsCount(brandName, filter, user)
-                ).asTuple().map(tuple -> {
-                    ViewPage viewPage = new ViewPage();
-                    View<BrandSoundFragmentFlatDTO> dtoEntries = new View<>(tuple.getItem1(),
-                            tuple.getItem2(), page,
-                            RuntimeUtil.countMaxPage(tuple.getItem2(), size),
-                            size);
-                    viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-                    return viewPage;
-                }))
+                .chain(user -> {
+                    assert brandSoundFragmentService != null;
+                    return Uni.combine().all().unis(
+                            brandSoundFragmentService.getBrandSoundFragmentsFlat(brandName, size, (page - 1) * size, filter, user),
+                            brandSoundFragmentService.getBrandSoundFragmentsCount(brandName, filter, user)
+                    ).asTuple().map(tuple -> {
+                        ViewPage viewPage = new ViewPage();
+                        View<BrandSoundFragmentFlatDTO> dtoEntries = new View<>(tuple.getItem1(),
+                                tuple.getItem2(), page,
+                                RuntimeUtil.countMaxPage(tuple.getItem2(), size),
+                                size);
+                        viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
+                        return viewPage;
+                    });
+                })
                 .subscribe().with(
                         viewPage -> rc.response()
                                 .setStatusCode(200)

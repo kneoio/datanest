@@ -59,7 +59,6 @@ public class ListenerController extends AbstractSecuredController<Listener, List
         router.route(path + "*").handler(BodyHandler.create());
         router.route(path + "*").handler(this::addHeaders);
         router.get(path).handler(this::get);
-        router.get(path + "/available-listeners").handler(this::getBrandListeners);
         router.get(path + "/available-listeners/:id").handler(this::getBrandListenerById);
 
         router.get(path + "/:id").handler(this::getById);
@@ -118,34 +117,6 @@ public class ListenerController extends AbstractSecuredController<Listener, List
                                     .putHeader("Content-Type", "application/json")
                                     .end(io.vertx.core.json.Json.encode(page));
                         },
-                        rc::fail
-                );
-    }
-
-    private void getBrandListeners(RoutingContext rc) {
-        String brandName = rc.request().getParam("brand");
-        int page = Integer.parseInt(rc.request().getParam("page", "1"));
-        int size = Integer.parseInt(rc.request().getParam("size", "10"));
-        ListenerFilter filter = parseFilterDTO(rc);
-
-        getContextUser(rc, false, true)
-                .chain(user -> Uni.combine().all().unis(
-                        service.getBrandListeners(brandName, size, (page - 1) * size, user, filter),
-                        service.getCountBrandListeners(brandName, user, filter)
-                ).asTuple().map(tuple -> {
-                    ViewPage viewPage = new ViewPage();
-                    View<BrandListenerDTO> dtoEntries = new View<>(tuple.getItem1(),
-                            tuple.getItem2(), page,
-                            RuntimeUtil.countMaxPage(tuple.getItem2(), size),
-                            size);
-                    viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-                    return viewPage;
-                }))
-                .subscribe().with(
-                        viewPage -> rc.response()
-                                .setStatusCode(200)
-                                .putHeader("Content-Type", "application/json")
-                                .end(io.vertx.core.json.Json.encode(viewPage)),
                         rc::fail
                 );
     }
@@ -268,7 +239,7 @@ public class ListenerController extends AbstractSecuredController<Listener, List
         }
     }
 
-    private ListenerFilter parseFilterDTO(RoutingContext rc) {
+    static ListenerFilter parseFilterDTO(RoutingContext rc) {
         ListenerFilter filterDTO = new ListenerFilter();
         boolean hasAnyFilter = false;
 
