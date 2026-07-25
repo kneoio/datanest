@@ -7,6 +7,8 @@ import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.mixpla.model.cnst.PromptType;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -19,12 +21,16 @@ import java.util.UUID;
 @Setter
 public class PromptDTO extends AbstractDTO {
     private boolean enabled;
+    @NotBlank
     private String prompt;
     private String description;
+    @NotNull
     private PromptType promptType;
+    @NotNull
     private String languageTag;
     private boolean master;
     private boolean locked;
+    @NotBlank
     private String title;
     private JsonObject backup;
     private UUID draftId;
