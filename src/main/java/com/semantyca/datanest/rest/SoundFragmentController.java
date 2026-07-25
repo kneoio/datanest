@@ -13,12 +13,10 @@ import com.semantyca.core.util.FileSecurityUtils;
 import com.semantyca.core.util.ProblemDetailsUtil;
 import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.datanest.config.DatanestConfig;
-import com.semantyca.datanest.dto.BrandSoundFragmentFlatDTO;
 import com.semantyca.datanest.dto.req.BulkBrandUpdateDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
 import com.semantyca.datanest.dto.SoundFragmentFlatDTO;
 import com.semantyca.datanest.dto.actionbars.SoundFragmentActionsFactory;
-import com.semantyca.datanest.service.soundfragment.BrandSoundFragmentService;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
 import com.semantyca.datanest.service.util.FileDownloadService;
 import com.semantyca.datanest.service.util.ValidationResult;
@@ -53,7 +51,6 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
     private static final int STREAM_BUFFER_SIZE = 524288; // 512KB buffer for file streaming
 
     private SoundFragmentService service;
-    private BrandSoundFragmentService brandSoundFragmentService;
     private FileDownloadService fileDownloadService;
     private ValidationService validationService;
     private Vertx vertx;
@@ -66,14 +63,12 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
     @Inject
     public SoundFragmentController(UserService userService,
                                    SoundFragmentService service,
-                                   BrandSoundFragmentService brandSoundFragmentService,
                                    FileDownloadService fileDownloadService,
                                    ValidationService validationService,
                                    Vertx vertx,
                                    DatanestConfig config) {
         super(userService);
         this.service = service;
-        this.brandSoundFragmentService = brandSoundFragmentService;
         this.fileDownloadService = fileDownloadService;
         this.validationService = validationService;
         this.vertx = vertx;
@@ -84,7 +79,6 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         String path = "/datanest/soundfragments";
         BodyHandler jsonBodyHandler = BodyHandler.create().setHandleFileUploads(false);
         router.route(HttpMethod.GET, path).handler(this::get);
-        router.route(HttpMethod.GET, path + "/available-soundfragments").handler(this::getForBrand);
         router.route(HttpMethod.GET, path + "/unassigned-brands").handler(this::getUnassignedBrands); //it is archived from regular POV (only 42next)
         router.route(HttpMethod.GET, path + "/:id").handler(this::getById);
         router.route(HttpMethod.GET, path + "/files/:id/:slug").handler(this::getBySlugName);
@@ -178,34 +172,6 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                                     .putHeader("Content-Type", "application/json")
                                     .end(io.vertx.core.json.Json.encode(page));
                         },
-                        t -> handleFailure(rc, t)
-                );
-    }
-
-    private void getForBrand(RoutingContext rc) {
-        String brandName = rc.request().getParam("brand");
-        int page = Integer.parseInt(rc.request().getParam("page", "1"));
-        int size = Integer.parseInt(rc.request().getParam("size", "10"));
-        SoundFragmentFilter filter = parseFilterDTOForBrand(rc);
-
-        getContextUser(rc, false, true)
-                .chain(user -> Uni.combine().all().unis(
-                        brandSoundFragmentService.getBrandSoundFragmentsFlat(brandName, size, (page - 1) * size, filter, user),
-                        brandSoundFragmentService.getBrandSoundFragmentsCount(brandName, filter, user)
-                ).asTuple().map(tuple -> {
-                    ViewPage viewPage = new ViewPage();
-                    View<BrandSoundFragmentFlatDTO> dtoEntries = new View<>(tuple.getItem1(),
-                            tuple.getItem2(), page,
-                            RuntimeUtil.countMaxPage(tuple.getItem2(), size),
-                            size);
-                    viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-                    return viewPage;
-                }))
-                .subscribe().with(
-                        viewPage -> rc.response()
-                                .setStatusCode(200)
-                                .putHeader("Content-Type", "application/json")
-                                .end(io.vertx.core.json.Json.encode(viewPage)),
                         t -> handleFailure(rc, t)
                 );
     }
@@ -423,15 +389,11 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         return parseFilterDTO(rc, null);
     }
 
-    private SoundFragmentFilter parseFilterDTOForBrand(RoutingContext rc) {
-        return parseFilterDTO(rc, List.of(SourceType.USER_UPLOAD, SourceType.CONTRIBUTION), List.of(PlaylistItemType.SONG));
-    }
-
-    SoundFragmentFilter parseFilterDTO(RoutingContext rc, List<SourceType> allowedSources) {
+    static SoundFragmentFilter parseFilterDTO(RoutingContext rc, List<SourceType> allowedSources) {
         return parseFilterDTO(rc, allowedSources, null);
     }
 
-    SoundFragmentFilter parseFilterDTO(RoutingContext rc, List<SourceType> allowedSources, List<PlaylistItemType> allowedTypes) {
+    static SoundFragmentFilter parseFilterDTO(RoutingContext rc, List<SourceType> allowedSources, List<PlaylistItemType> allowedTypes) {
         String filterParam = rc.request().getParam("filter");
         if (filterParam == null || filterParam.trim().isEmpty()) {
             SoundFragmentFilter dto = new SoundFragmentFilter();

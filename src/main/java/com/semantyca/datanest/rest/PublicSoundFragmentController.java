@@ -10,11 +10,14 @@ import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.repository.exception.UserNotFoundException;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
+import com.semantyca.datanest.dto.BrandSoundFragmentFlatDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
 import com.semantyca.datanest.dto.SoundFragmentFlatDTO;
 import com.semantyca.datanest.dto.actionbars.SoundFragmentActionsFactory;
+import com.semantyca.datanest.service.soundfragment.BrandSoundFragmentService;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
+import com.semantyca.mixpla.model.cnst.SourceType;
 import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
 import com.semantyca.mixpla.model.soundfragment.SoundFragment;
 import io.smallrye.mutiny.Uni;
@@ -31,22 +34,26 @@ import java.util.UUID;
 @ApplicationScoped
 public class PublicSoundFragmentController extends AbstractSecuredController<SoundFragment, SoundFragmentDTO> {
     private final SoundFragmentService service;
+    private final BrandSoundFragmentService brandSoundFragmentService;
 
     public PublicSoundFragmentController() {
         super(null);
         this.service = null;
+        this.brandSoundFragmentService = null;
     }
 
     @Inject
-    public PublicSoundFragmentController(UserService userService, SoundFragmentService service) {
+    public PublicSoundFragmentController(UserService userService, SoundFragmentService service, BrandSoundFragmentService brandSoundFragmentService) {
         super(userService);
         this.service = service;
+        this.brandSoundFragmentService = brandSoundFragmentService;
     }
 
     public void setupRoutes(Router router) {
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/shared").handler(this::get);
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/unassigned-brands").handler(this::getUnassignedBrands); //it is archived from regular POV
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/sound-assets").handler(this::getSoundAssets);
+        router.route(HttpMethod.GET, "/datanest/public/soundfragments/available-soundfragments").handler(this::getForBrand);
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/:id").handler(this::getById);
     }
 
@@ -161,6 +168,35 @@ public class PublicSoundFragmentController extends AbstractSecuredController<Sou
                     View<SoundFragmentFlatDTO> dtoEntries = new View<>(tuple.getItem2(),
                             tuple.getItem1(), page,
                             RuntimeUtil.countMaxPage(tuple.getItem1(), size),
+                            size);
+                    viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
+                    return viewPage;
+                }))
+                .subscribe().with(
+                        viewPage -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(io.vertx.core.json.Json.encode(viewPage)),
+                        t -> handleFailure(rc, t)
+                );
+    }
+
+    private void getForBrand(RoutingContext rc) {
+        String brandName = rc.request().getParam("brand");
+        int page = Integer.parseInt(rc.request().getParam("page", "1"));
+        int size = Integer.parseInt(rc.request().getParam("size", "10"));
+        SoundFragmentFilter filter = SoundFragmentController.parseFilterDTO(rc,
+                List.of(SourceType.USER_UPLOAD, SourceType.CONTRIBUTION), List.of(PlaylistItemType.SONG));
+
+        getContextUser(rc, false, true)
+                .chain(user -> Uni.combine().all().unis(
+                        brandSoundFragmentService.getBrandSoundFragmentsFlat(brandName, size, (page - 1) * size, filter, user),
+                        brandSoundFragmentService.getBrandSoundFragmentsCount(brandName, filter, user)
+                ).asTuple().map(tuple -> {
+                    ViewPage viewPage = new ViewPage();
+                    View<BrandSoundFragmentFlatDTO> dtoEntries = new View<>(tuple.getItem1(),
+                            tuple.getItem2(), page,
+                            RuntimeUtil.countMaxPage(tuple.getItem2(), size),
                             size);
                     viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
                     return viewPage;
