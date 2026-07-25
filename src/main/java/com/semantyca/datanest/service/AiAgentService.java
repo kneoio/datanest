@@ -224,6 +224,22 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
                     adReaderVoice.setGain(doc.getTtsSetting().getAdReader().getGain());
                     ttsSettingDTO.setAdReader(adReaderVoice);
                 }
+                if (doc.getTtsSetting().getPodcastSpeaker1() != null) {
+                    VoiceDTO podcastSpeaker1Voice = new VoiceDTO();
+                    podcastSpeaker1Voice.setId(doc.getTtsSetting().getPodcastSpeaker1().getId());
+                    podcastSpeaker1Voice.setName(doc.getTtsSetting().getPodcastSpeaker1().getName());
+                    podcastSpeaker1Voice.setEngineType(doc.getTtsSetting().getPodcastSpeaker1().getEngineType());
+                    podcastSpeaker1Voice.setGain(doc.getTtsSetting().getPodcastSpeaker1().getGain());
+                    ttsSettingDTO.setPodcastSpeaker1(podcastSpeaker1Voice);
+                }
+                if (doc.getTtsSetting().getPodcastSpeaker2() != null) {
+                    VoiceDTO podcastSpeaker2Voice = new VoiceDTO();
+                    podcastSpeaker2Voice.setId(doc.getTtsSetting().getPodcastSpeaker2().getId());
+                    podcastSpeaker2Voice.setName(doc.getTtsSetting().getPodcastSpeaker2().getName());
+                    podcastSpeaker2Voice.setEngineType(doc.getTtsSetting().getPodcastSpeaker2().getEngineType());
+                    podcastSpeaker2Voice.setGain(doc.getTtsSetting().getPodcastSpeaker2().getGain());
+                    ttsSettingDTO.setPodcastSpeaker2(podcastSpeaker2Voice);
+                }
                 dto.setTtsSetting(ttsSettingDTO);
             }
 
@@ -304,6 +320,22 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
                 adReaderVoice.setEngineType(dto.getTtsSetting().getAdReader().getEngineType());
                 adReaderVoice.setGain(dto.getTtsSetting().getAdReader().getGain());
                 ttsSetting.setAdReader(adReaderVoice);
+            }
+            if (dto.getTtsSetting().getPodcastSpeaker1() != null) {
+                Voice podcastSpeaker1Voice = new Voice();
+                podcastSpeaker1Voice.setId(dto.getTtsSetting().getPodcastSpeaker1().getId());
+                podcastSpeaker1Voice.setName(dto.getTtsSetting().getPodcastSpeaker1().getName());
+                podcastSpeaker1Voice.setEngineType(dto.getTtsSetting().getPodcastSpeaker1().getEngineType());
+                podcastSpeaker1Voice.setGain(dto.getTtsSetting().getPodcastSpeaker1().getGain());
+                ttsSetting.setPodcastSpeaker1(podcastSpeaker1Voice);
+            }
+            if (dto.getTtsSetting().getPodcastSpeaker2() != null) {
+                Voice podcastSpeaker2Voice = new Voice();
+                podcastSpeaker2Voice.setId(dto.getTtsSetting().getPodcastSpeaker2().getId());
+                podcastSpeaker2Voice.setName(dto.getTtsSetting().getPodcastSpeaker2().getName());
+                podcastSpeaker2Voice.setEngineType(dto.getTtsSetting().getPodcastSpeaker2().getEngineType());
+                podcastSpeaker2Voice.setGain(dto.getTtsSetting().getPodcastSpeaker2().getGain());
+                ttsSetting.setPodcastSpeaker2(podcastSpeaker2Voice);
             }
             doc.setTtsSetting(ttsSetting);
         }
