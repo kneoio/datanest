@@ -218,7 +218,6 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         dto.setScheduled(src.isScheduled());
         dto.setLikes(src.getLikes());
         dto.setDislikes(src.getDislikes());
-        dto.setAddInfo(src.getAddInfo());
         return dto;
     }
 
