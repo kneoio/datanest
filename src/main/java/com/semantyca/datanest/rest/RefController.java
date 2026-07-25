@@ -18,7 +18,6 @@ import com.semantyca.datanest.dto.actionbars.ProfileActionsFactory;
 import com.semantyca.datanest.dto.aiagent.AiAgentFlatDTO;
 import com.semantyca.datanest.dto.aiagent.VoiceDTO;
 import com.semantyca.datanest.dto.script.ScriptFlatDTO;
-import com.semantyca.datanest.dto.SoundFragmentFlatDTO;
 import com.semantyca.datanest.service.AiAgentService;
 import com.semantyca.datanest.service.ProfileService;
 import com.semantyca.datanest.service.RefService;
@@ -108,25 +107,8 @@ public class RefController extends AbstractController<Void, Void> {
     public void setupRoutes(Router router) {
         router.route(HttpMethod.GET, "/datanest/dictionary/:type").handler(this::getDictionary);
         router.route(HttpMethod.GET, "/datanest/dictionary/:type/:category").handler(this::getDictionary);
-        router.route(HttpMethod.GET, "/datanest/soundfragments/light/:slugName").handler(this::getSoundFragmentLightBySlugName);
     }
 
-    private void getSoundFragmentLightBySlugName(RoutingContext rc) {
-        String slugName = rc.pathParam("slugName");
-
-        soundFragmentService.getLightBySlugName(slugName)
-                .subscribe().with(
-                        dto -> {
-                            FormPage page = new FormPage();
-                            page.addPayload(PayloadType.DOC_DATA, dto);
-                            rc.response()
-                                    .setStatusCode(200)
-                                    .putHeader("Content-Type", "application/json")
-                                    .end(io.vertx.core.json.Json.encode(page));
-                        },
-                        rc::fail
-                );
-    }
 
     private void getDictionary(RoutingContext rc) {
         String type = rc.pathParam("type");
