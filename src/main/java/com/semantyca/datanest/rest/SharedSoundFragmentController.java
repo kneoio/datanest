@@ -9,7 +9,6 @@ import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.datanest.dto.SharePatchDTO;
 import com.semantyca.datanest.dto.sharing.ShareDTO;
-import com.semantyca.datanest.dto.sharing.SharingPreviewDTO;
 import com.semantyca.datanest.service.soundfragment.SharedSoundFragmentService;
 import com.semantyca.mixpla.model.soundfragment.SharedSoundFragment;
 import io.smallrye.mutiny.Uni;
@@ -50,8 +49,6 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
         // station attributing the share; the FE sends SharedSoundFragmentService.NO_BRAND_SLUG for
         // a fragment with no brand association (nothing to pick a source station from there).
         router.route(HttpMethod.PATCH,  path + "/shared/:slug/:fragmentId").handler(jsonBodyHandler).handler(this::patchToShare);
-        // receiver: list all shares sent to the current user
-        router.route(HttpMethod.GET,    path + "/received").handler(this::getReceived);
         // receiver: get a single received share by id
         router.route(HttpMethod.GET,    path + "/received/:id").handler(this::getReceivedDoc);
         // receiver: accept a received share — sets status 500 (OPEN) and adds song to brand playlist
@@ -72,37 +69,6 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
         router.route(HttpMethod.GET, path + "/shared").handler(this::getAllShares);
         // 42next admin: fetch a single share for the edit form
         router.route(HttpMethod.GET, path + "/shared/:id").handler(this::getShareById);
-    }
-
-    private void getReceived(RoutingContext rc) {
-        int page = Integer.parseInt(rc.request().getParam("page", "1"));
-        int size = Integer.parseInt(rc.request().getParam("size", "10"));
-        String search = rc.request().getParam("search");
-        if (search != null && search.isBlank()) {
-            search = null;
-        }
-        String searchParam = search;
-
-        getContextUser(rc, false, true)
-                .chain(user -> Uni.combine().all().unis(
-                        sharedSoundFragmentService.getSharingPreviewCount(user, searchParam),
-                        sharedSoundFragmentService.getSharingPreviewList(size, (page - 1) * size, user, searchParam)
-                ).asTuple().map(tuple -> {
-                    ViewPage viewPage = new ViewPage();
-                    View<SharingPreviewDTO> dtoEntries = new View<>(tuple.getItem2(),
-                            tuple.getItem1(), page,
-                            RuntimeUtil.countMaxPage(tuple.getItem1(), size),
-                            size);
-                    viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-                    return viewPage;
-                }))
-                .subscribe().with(
-                        viewPage -> rc.response()
-                                .setStatusCode(200)
-                                .putHeader("Content-Type", "application/json")
-                                .end(io.vertx.core.json.Json.encode(viewPage)),
-                        t -> handleFailure(rc, t)
-                );
     }
 
     private void getReceivedDoc(RoutingContext rc) {

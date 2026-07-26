@@ -41,7 +41,9 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -240,6 +242,21 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract imp
                     } else {
                         return Uni.createFrom().failure(new DocumentHasNotFoundException(slugName));
                     }
+                });
+    }
+
+    public Uni<Map<UUID, String>> getSlugNamesByIds(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Uni.createFrom().item(Map.of());
+        }
+        String sql = "SELECT id, slug_name FROM " + entityData.getTableName() + " WHERE id = ANY($1)";
+
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(ids.toArray(new UUID[0])))
+                .onItem().transform(rows -> {
+                    Map<UUID, String> result = new HashMap<>();
+                    rows.forEach(row -> result.put(row.getUUID("id"), row.getString("slug_name")));
+                    return result;
                 });
     }
 

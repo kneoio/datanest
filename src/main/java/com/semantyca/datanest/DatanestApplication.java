@@ -20,6 +20,7 @@ import com.semantyca.datanest.rest.PublicSoundFragmentController;
 import com.semantyca.datanest.rest.RefController;
 import com.semantyca.datanest.rest.SceneController;
 import com.semantyca.datanest.rest.ScriptController;
+import com.semantyca.datanest.rest.PublicSharedSoundFragmentController;
 import com.semantyca.datanest.rest.SharedSoundFragmentController;
 import com.semantyca.datanest.rest.SoundFragmentBulkUploadController;
 import com.semantyca.datanest.rest.SoundFragmentController;
@@ -70,6 +71,9 @@ public class DatanestApplication {
     SharedSoundFragmentController sharedSoundFragmentController;
 
     @Inject
+    PublicSharedSoundFragmentController publicSharedSoundFragmentController;
+
+    @Inject
     SoundFragmentBulkUploadController soundFragmentBulkUploadController;
 
     @Inject
@@ -118,6 +122,7 @@ public class DatanestApplication {
         scriptController.setupRoutes(router);
         publicScriptController.setupRoutes(router);
         sharedSoundFragmentController.setupRoutes(router);
+        publicSharedSoundFragmentController.setupRoutes(router);
         publicSoundFragmentController.setupRoutes(router);
         soundFragmentController.setupRoutes(router);
         soundFragmentBulkUploadController.setupRoutes(router);
