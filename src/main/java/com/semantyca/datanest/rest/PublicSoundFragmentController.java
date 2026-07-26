@@ -7,6 +7,7 @@ import com.semantyca.core.dto.form.FormPage;
 import com.semantyca.core.dto.view.View;
 import com.semantyca.core.dto.view.ViewPage;
 import com.semantyca.core.model.cnst.LanguageCode;
+import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.exception.UserNotFoundException;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.FileSecurityUtils;
@@ -327,7 +328,9 @@ public class PublicSoundFragmentController extends AbstractSecuredController<Sou
     }
 
     protected void handleFailure(RoutingContext rc, Throwable throwable) {
-        if (throwable instanceof IllegalStateException
+        if (throwable instanceof DocumentHasNotFoundException) {
+            rc.fail(404, throwable);
+        } else if (throwable instanceof IllegalStateException
                 || throwable instanceof IllegalArgumentException
                 || throwable instanceof UserNotFoundException) {
             rc.fail(401, throwable);
