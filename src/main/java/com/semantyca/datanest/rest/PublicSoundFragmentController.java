@@ -17,6 +17,7 @@ import com.semantyca.datanest.dto.SoundFragmentDTO;
 import com.semantyca.datanest.dto.SoundFragmentPublicFlatDTO;
 import com.semantyca.datanest.dto.actionbars.SoundFragmentActionsFactory;
 import com.semantyca.datanest.service.soundfragment.BrandSoundFragmentService;
+import com.semantyca.datanest.service.soundfragment.SharedSoundFragmentService;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
 import com.semantyca.datanest.service.util.FileDownloadService;
 import com.semantyca.datanest.util.InputStreamReadStream;
@@ -38,6 +39,7 @@ import org.jboss.logging.Logger;
 import org.jspecify.annotations.NonNull;
 
 import java.util.List;
+import java.util.UUID;
 
 @ApplicationScoped
 public class PublicSoundFragmentController extends AbstractSecuredController<SoundFragment, SoundFragmentDTO> {
@@ -46,6 +48,7 @@ public class PublicSoundFragmentController extends AbstractSecuredController<Sou
 
     private final SoundFragmentService service;
     private final BrandSoundFragmentService brandSoundFragmentService;
+    private final SharedSoundFragmentService sharedSoundFragmentService;
     private final FileDownloadService fileDownloadService;
     private final Vertx vertx;
 
@@ -53,6 +56,7 @@ public class PublicSoundFragmentController extends AbstractSecuredController<Sou
         super(null);
         this.service = null;
         this.brandSoundFragmentService = null;
+        this.sharedSoundFragmentService = null;
         this.fileDownloadService = null;
         this.vertx = null;
     }
@@ -60,10 +64,12 @@ public class PublicSoundFragmentController extends AbstractSecuredController<Sou
     @Inject
     public PublicSoundFragmentController(UserService userService, SoundFragmentService service,
                                          BrandSoundFragmentService brandSoundFragmentService,
+                                         SharedSoundFragmentService sharedSoundFragmentService,
                                          FileDownloadService fileDownloadService, Vertx vertx) {
         super(userService);
         this.service = service;
         this.brandSoundFragmentService = brandSoundFragmentService;
+        this.sharedSoundFragmentService = sharedSoundFragmentService;
         this.fileDownloadService = fileDownloadService;
         this.vertx = vertx;
     }
@@ -262,12 +268,25 @@ public class PublicSoundFragmentController extends AbstractSecuredController<Sou
                 rc.fail(400, new IllegalArgumentException("boost must be between -1 and 2"));
                 return;
             }
+            UUID brandUUID;
+            try {
+                brandUUID = UUID.fromString(brandId);
+            } catch (IllegalArgumentException e) {
+                rc.fail(400, new IllegalArgumentException("Invalid brandId format"));
+                return;
+            }
 
             getContextUser(rc, false, true)
                     .chain(user -> {
                         assert service != null;
                         return service.getIdBySlug(slugName, user)
-                                .chain(id -> service.updateBoost(id.toString(), brandId, boost, type));
+                                .chain(soundFragmentId -> {
+                                    if ("shared".equals(type)) {
+                                        assert sharedSoundFragmentService != null;
+                                        return sharedSoundFragmentService.updateBoostBySoundFragmentAndBrand(soundFragmentId, brandUUID, boost);
+                                    }
+                                    return service.updateBoost(soundFragmentId.toString(), brandId, boost, type);
+                                });
                     })
                     .subscribe().with(
                             ignored -> rc.response().setStatusCode(204).end(),

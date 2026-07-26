@@ -299,6 +299,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         dto.setLabels(e.getLabels());
         dto.setSharerUserName(e.getSourceUserName());
         dto.setSharerUserEmail(e.getSourceUserEmail());
+        dto.setTargetBrandId(e.getTargetBrandId());
         dto.setTargetBrandName(e.getTargetBrandName());
         dto.setBoost(e.getBoost() != null ? e.getBoost() : 0);
         dto.setStatus(e.getStatus());
@@ -336,6 +337,10 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
 
     public Uni<Void> updateBoost(UUID sharedFragmentId, int boost) {
         return repository.updateBoost(sharedFragmentId, boost);
+    }
+
+    public Uni<Void> updateBoostBySoundFragmentAndBrand(UUID soundFragmentId, UUID targetBrandId, int boost) {
+        return repository.updateBoostBySoundFragmentAndBrand(soundFragmentId, targetBrandId, boost);
     }
 
 }

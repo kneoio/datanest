@@ -562,4 +562,11 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .execute(Tuple.of(boost, sharedFragmentId))
                 .onItem().ignore().andContinueWithNull();
     }
+
+    public Uni<Void> updateBoostBySoundFragmentAndBrand(UUID soundFragmentId, UUID targetBrandId, int boost) {
+        String sql = "UPDATE mixpla__shared_sound_fragments SET boost=$1 WHERE sound_fragment_id=$2 AND target_brand_id=$3";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(boost, soundFragmentId, targetBrandId))
+                .onItem().ignore().andContinueWithNull();
+    }
 }

@@ -26,6 +26,7 @@ public class ReceivedSharePublicDTO {
     private String album;
     private String sharerUserName;
     private String sharerUserEmail;
+    private UUID targetBrandId;
     private EnumMap<LanguageCode, String> targetBrandName;
     private int boost;
     private Integer status;
