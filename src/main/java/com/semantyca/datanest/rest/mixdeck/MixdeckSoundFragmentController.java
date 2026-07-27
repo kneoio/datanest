@@ -1,5 +1,6 @@
 package com.semantyca.datanest.rest.mixdeck;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.cnst.PayloadType;
@@ -61,6 +62,7 @@ public class MixdeckSoundFragmentController extends AbstractSecuredController<So
     private final ValidationService validationService;
     private final DatanestConfig config;
     private final Vertx vertx;
+    private final ObjectMapper mapper;
 
     public MixdeckSoundFragmentController() {
         super(null);
@@ -71,6 +73,7 @@ public class MixdeckSoundFragmentController extends AbstractSecuredController<So
         this.validationService = null;
         this.config = null;
         this.vertx = null;
+        this.mapper = null;
     }
 
     @Inject
@@ -79,7 +82,7 @@ public class MixdeckSoundFragmentController extends AbstractSecuredController<So
                                           SharedSoundFragmentService sharedSoundFragmentService,
                                           FileDownloadService fileDownloadService,
                                           ValidationService validationService,
-                                          DatanestConfig config, Vertx vertx) {
+                                          DatanestConfig config, Vertx vertx, ObjectMapper mapper) {
         super(userService);
         this.service = service;
         this.brandSoundFragmentService = brandSoundFragmentService;
@@ -88,6 +91,7 @@ public class MixdeckSoundFragmentController extends AbstractSecuredController<So
         this.validationService = validationService;
         this.config = config;
         this.vertx = vertx;
+        this.mapper = mapper;
     }
 
     public void setupRoutes(Router router) {
@@ -126,10 +130,15 @@ public class MixdeckSoundFragmentController extends AbstractSecuredController<So
                     });
                 })
                 .subscribe().with(
-                        viewPage -> rc.response()
-                                .setStatusCode(200)
-                                .putHeader("Content-Type", "application/json")
-                                .end(io.vertx.core.json.Json.encode(viewPage)),
+                        viewPage -> {
+                            try {
+                                rc.response().setStatusCode(200)
+                                        .putHeader("Content-Type", "application/json")
+                                        .end(mapper.writeValueAsString(viewPage));
+                            } catch (Exception e) {
+                                rc.fail(e);
+                            }
+                        },
                         t -> handleFailure(rc, t)
                 );
     }
@@ -147,10 +156,13 @@ public class MixdeckSoundFragmentController extends AbstractSecuredController<So
                         doc -> {
                             FormPage page = new FormPage();
                             page.addPayload(PayloadType.DOC_DATA, doc);
-                            rc.response()
-                                    .setStatusCode(200)
-                                    .putHeader("Content-Type", "application/json")
-                                    .end(io.vertx.core.json.Json.encode(page));
+                            try {
+                                rc.response().setStatusCode(200)
+                                        .putHeader("Content-Type", "application/json")
+                                        .end(mapper.writeValueAsString(page));
+                            } catch (Exception e) {
+                                rc.fail(e);
+                            }
                         },
                         t -> handleFailure(rc, t)
                 );
@@ -180,10 +192,15 @@ public class MixdeckSoundFragmentController extends AbstractSecuredController<So
                     });
                 })
                 .subscribe().with(
-                        viewPage -> rc.response()
-                                .setStatusCode(200)
-                                .putHeader("Content-Type", "application/json")
-                                .end(io.vertx.core.json.Json.encode(viewPage)),
+                        viewPage -> {
+                            try {
+                                rc.response().setStatusCode(200)
+                                        .putHeader("Content-Type", "application/json")
+                                        .end(mapper.writeValueAsString(viewPage));
+                            } catch (Exception e) {
+                                rc.fail(e);
+                            }
+                        },
                         t -> handleFailure(rc, t)
                 );
     }
@@ -210,10 +227,15 @@ public class MixdeckSoundFragmentController extends AbstractSecuredController<So
                     });
                 })
                 .subscribe().with(
-                        viewPage -> rc.response()
-                                .setStatusCode(200)
-                                .putHeader("Content-Type", "application/json")
-                                .end(io.vertx.core.json.Json.encode(viewPage)),
+                        viewPage -> {
+                            try {
+                                rc.response().setStatusCode(200)
+                                        .putHeader("Content-Type", "application/json")
+                                        .end(mapper.writeValueAsString(viewPage));
+                            } catch (Exception e) {
+                                rc.fail(e);
+                            }
+                        },
                         t -> handleFailure(rc, t)
                 );
     }
@@ -259,10 +281,15 @@ public class MixdeckSoundFragmentController extends AbstractSecuredController<So
                     });
                 })
                 .subscribe().with(
-                        viewPage -> rc.response()
-                                .setStatusCode(200)
-                                .putHeader("Content-Type", "application/json")
-                                .end(io.vertx.core.json.Json.encode(viewPage)),
+                        viewPage -> {
+                            try {
+                                rc.response().setStatusCode(200)
+                                        .putHeader("Content-Type", "application/json")
+                                        .end(mapper.writeValueAsString(viewPage));
+                            } catch (Exception e) {
+                                rc.fail(e);
+                            }
+                        },
                         t -> handleFailure(rc, t)
                 );
     }
