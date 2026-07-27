@@ -10,30 +10,28 @@ Station-to-station sharing and artist contributions are **the same mechanism**; 
 ## 0. Why this exists
 
 The fragment being offered gets **no brand association and no direct RLS to the target station at
-creation time**. Visibility for the target station comes entirely from the share row — but "no RLS"
-only means no RLS **on the fragment**. There are two separate RLS layers in play, on two separate
-tables, granted at two separate times:
+creation time**. Visibility for the target station comes entirely from the share row itself, via one
+RLS layer:
 
 | Layer | Table | Granted to | Granted when |
 |---|---|---|---|
 | Share-entity RLS | `mixpla__shared_sound_fragment_readers` (entity_id = the `SharedSoundFragment` row) | target brand's owner **+ co-owners** + `SuperUser` (`insertRlsForReceivers`) | immediately at share creation |
-| Fragment RLS | `mixpla__sound_fragment_readers` (entity_id = the `SoundFragment` row) | target brand's owner **+ co-owners** (`grantFragmentRlsToBrand`) | only on **accept** |
 
 The share-entity RLS is what makes the offer show up in the target station owner's `/received` inbox
 at all, and is what `acceptByReceiver`/`rejectByReceiver`/`archiveByReceiver` check (`... id IN
 (SELECT entity_id FROM mixpla__shared_sound_fragment_readers WHERE reader = $2)`) before allowing a
 decision — a station owner who was never granted a reader row on that specific share cannot act on
 it. It says nothing about whether the underlying song itself is visible anywhere else (brand library,
-playback, etc.) — that's the fragment-RLS layer, untouched until acceptance. This two-layer split is
-what makes the mechanism reusable for contributions: an artist who submits a song via chat or the
-public web form isn't a station owner and doesn't get station RLS granted directly on the fragment —
-instead the fragment is created bare (visible only to the submitter's own account) and a PENDING share
-is created pointing at the target station, with share-entity RLS granted to that station's owner and
-co-owners so the offer is reviewable by any of them. The station only gets fragment-level access once
-it **accepts**.
+playback, etc.) — sharing is a **status-only workflow now** (see §2): accept/reject just flip
+`ApprovalStatus` on the share row and never touch `mixpla__brand_sound_fragments` or fragment RLS.
+Getting a song into a station's actual library (brand association + fragment RLS) is a fully separate
+action, done through the fragment's own "represented in brands" editing
+(`SoundFragmentBrandAssociationHandler`, not part of this doc's flow) — accepting a share is not
+sufficient by itself to make the song appear in the receiving station's library.
 
-⚠️ **One deliberate, narrow exception to "no fragment access before accept":** the receiver can
-preview the audio of a still-PENDING share before deciding. See §2b.
+⚠️ **One deliberate, narrow exception to "no fragment access without a brand association":** the
+receiver can preview the audio of a still-PENDING (or any) share without ever having fragment RLS.
+See §2b.
 
 This also fixed a real bug: previously, a contributor who later registered a real `mixdeck` account
 could never see their own submission again, because the fragment already had a brand association at
@@ -81,33 +79,38 @@ brands simultaneously is unrelated and fully independent — each target brand g
 ## 2. Accept / reject / delete (receiver side)
 
 `SharedSoundFragmentRepository`:
-- `acceptByReceiver(shareId, userId)` — sets `status = ACCEPTED`, inserts a
-  `mixpla__brand_sound_fragments` row for the receiving brand (`ON CONFLICT DO NOTHING` — this is
-  what makes the song show up in the receiving brand's regular library), **and** grants the
-  receiving brand's owner + co-owners RLS on the underlying `mixpla__sound_fragments` row itself
-  (`grantFragmentRlsToBrand`, raw-JSON `owner`/`coOwners` extraction mirroring
-  `BrandRepository.getAllOpenForSubmission`).
-- `rejectByReceiver(shareId, userId)` — sets `status = REJECTED` and drops the
-  `mixpla__brand_sound_fragments` row (harmless no-op if accept never happened). **It no longer
-  touches RLS at all.** It used to also delete every share-entity reader row the instant the share
-  was rejected, which made `status = REJECTED` unobservable — the record vanished for everyone
-  (including `SuperUser`) before anyone could see it was rejected, and there was no way back to
-  remove it deliberately later. Now the share just sits there, still visible to the receiver (and
-  the sharer, see §2c), tagged `REJECTED`, until someone explicitly removes it.
+- `acceptByReceiver(shareId, userId)` — sets `status = ACCEPTED`. That's it — it **no longer**
+  inserts a `mixpla__brand_sound_fragments` row or grants fragment RLS. Sharing status is now fully
+  decoupled from brand association/library visibility; those are managed separately via the
+  fragment's own "represented in brands" editing (`SoundFragmentBrandAssociationHandler`).
+- `rejectByReceiver(shareId, userId)` — sets `status = REJECTED`. Also no longer touches
+  `mixpla__brand_sound_fragments` or RLS (there's nothing to undo — accept never wrote there to begin
+  with). Previously this deleted every share-entity reader row the instant the share was rejected,
+  which made `status = REJECTED` unobservable — the record vanished for everyone (including
+  `SuperUser`) before anyone could see it was rejected, and there was no way back to remove it
+  deliberately later. The share just sits there, still visible to the receiver (and the sharer, see
+  §2c), tagged `REJECTED`, until someone explicitly removes it.
 - `archiveByReceiver(shareId, userId)` — the actual removal step, **gated on `status = REJECTED`**
   (`WHERE id = $1 AND status = 501 AND id IN (SELECT entity_id FROM ... WHERE reader = $2)`). Sets
   `archived = 1` on the share row. This is what the receiver's UI "Delete" action calls once an item
   is already rejected — it cannot be used to silently drop access to a still-PENDING or
   already-ACCEPTED share.
 
+Separately, `SoundFragmentBrandAssociationHandler.removeBrands` (fragment upsert's "represented in
+brands" diffing) used to also auto-reject any `ACCEPTED` share to a brand being removed from that
+list. That cross-flow coupling has been removed — removing a brand from a fragment's association list
+now only deletes the `mixpla__brand_sound_fragments` row; it no longer touches
+`mixpla__shared_sound_fragments` or its `ApprovalStatus` at all. Sharing status and brand association
+are two independent flows with no automatic effect on each other in either direction.
+
 **Accept and reject are freely reversible in either direction, any number of times** — neither has a
-`status` guard, so REJECTED → accept and ACCEPTED → reject both work (undoing a rejection re-inserts
-the `mixpla__brand_sound_fragments` row and re-grants fragment RLS; un-accepting removes the library
-row but does **not** revoke the fragment RLS granted on the original accept — see §2a). Both **do**
-check `archived = 0` — once a receiver has deleted a share via `archiveByReceiver`, it can no longer
-be accepted or rejected back to life through these two methods (they'd match zero rows, same as a
-nonexistent id or an unauthorized caller). Re-sharing (§3) is the only way to bring an archived share
-back, and that resets it to a fresh `PENDING` row, not whatever it was before archiving.
+`status` guard, so REJECTED → accept and ACCEPTED → reject both work, and since neither touches
+`mixpla__brand_sound_fragments`/RLS anymore, there's nothing left to leak or re-grant on either
+transition (see §2a, now moot). Both **do** check `archived = 0` — once a receiver has deleted a
+share via `archiveByReceiver`, it can no longer be accepted or rejected back to life through these two
+methods (they'd match zero rows, same as a nonexistent id or an unauthorized caller). Re-sharing (§3)
+is the only way to bring an archived share back, and that resets it to a fresh `PENDING` row, not
+whatever it was before archiving.
 
 mixdeck's `ReceivedForm.vue` (the receiver's single-item detail view) has to reflect this
 reversibility deliberately — it's not automatic just because the backend allows it. Approve and
@@ -145,39 +148,27 @@ independent share/status — accepting or rejecting for one station has no effec
 
 ---
 
-## 2a. ⚠️ Known gap: revoking after accept never undoes fragment RLS
+## 2a. (moot) Formerly: revoking after accept never undoes fragment RLS
 
-None of the "undo" paths below reverse the `grantFragmentRlsToBrand` RLS grant
-(`mixpla__sound_fragment_readers` rows for the brand owner + co-owners) made on **accept**. There is
-no `revokeFragmentRlsFromBrand` anywhere in the codebase, and the DDL has no `ON DELETE CASCADE` from
-that table to the share or to `mixpla__brand_sound_fragments` — so once granted, that row is
-permanent unless someone deletes it out-of-band. This only applies to shares that were actually
-**accepted** at some point — a share that's only ever been PENDING/REJECTED never had fragment RLS
-granted in the first place, so there's nothing to leak there (see §2 — `rejectByReceiver` correctly
-has nothing to revoke on that layer).
-
-| Path | What it cleans up | What it leaves behind |
-|---|---|---|
-| Admin/sender `DELETE /shared/:id` (`SharedSoundFragmentController.delete` → `SharedSoundFragmentRepository.archive`) | Sets `archived = 1` on the share row | `mixpla__brand_sound_fragments` row **and** fragment RLS both untouched — brand keeps the song and direct RLS indefinitely |
-| Sender removes a target brand via `patchShares` (`SharedSoundFragmentRepository.deleteInTx`) | Hard-deletes the share row + share-entity RLS row | Same as above — brand association and fragment RLS survive, orphaned, with no share record left to explain why |
-| Receiver `archiveByReceiver` | Sets `archived = 1` on the share row (only reachable once already `REJECTED`, so `mixpla__brand_sound_fragments` and fragment RLS were never granted for this share in the first place — nothing to leak here) | n/a |
-
-Fixing the ACCEPTED-then-revoked case would mean adding a `revokeFragmentRlsFromBrand(tx,
-soundFragmentId, targetBrandId)` (delete from `mixpla__sound_fragment_readers` for that brand's
-owner/co-owners, mirroring `grantFragmentRlsToBrand`) and calling it from the two accepted-share paths
-above — not yet implemented.
+This section used to document a gap where accepting a share granted `mixpla__sound_fragment_readers`
+RLS to the brand owner/co-owners, and none of the undo paths (admin delete, sender removing a target
+brand, receiver reject) ever revoked it. Since **accept no longer grants fragment RLS or a
+`mixpla__brand_sound_fragments` row at all** (see §2), there is nothing for any of those paths to
+leak anymore — this gap no longer exists. Brand association/RLS is now managed entirely outside the
+sharing flow, via the fragment's own "represented in brands" editing.
 
 ---
 
 ## 2b. Receiver can preview audio before deciding (deliberate RLS exception)
 
 A receiver needs to actually *listen* to a pending share to assess it before accepting/rejecting —
-but per §0, fragment RLS isn't granted until accept. `SharedSoundFragmentRepository.findById(id,
-userId)` (the single-item fetch behind `GET /received/:id`) chains `attachPreviewFiles`, which queries
-`_files` directly by `sound_fragment_id`, **bypassing the fragment's own RLS table entirely**. This is
-safe *only* because `attachPreviewFiles` is reached exclusively after `findById`'s own share-entity
-RLS check already passed — the caller is already a confirmed authorized reader of this specific share,
-just not yet of the fragment itself. Exposed as `SharingPreviewDTO.uploadedFiles` (`UploadFileDTO`
+but per §0, accepting a share no longer grants fragment RLS at all, so this mechanism is how the
+receiver gets audio access at any point in the flow, not just pre-decision.
+`SharedSoundFragmentRepository.findById(id, userId)` (the single-item fetch behind `GET
+/received/:id`) chains `attachPreviewFiles`, which queries `_files` directly by `sound_fragment_id`,
+**bypassing the fragment's own RLS table entirely**. This is safe *only* because `attachPreviewFiles`
+is reached exclusively after `findById`'s own share-entity RLS check already passed — the caller is
+already a confirmed authorized reader of this specific share, just not of the fragment itself. Exposed as `SharingPreviewDTO.uploadedFiles` (`UploadFileDTO`
 list, same shape as the normal fragment DTO's files, `type` = `"opus"`/`"original"`), populated **only**
 on the single-item fetch (`getById`), never on the paged `getReceivedList`/`getSharingPreviewList` (no
 N+1 file queries on the list view).
@@ -330,12 +321,12 @@ still visible to the submitter's own resolved account but no station will ever s
 |---|---|
 | `SharedSoundFragmentRepository.getReceivedList`/`getReceivedListCount` (received queue) | No — shows every share regardless of `ApprovalStatus`, the FE renders status as a tag. |
 | `SharedSoundFragmentRepository.listBySoundFragmentId` (sender's `sharedWith`) | No — same as above, see §2c. Only `archived` is filtered. |
-| `SoundFragmentBrandRepository.findForBrandFlat`/`findForBrandCount` (station's regular library page) | Implicitly — a fragment only appears here once `mixpla__brand_sound_fragments` has a row for that brand, which only happens on share acceptance. No separate status check is needed (an earlier `CONTRIBUTION`-specific status gate here was removed as part of this redesign — brand association itself is now sufficient gating). |
+| `SoundFragmentBrandRepository.findForBrandFlat`/`findForBrandCount` (station's regular library page) | Implicitly — a fragment only appears here once `mixpla__brand_sound_fragments` has a row for that brand. That row is **no longer created by share acceptance** — it's only created by the fragment's own "represented in brands" editing (`SoundFragmentBrandAssociationHandler`). Accepting a share does not, by itself, make a song appear here. |
 | `jesoos`'s playback-agenda query | Out of scope for this repo. If it still special-cases `source = CONTRIBUTION` + a `LifecycleStatus` value, that check is obsolete under this design and should be reverted — a `CONTRIBUTION` fragment is eligible for playback exactly when it has a `mixpla__brand_sound_fragments` row, same as any other fragment. |
 
 If you add a **new** query that lists or selects sound fragments for a brand, you do not need a
-contribution-specific status gate — brand association (created only on share acceptance) is already
-the correct scope.
+contribution-specific status gate — brand association (`mixpla__brand_sound_fragments`, managed
+independently of `ApprovalStatus`) is already the correct scope.
 
 ---
 
@@ -385,7 +376,8 @@ New repository methods: `SharedSoundFragmentRepository.deleteBySoundFragmentId(s
 |---|---|
 | Routes (`received`, `received/:id/accept`, `received/:id/reject`, `received/:id`) | `rest/SharedSoundFragmentController.java` |
 | Share creation (incl. `NO_BRAND_SLUG`), accept/reject/archive, received-list mapping | `service/soundfragment/SharedSoundFragmentService.java` |
-| Share table queries, accept/reject/archive transactions, fragment-RLS grant on accept, audio-preview file fetch, SF-delete/archive cascade | `repository/soundfragment/SharedSoundFragmentRepository.java` |
+| Share table queries, accept/reject/archive transactions (status-only, no brand/RLS side effects), audio-preview file fetch, SF-delete/archive cascade | `repository/soundfragment/SharedSoundFragmentRepository.java` |
+| Fragment's own "represented in brands" diffing — brand association add/remove, fragment RLS grant on add; independent of sharing status | `repository/soundfragment/SoundFragmentBrandAssociationHandler.java` |
 | Status enum | `model/cnst/ApprovalStatus.java` |
 | Received-inbox DTO (incl. `uploadedFiles`) | `dto/sharing/SharingPreviewDTO.java` |
 | Share entity model (incl. `fileMetadataList`) | `model/soundfragment/SharedSoundFragment.java` |
