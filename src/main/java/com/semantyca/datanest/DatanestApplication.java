@@ -13,6 +13,7 @@ import com.semantyca.datanest.rest.ListenerController;
 import com.semantyca.datanest.rest.OtsDefinitionController;
 import com.semantyca.datanest.rest.ProfileController;
 import com.semantyca.datanest.rest.PromptController;
+import com.semantyca.datanest.rest.mixdeck.MixdeckBrandController;
 import com.semantyca.datanest.rest.mixdeck.MixdeckListenerController;
 import com.semantyca.datanest.rest.mixdeck.MixdeckScriptController;
 import com.semantyca.datanest.rest.PublicSongSubmissionController;
@@ -38,6 +39,9 @@ public class DatanestApplication {
 
     @Inject
     BrandController brandController;
+
+    @Inject
+    MixdeckBrandController mixdeckBrandController;
 
     @Inject
     DraftController draftController;
@@ -112,6 +116,7 @@ public class DatanestApplication {
     void setupRoutes(@Observes Router router) {
         artistController.setupRoutes(router);
         brandController.setupRoutes(router);
+        mixdeckBrandController.setupRoutes(router);
         draftController.setupRoutes(router);
         eventController.setupRoutes(router);
         listenerController.setupRoutes(router);

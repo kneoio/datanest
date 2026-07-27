@@ -396,7 +396,7 @@
             }
         }
 
-        private BrandFilter parseFilterDTO(RoutingContext rc) {
+        public static BrandFilter parseFilterDTO(RoutingContext rc) {
             String filterParam = rc.request().getParam("filter");
             if (filterParam == null || filterParam.trim().isEmpty()) {
                 return null;

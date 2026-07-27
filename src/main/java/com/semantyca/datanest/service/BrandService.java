@@ -11,6 +11,7 @@ import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.brand.AiOverridingDTO;
 import com.semantyca.datanest.dto.brand.BrandDTO;
+import com.semantyca.datanest.dto.brand.BrandPublicFlatDTO;
 import com.semantyca.datanest.dto.brand.OwnerDTO;
 import com.semantyca.datanest.dto.brand.ProfileOverridingDTO;
 import com.semantyca.datanest.dto.script.BrandScriptEntryDTO;
@@ -112,6 +113,40 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     public Uni<Integer> getAllCount(final IUser user, final BrandFilter filter) {
         assert repository != null;
         return repository.getAllCount(user, false, filter);
+    }
+
+    public Uni<List<BrandPublicFlatDTO>> getAllPublicFlatDTO(final int limit, final int offset, final IUser user, final BrandFilter filter) {
+        assert repository != null;
+        return repository.getAll(limit, offset, false, user, filter)
+                .map(list -> list.stream().map(this::toPublicFlatDTO).collect(Collectors.toList()));
+    }
+
+    private BrandPublicFlatDTO toPublicFlatDTO(Brand doc) {
+        BrandPublicFlatDTO dto = new BrandPublicFlatDTO();
+        dto.setId(doc.getId());
+        dto.setRegDate(doc.getRegDate());
+        dto.setLastModifiedDate(doc.getLastModifiedDate());
+        dto.setLocalizedName(doc.getLocalizedName());
+        dto.setSlugName(doc.getSlugName());
+        dto.setCountry(doc.getCountry() != null ? doc.getCountry().name() : null);
+        dto.setColor(doc.getColor());
+        dto.setDescription(doc.getDescription());
+        dto.setTitleFont(doc.getTitleFont());
+        dto.setBitRate(doc.getBitRate());
+        dto.setPopularityRate(doc.getPopularityRate());
+        dto.setPublicBrand(doc.getPublicBrand());
+        dto.setOneTimeStreamPolicy(doc.getOneTimeStreamPolicy());
+        dto.setSubmissionPolicy(doc.getSubmissionPolicy());
+        dto.setMessagingPolicy(doc.getMessagingPolicy());
+        try {
+            assert datanestConfig != null;
+            dto.setHlsUrl(URI.create(datanestConfig.getHost() + "/live/" + doc.getSlugName() + "/opus").toURL());
+            dto.setMp3Url(URI.create(datanestConfig.getHost() + "/live/" + doc.getSlugName() + "/mp3").toURL());
+            dto.setMixplaUrl(URI.create("https://mixpla.online/" + doc.getSlugName()).toURL());
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
+        return dto;
     }
 
     public Uni<List<Brand>> getAll(final int limit, final int offset) {
