@@ -115,9 +115,9 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         return repository.getAllCount(user, false, filter);
     }
 
-    public Uni<List<BrandPublicFlatDTO>> getAllPublicFlatDTO(final int limit, final int offset, final IUser user, final BrandFilter filter) {
+    public Uni<List<BrandPublicFlatDTO>> getAllPublicFlatDTO(final IUser user, final BrandFilter filter) {
         assert repository != null;
-        return repository.getAll(limit, offset, false, user, filter)
+        return repository.getAll(100, 0, false, user, filter)
                 .map(list -> list.stream().map(this::toPublicFlatDTO).collect(Collectors.toList()));
     }
 

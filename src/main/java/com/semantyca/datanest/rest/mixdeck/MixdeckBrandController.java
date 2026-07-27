@@ -13,7 +13,6 @@ import com.semantyca.datanest.rest.BrandController;
 import com.semantyca.datanest.service.BrandService;
 import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.filter.BrandFilter;
-import io.smallrye.mutiny.Uni;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
@@ -48,20 +47,18 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
         BrandFilter filter = BrandController.parseFilterDTO(rc);
 
         getContextUser(rc, false, true)
-                .chain(user -> Uni.combine().all().unis(
-                        service.getAllCount(user, filter),
-                        service.getAllPublicFlatDTO(size, (page - 1) * size, user, filter)
-                ).asTuple().map(tuple -> {
+                .chain(user -> service.getAllPublicFlatDTO(user, filter))
+                .map(list -> {
                     ViewPage viewPage = new ViewPage();
-                    View<BrandPublicFlatDTO> dtoEntries = new View<>(tuple.getItem2(),
-                            tuple.getItem1(), page,
-                            RuntimeUtil.countMaxPage(tuple.getItem1(), size),
+                    View<BrandPublicFlatDTO> dtoEntries = new View<>(list,
+                            list.size(), page,
+                            RuntimeUtil.countMaxPage(list.size(), size),
                             size);
                     viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
                     ActionBox actions = SoundFragmentActionsFactory.getViewActions();
                     viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, actions);
                     return viewPage;
-                }))
+                })
                 .subscribe().with(
                         viewPage -> rc.response()
                                 .setStatusCode(200)
