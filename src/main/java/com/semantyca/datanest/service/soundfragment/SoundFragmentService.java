@@ -444,7 +444,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
 
                 fileMetadata.setFilePath(secureFilePath);
                 fileMetadata.setFileOriginalName(safeFileName);
-                fileMetadata.setSlugName(WebHelper.generateSlug(entity.getArtist(), entity.getTitle(), entity.getAlbum()));
+                fileMetadata.setSlugName(WebHelper.generateSlug(entity.getTitle(), entity.getArtist(), entity.getAlbum()));
                 fileMetadataList.add(fileMetadata);
             }
         }

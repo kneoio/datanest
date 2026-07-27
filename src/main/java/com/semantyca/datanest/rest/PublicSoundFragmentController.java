@@ -81,6 +81,7 @@ public class PublicSoundFragmentController extends AbstractSecuredController<Sou
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/available-soundfragments").handler(this::getForBrand);
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/files/:slugName/:fileSlug").handler(this::getFileBySlugName);
         router.route(HttpMethod.PATCH, "/datanest/public/soundfragments/:slugName/boost/:brandId").handler(BodyHandler.create()).handler(this::updateBoostBySlugName);
+        router.route(HttpMethod.DELETE, "/datanest/public/soundfragments/:slugName").handler(this::deleteBySlugName);
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/:slugName").handler(this::getBySlugName);
     }
 
@@ -245,6 +246,21 @@ public class PublicSoundFragmentController extends AbstractSecuredController<Sou
                                 .setStatusCode(200)
                                 .putHeader("Content-Type", "application/json")
                                 .end(io.vertx.core.json.Json.encode(viewPage)),
+                        t -> handleFailure(rc, t)
+                );
+    }
+
+    private void deleteBySlugName(RoutingContext rc) {
+        String slugName = rc.pathParam("slugName");
+
+        getContextUser(rc, false, true)
+                .chain(user -> {
+                    assert service != null;
+                    return service.getIdBySlug(slugName, user)
+                            .chain(id -> service.archive(id.toString(), user));
+                })
+                .subscribe().with(
+                        count -> rc.response().setStatusCode(count > 0 ? 204 : 404).end(),
                         t -> handleFailure(rc, t)
                 );
     }
