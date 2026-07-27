@@ -39,6 +39,7 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
 
     public void setupRoutes(Router router) {
         router.route(HttpMethod.GET, "/datanest/public/brands").handler(this::getAll);
+        router.route(HttpMethod.GET, "/datanest/public/brands/:slugName").handler(this::getBySlugName);
     }
 
     private void getAll(RoutingContext rc) {
@@ -66,6 +67,23 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
                                 .end(io.vertx.core.json.Json.encode(viewPage)),
                         throwable -> {
                             LOGGER.error("Failed to get all brands", throwable);
+                            rc.fail(throwable);
+                        }
+                );
+    }
+
+    private void getBySlugName(RoutingContext rc) {
+        String slugName = rc.pathParam("slugName");
+
+        getContextUser(rc, false, true)
+                .chain(user -> service.getPublicFlatDTOBySlug(slugName, user))
+                .subscribe().with(
+                        doc -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(io.vertx.core.json.Json.encode(doc)),
+                        throwable -> {
+                            LOGGER.error("Failed to get brand by slug: " + slugName, throwable);
                             rc.fail(throwable);
                         }
                 );

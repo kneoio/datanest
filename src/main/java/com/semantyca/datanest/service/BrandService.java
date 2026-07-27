@@ -121,6 +121,11 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 .map(list -> list.stream().map(this::toPublicFlatDTO).collect(Collectors.toList()));
     }
 
+    public Uni<BrandPublicFlatDTO> getPublicFlatDTOBySlug(final String slugName, final IUser user) {
+        assert repository != null;
+        return repository.getBySlugName(slugName, user, false).map(this::toPublicFlatDTO);
+    }
+
     private BrandPublicFlatDTO toPublicFlatDTO(Brand doc) {
         BrandPublicFlatDTO dto = new BrandPublicFlatDTO();
         dto.setId(doc.getId());
