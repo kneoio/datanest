@@ -1,4 +1,4 @@
-package com.semantyca.datanest.rest;
+package com.semantyca.datanest.rest.mixdeck;
 
 import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.dto.cnst.PayloadType;
@@ -18,17 +18,17 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 @ApplicationScoped
-public class PublicSharedSoundFragmentController extends AbstractSecuredController<SharedSoundFragment, ShareDTO> {
+public class MixdeckSharedSoundFragmentController extends AbstractSecuredController<SharedSoundFragment, ShareDTO> {
 
     private final SharedSoundFragmentService sharedSoundFragmentService;
 
-    public PublicSharedSoundFragmentController() {
+    public MixdeckSharedSoundFragmentController() {
         super(null);
         this.sharedSoundFragmentService = null;
     }
 
     @Inject
-    public PublicSharedSoundFragmentController(UserService userService, SharedSoundFragmentService sharedSoundFragmentService) {
+    public MixdeckSharedSoundFragmentController(UserService userService, SharedSoundFragmentService sharedSoundFragmentService) {
         super(userService);
         this.sharedSoundFragmentService = sharedSoundFragmentService;
     }

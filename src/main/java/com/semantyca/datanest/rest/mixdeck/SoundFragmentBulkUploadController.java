@@ -1,4 +1,4 @@
-package com.semantyca.datanest.rest;
+package com.semantyca.datanest.rest.mixdeck;
 
 import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.repository.exception.UserNotFoundException;

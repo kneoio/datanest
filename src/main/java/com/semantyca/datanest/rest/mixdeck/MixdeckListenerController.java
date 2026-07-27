@@ -1,4 +1,4 @@
-package com.semantyca.datanest.rest;
+package com.semantyca.datanest.rest.mixdeck;
 
 import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.dto.cnst.PayloadType;
@@ -8,6 +8,7 @@ import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.datanest.dto.BrandListenerDTO;
 import com.semantyca.datanest.dto.ListenerDTO;
+import com.semantyca.datanest.rest.ListenerController;
 import com.semantyca.datanest.service.ListenerService;
 import com.semantyca.mixpla.model.Listener;
 import com.semantyca.mixpla.model.filter.ListenerFilter;
@@ -19,16 +20,16 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 @ApplicationScoped
-public class PublicListenerController extends AbstractSecuredController<Listener, ListenerDTO> {
+public class MixdeckListenerController extends AbstractSecuredController<Listener, ListenerDTO> {
     private final ListenerService service;
 
-    public PublicListenerController() {
+    public MixdeckListenerController() {
         super(null);
         this.service = null;
     }
 
     @Inject
-    public PublicListenerController(UserService userService, ListenerService service) {
+    public MixdeckListenerController(UserService userService, ListenerService service) {
         super(userService);
         this.service = service;
     }

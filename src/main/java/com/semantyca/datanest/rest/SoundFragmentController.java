@@ -393,7 +393,7 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
         return parseFilterDTO(rc, allowedSources, null);
     }
 
-    static SoundFragmentFilter parseFilterDTO(RoutingContext rc, List<SourceType> allowedSources, List<PlaylistItemType> allowedTypes) {
+    public static SoundFragmentFilter parseFilterDTO(RoutingContext rc, List<SourceType> allowedSources, List<PlaylistItemType> allowedTypes) {
         String filterParam = rc.request().getParam("filter");
         if (filterParam == null || filterParam.trim().isEmpty()) {
             SoundFragmentFilter dto = new SoundFragmentFilter();

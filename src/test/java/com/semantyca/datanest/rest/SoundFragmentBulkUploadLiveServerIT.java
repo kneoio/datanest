@@ -1,5 +1,6 @@
 package com.semantyca.datanest.rest;
 
+import com.semantyca.datanest.rest.mixdeck.SoundFragmentBulkUploadController;
 import io.restassured.specification.RequestSpecification;
 import org.junit.jupiter.api.Test;
 

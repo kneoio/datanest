@@ -1,9 +1,8 @@
-package com.semantyca.datanest.rest;
+package com.semantyca.datanest.rest.mixdeck;
 
 import com.semantyca.core.controller.AbstractController;
 import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.cnst.PayloadType;
-import com.semantyca.core.dto.form.FormPage;
 import com.semantyca.core.dto.view.View;
 import com.semantyca.core.dto.view.ViewPage;
 import com.semantyca.core.model.cnst.LanguageTag;

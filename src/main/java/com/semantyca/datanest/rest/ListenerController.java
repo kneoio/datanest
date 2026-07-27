@@ -239,7 +239,7 @@ public class ListenerController extends AbstractSecuredController<Listener, List
         }
     }
 
-    static ListenerFilter parseFilterDTO(RoutingContext rc) {
+    public static ListenerFilter parseFilterDTO(RoutingContext rc) {
         ListenerFilter filterDTO = new ListenerFilter();
         boolean hasAnyFilter = false;
 

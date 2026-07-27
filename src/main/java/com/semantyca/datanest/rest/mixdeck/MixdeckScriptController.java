@@ -1,4 +1,4 @@
-package com.semantyca.datanest.rest;
+package com.semantyca.datanest.rest.mixdeck;
 
 import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.service.UserService;
@@ -14,16 +14,16 @@ import jakarta.inject.Inject;
 import java.util.UUID;
 
 @ApplicationScoped
-public class PublicScriptController extends AbstractSecuredController<Script, ScriptDTO> {
+public class MixdeckScriptController extends AbstractSecuredController<Script, ScriptDTO> {
     private final ScriptService service;
 
-    public PublicScriptController() {
+    public MixdeckScriptController() {
         super(null);
         this.service = null;
     }
 
     @Inject
-    public PublicScriptController(UserService userService, ScriptService service) {
+    public MixdeckScriptController(UserService userService, ScriptService service) {
         super(userService);
         this.service = service;
     }
@@ -36,6 +36,7 @@ public class PublicScriptController extends AbstractSecuredController<Script, Sc
         String id = rc.pathParam("id");
         try {
             UUID scriptId = UUID.fromString(id);
+            assert service != null;
             service.getPublicDTO(scriptId)
                     .subscribe().with(
                             doc -> rc.response()

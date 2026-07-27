@@ -1,4 +1,4 @@
-package com.semantyca.datanest.rest;
+package com.semantyca.datanest.rest.mixdeck;
 
 import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.dto.actions.ActionBox;
@@ -16,6 +16,7 @@ import com.semantyca.datanest.dto.BrandSoundFragmentFlatDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
 import com.semantyca.datanest.dto.SoundFragmentPublicFlatDTO;
 import com.semantyca.datanest.dto.actionbars.SoundFragmentActionsFactory;
+import com.semantyca.datanest.rest.SoundFragmentController;
 import com.semantyca.datanest.service.soundfragment.BrandSoundFragmentService;
 import com.semantyca.datanest.service.soundfragment.SharedSoundFragmentService;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
@@ -42,8 +43,8 @@ import java.util.List;
 import java.util.UUID;
 
 @ApplicationScoped
-public class PublicSoundFragmentController extends AbstractSecuredController<SoundFragment, SoundFragmentDTO> {
-    private static final Logger LOGGER = Logger.getLogger(PublicSoundFragmentController.class);
+public class MixdeckSoundFragmentController extends AbstractSecuredController<SoundFragment, SoundFragmentDTO> {
+    private static final Logger LOGGER = Logger.getLogger(MixdeckSoundFragmentController.class);
     private static final int STREAM_BUFFER_SIZE = 524288; // 512KB buffer for file streaming
 
     private final SoundFragmentService service;
@@ -52,7 +53,7 @@ public class PublicSoundFragmentController extends AbstractSecuredController<Sou
     private final FileDownloadService fileDownloadService;
     private final Vertx vertx;
 
-    public PublicSoundFragmentController() {
+    public MixdeckSoundFragmentController() {
         super(null);
         this.service = null;
         this.brandSoundFragmentService = null;
@@ -62,10 +63,10 @@ public class PublicSoundFragmentController extends AbstractSecuredController<Sou
     }
 
     @Inject
-    public PublicSoundFragmentController(UserService userService, SoundFragmentService service,
-                                         BrandSoundFragmentService brandSoundFragmentService,
-                                         SharedSoundFragmentService sharedSoundFragmentService,
-                                         FileDownloadService fileDownloadService, Vertx vertx) {
+    public MixdeckSoundFragmentController(UserService userService, SoundFragmentService service,
+                                          BrandSoundFragmentService brandSoundFragmentService,
+                                          SharedSoundFragmentService sharedSoundFragmentService,
+                                          FileDownloadService fileDownloadService, Vertx vertx) {
         super(userService);
         this.service = service;
         this.brandSoundFragmentService = brandSoundFragmentService;

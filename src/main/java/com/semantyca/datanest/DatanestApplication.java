@@ -13,16 +13,16 @@ import com.semantyca.datanest.rest.ListenerController;
 import com.semantyca.datanest.rest.OtsDefinitionController;
 import com.semantyca.datanest.rest.ProfileController;
 import com.semantyca.datanest.rest.PromptController;
-import com.semantyca.datanest.rest.PublicListenerController;
-import com.semantyca.datanest.rest.PublicScriptController;
+import com.semantyca.datanest.rest.mixdeck.MixdeckListenerController;
+import com.semantyca.datanest.rest.mixdeck.MixdeckScriptController;
 import com.semantyca.datanest.rest.PublicSongSubmissionController;
-import com.semantyca.datanest.rest.PublicSoundFragmentController;
-import com.semantyca.datanest.rest.RefController;
+import com.semantyca.datanest.rest.mixdeck.MixdeckSoundFragmentController;
+import com.semantyca.datanest.rest.mixdeck.RefController;
 import com.semantyca.datanest.rest.SceneController;
 import com.semantyca.datanest.rest.ScriptController;
-import com.semantyca.datanest.rest.PublicSharedSoundFragmentController;
+import com.semantyca.datanest.rest.mixdeck.MixdeckSharedSoundFragmentController;
 import com.semantyca.datanest.rest.SharedSoundFragmentController;
-import com.semantyca.datanest.rest.SoundFragmentBulkUploadController;
+import com.semantyca.datanest.rest.mixdeck.SoundFragmentBulkUploadController;
 import com.semantyca.datanest.rest.SoundFragmentController;
 import com.semantyca.datanest.rest.UserAdController;
 import io.vertx.ext.web.Router;
@@ -49,7 +49,7 @@ public class DatanestApplication {
     ListenerController listenerController;
 
     @Inject
-    PublicListenerController publicListenerController;
+    MixdeckListenerController mixdeckListenerController;
 
     @Inject
     AiAgentController aiAgentController;
@@ -71,19 +71,19 @@ public class DatanestApplication {
     SharedSoundFragmentController sharedSoundFragmentController;
 
     @Inject
-    PublicSharedSoundFragmentController publicSharedSoundFragmentController;
+    MixdeckSharedSoundFragmentController mixdeckSharedSoundFragmentController;
 
     @Inject
     SoundFragmentBulkUploadController soundFragmentBulkUploadController;
 
     @Inject
-    PublicSoundFragmentController publicSoundFragmentController;
+    MixdeckSoundFragmentController mixdeckSoundFragmentController;
 
     @Inject
     ScriptController scriptController;
 
     @Inject
-    PublicScriptController publicScriptController;
+    MixdeckScriptController mixdeckScriptController;
 
     @Inject
     RefController refController;
@@ -115,15 +115,15 @@ public class DatanestApplication {
         draftController.setupRoutes(router);
         eventController.setupRoutes(router);
         listenerController.setupRoutes(router);
-        publicListenerController.setupRoutes(router);
+        mixdeckListenerController.setupRoutes(router);
         profileController.setupRoutes(router);
         promptController.setupRoutes(router);
         sceneController.setupRoutes(router);
         scriptController.setupRoutes(router);
-        publicScriptController.setupRoutes(router);
+        mixdeckScriptController.setupRoutes(router);
         sharedSoundFragmentController.setupRoutes(router);
-        publicSharedSoundFragmentController.setupRoutes(router);
-        publicSoundFragmentController.setupRoutes(router);
+        mixdeckSharedSoundFragmentController.setupRoutes(router);
+        mixdeckSoundFragmentController.setupRoutes(router);
         soundFragmentController.setupRoutes(router);
         soundFragmentBulkUploadController.setupRoutes(router);
         publicSongSubmissionController.setupRoutes(router);
