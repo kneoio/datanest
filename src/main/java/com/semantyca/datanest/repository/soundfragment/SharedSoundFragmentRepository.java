@@ -6,6 +6,7 @@ import com.semantyca.core.model.cnst.FileType;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.embedded.DocumentAccessInfo;
 import com.semantyca.core.model.user.IUser;
+import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.repository.AsyncRepository;
 import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.rls.RLSRepository;
@@ -509,6 +510,9 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     }
 
     private Tuple buildInsertTuple(SharedSoundFragment entity) {
+        // author/last_mod_user are audit columns and must never be null, even when there's no
+        // resolved submitter account (e.g. an anonymous contribution) — fall back to SuperUser.
+        Long auditUserId = entity.getSourceUserId() != null ? entity.getSourceUserId() : SuperUser.ID;
         return Tuple.tuple()
                 .addValue(entity.getSourceUserId())
                 .addUUID(entity.getTargetBrandId())
@@ -521,8 +525,8 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .addValue(entity.getSourceUserName())
                 .addValue(entity.getSourceUserEmail())
                 .addValue(Boolean.TRUE.equals(entity.getNotifyOnPlay()))
-                .addValue(entity.getSourceUserId())
-                .addValue(entity.getSourceUserId());
+                .addValue(auditUserId)
+                .addValue(auditUserId);
     }
 
     private SharedSoundFragment fromWithBrand(Row row) {

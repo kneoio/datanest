@@ -466,7 +466,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                     .chain(() -> buildRlsActionsWithCoOwners(dto.getRepresentedInBrands(), dto.getRlsActions())
                             .chain(rlsActions -> repository.insert(entity, dto.getRepresentedInBrands(), rlsActions, user))
                             .chain(doc -> moveFilesForNewEntity(doc, fileMetadataList, user))
-                            .invoke(doc -> triggerSpectraAnalysis(doc))
+                            .invoke(this::triggerSpectraAnalysis)
                             .chain(doc -> mapToDTO(doc, true, null, null))
                             .onFailure().invoke(failure -> {
                                 LOGGER.warnf("Entity creation failed, cleaning up temp files for user: %s", user.getUserName());
@@ -505,7 +505,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
             return buildRlsActionsWithCoOwners(dto.getRepresentedInBrands(), dto.getRlsActions())
                     .chain(rlsActions -> repository.update(UUID.fromString(id), entity, dto.getRepresentedInBrands(), rlsActions, user))
                     .invoke(doc -> triggerOpusEncodingIfMissing(doc, brandId, fileMetadataList))
-                    .invoke(doc -> triggerSpectraAnalysis(doc))
+                    .invoke(this::triggerSpectraAnalysis)
                     .chain(doc -> mapToDTO(doc, true, null, null))
                     .onFailure().invoke(failure -> {
                         LOGGER.warnf("Entity update failed, cleaning up files for user: %s, entity: %s",
@@ -1186,10 +1186,10 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                 encodedMeta.setFileKey(encodedKey);
                                 encodedMeta.setFileType(FileType.OPUS_ENCODED_SOUND_FRAGMENT);
                                 encodedMeta.setMimeType("audio/ogg");
-                                FileMetadata orig = files.get(0);
+                                FileMetadata orig = files.getFirst();
                                 String origName = orig.getFileOriginalName() != null ? orig.getFileOriginalName() : localFilePath.getFileName().toString();
                                 encodedMeta.setFileOriginalName(origName + ".opus");
-                                encodedMeta.setSlugName(files.get(0).getSlugName() + "-opus");
+                                encodedMeta.setSlugName(files.getFirst().getSlugName() + "-opus");
                                 return repository.insertEncodedFile(fragment.getId(), encodedMeta);
                             });
                 })

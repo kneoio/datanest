@@ -11,7 +11,9 @@ import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.repository.exception.UserNotFoundException;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.FileSecurityUtils;
+import com.semantyca.core.util.ProblemDetailsUtil;
 import com.semantyca.core.util.RuntimeUtil;
+import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.BrandSoundFragmentFlatDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
 import com.semantyca.datanest.dto.SoundFragmentPublicFlatDTO;
@@ -21,16 +23,21 @@ import com.semantyca.datanest.service.soundfragment.BrandSoundFragmentService;
 import com.semantyca.datanest.service.soundfragment.SharedSoundFragmentService;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
 import com.semantyca.datanest.service.util.FileDownloadService;
+import com.semantyca.datanest.service.util.ValidationResult;
+import com.semantyca.datanest.service.util.ValidationService;
 import com.semantyca.datanest.util.InputStreamReadStream;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.cnst.SourceType;
 import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
 import com.semantyca.mixpla.model.soundfragment.SoundFragment;
 import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.tuples.Tuple2;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.json.JsonObject;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
@@ -51,6 +58,8 @@ public class MixdeckSoundFragmentController extends AbstractSecuredController<So
     private final BrandSoundFragmentService brandSoundFragmentService;
     private final SharedSoundFragmentService sharedSoundFragmentService;
     private final FileDownloadService fileDownloadService;
+    private final ValidationService validationService;
+    private final DatanestConfig config;
     private final Vertx vertx;
 
     public MixdeckSoundFragmentController() {
@@ -59,6 +68,8 @@ public class MixdeckSoundFragmentController extends AbstractSecuredController<So
         this.brandSoundFragmentService = null;
         this.sharedSoundFragmentService = null;
         this.fileDownloadService = null;
+        this.validationService = null;
+        this.config = null;
         this.vertx = null;
     }
 
@@ -66,12 +77,16 @@ public class MixdeckSoundFragmentController extends AbstractSecuredController<So
     public MixdeckSoundFragmentController(UserService userService, SoundFragmentService service,
                                           BrandSoundFragmentService brandSoundFragmentService,
                                           SharedSoundFragmentService sharedSoundFragmentService,
-                                          FileDownloadService fileDownloadService, Vertx vertx) {
+                                          FileDownloadService fileDownloadService,
+                                          ValidationService validationService,
+                                          DatanestConfig config, Vertx vertx) {
         super(userService);
         this.service = service;
         this.brandSoundFragmentService = brandSoundFragmentService;
         this.sharedSoundFragmentService = sharedSoundFragmentService;
         this.fileDownloadService = fileDownloadService;
+        this.validationService = validationService;
+        this.config = config;
         this.vertx = vertx;
     }
 
@@ -82,6 +97,7 @@ public class MixdeckSoundFragmentController extends AbstractSecuredController<So
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/available-soundfragments").handler(this::getForBrand);
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/files/:slugName/:fileSlug").handler(this::getFileBySlugName);
         router.route(HttpMethod.PATCH, "/datanest/public/soundfragments/:slugName/boost/:brandId").handler(BodyHandler.create()).handler(this::updateBoostBySlugName);
+        router.route(HttpMethod.POST, "/datanest/public/soundfragments/:slugName?").handler(BodyHandler.create()).handler(this::upsertBySlugName);
         router.route(HttpMethod.DELETE, "/datanest/public/soundfragments/:slugName").handler(this::deleteBySlugName);
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/:slugName").handler(this::getBySlugName);
     }
@@ -249,6 +265,55 @@ public class MixdeckSoundFragmentController extends AbstractSecuredController<So
                                 .end(io.vertx.core.json.Json.encode(viewPage)),
                         t -> handleFailure(rc, t)
                 );
+    }
+
+    private void upsertBySlugName(RoutingContext rc) {
+        try {
+            if (!validateJsonBody(rc)) {
+                return;
+            }
+
+            JsonObject body = rc.body().asJsonObject();
+            body.remove("id");
+            SoundFragmentDTO dto = body.mapTo(SoundFragmentDTO.class);
+            String slugName = rc.pathParam("slugName");
+
+            if (dto.getType() != null && !PlaylistItemType.SONG.equals(dto.getType())) {
+                assert config != null;
+                config.getOtherGenreId().ifPresent(genreId ->
+                        dto.setGenres(List.of(UUID.fromString(genreId))));
+            }
+
+            assert validationService != null;
+            ValidationResult validationResult = validationService.validateSoundFragmentDTO(slugName, dto);
+            if (!validationResult.valid()) {
+                ProblemDetailsUtil.respondValidationError(rc, validationResult.errorMessage(), validationResult.fieldErrors());
+                return;
+            }
+
+            getContextUser(rc, false, true)
+                    .chain(user -> {
+                        assert service != null;
+                        if (slugName == null || "new".equalsIgnoreCase(slugName)) {
+                            return service.upsert(null, dto, user, LanguageCode.en)
+                                    .map(doc -> Tuple2.of((String) null, doc));
+                        }
+                        return service.getIdBySlug(slugName, user)
+                                .chain(id -> service.upsert(id.toString(), dto, user, LanguageCode.en)
+                                        .map(doc -> Tuple2.of(id.toString(), doc)));
+                    })
+                    .subscribe().with(
+                            tuple -> sendUpsertResponse(rc, tuple.getItem2(), tuple.getItem1()),
+                            t -> handleFailure(rc, t)
+                    );
+
+        } catch (Exception e) {
+            if (e instanceof IllegalArgumentException) {
+                rc.fail(400, e);
+            } else {
+                rc.fail(400, new IllegalArgumentException("Invalid JSON payload"));
+            }
+        }
     }
 
     private void deleteBySlugName(RoutingContext rc) {
