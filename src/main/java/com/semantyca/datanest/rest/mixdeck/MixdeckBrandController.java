@@ -48,7 +48,10 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
         BrandFilter filter = BrandController.parseFilterDTO(rc);
 
         getContextUser(rc, false, true)
-                .chain(user -> service.getAllPublicFlatDTO(user, filter))
+                .chain(user -> {
+                    assert service != null;
+                    return service.getAllPublicFlatDTO(user, filter);
+                })
                 .map(list -> {
                     ViewPage viewPage = new ViewPage();
                     View<BrandPublicFlatDTO> dtoEntries = new View<>(list,
