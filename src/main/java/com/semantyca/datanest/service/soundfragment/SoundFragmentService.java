@@ -277,12 +277,14 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 .chain(doc -> {
                     UUID uuid = doc.getId();
                     Uni<List<UUID>> brandsUni = repository.getBrandsForSoundFragment(uuid, user);
+                    Uni<List<String>> brandSlugsUni = repository.getBrandSlugsForSoundFragment(uuid, user);
                     Uni<int[]> ratingsUni = repository.getRatings(uuid);
 
-                    return Uni.combine().all().unis(brandsUni, ratingsUni).asTuple()
+                    return Uni.combine().all().unis(brandsUni, brandSlugsUni, ratingsUni).asTuple()
                             .chain(tuple -> {
                                 List<UUID> representedInBrands = tuple.getItem1();
-                                int[] ratings = tuple.getItem2();
+                                List<String> brandSlugs = tuple.getItem2();
+                                int[] ratings = tuple.getItem3();
                                 assert sharedSoundFragmentService != null;
                                 return sharedSoundFragmentService.listShareDTO(doc.getId())
                                         .chain(shared -> mapToDTO(doc, true, representedInBrands, shared))
@@ -293,13 +295,13 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                                 dto.getUploadedFiles().forEach(f ->
                                                         f.setUrl("/datanest/public/soundfragments/files/" + slugName + "/" + f.getId()));
                                             }
-                                            return toPublicDTO(dto, slugName);
+                                            return toPublicDTO(dto, slugName, brandSlugs);
                                         });
                             });
                 });
     }
 
-    private SoundFragmentPublicDTO toPublicDTO(SoundFragmentDTO src, String slugName) {
+    private SoundFragmentPublicDTO toPublicDTO(SoundFragmentDTO src, String slugName, List<String> brandSlugs) {
         SoundFragmentPublicDTO dto = new SoundFragmentPublicDTO();
         dto.setRegDate(src.getRegDate());
         dto.setLastModifiedDate(src.getLastModifiedDate());
@@ -317,7 +319,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         dto.setLength(src.getLength());
         dto.setBoost(src.getBoost());
         dto.setDescription(src.getDescription());
-        dto.setRepresentedInBrands(src.getRepresentedInBrands());
+        dto.setRepresentedInBrands(brandSlugs);
         dto.setExpiresAt(src.getExpiresAt());
         dto.setShared(src.isShared());
         dto.setScheduled(src.isScheduled());

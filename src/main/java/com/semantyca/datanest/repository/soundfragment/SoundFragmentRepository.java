@@ -569,6 +569,20 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract imp
                 .collect().asList();
     }
 
+    public Uni<List<String>> getBrandSlugsForSoundFragment(UUID soundFragmentId, IUser user) {
+        String sql = "SELECT b.slug_name " +
+                "FROM mixpla__brand_sound_fragments bsf " +
+                "JOIN " + brandEntityData.getTableName() + " b ON b.id = bsf.brand_id " +
+                "JOIN " + entityData.getRlsName() + " rls ON bsf.sound_fragment_id = rls.entity_id " +
+                "WHERE bsf.sound_fragment_id = $1 AND rls.reader = $2";
+
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(soundFragmentId, user.getId()))
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transform(row -> row.getString("slug_name"))
+                .collect().asList();
+    }
+
     public Uni<SoundFragment> update(UUID id, SoundFragment doc, List<UUID> representedInBrands, List<RlsActionDTO> rlsActions, IUser user) {
         return rlsRepository.findById(entityData.getRlsName(), user.getId(), id)
                 .onItem().transformToUni(permissions -> {
