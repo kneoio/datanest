@@ -8,40 +8,64 @@ import com.semantyca.core.dto.view.View;
 import com.semantyca.core.dto.view.ViewPage;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.service.UserService;
+import com.semantyca.core.util.ProblemDetailsUtil;
 import com.semantyca.core.util.RuntimeUtil;
+import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.dto.actionbars.SoundFragmentActionsFactory;
 import com.semantyca.datanest.dto.brand.BrandDTO;
 import com.semantyca.datanest.dto.brand.BrandPublicFlatDTO;
 import com.semantyca.datanest.rest.BrandController;
+import com.semantyca.datanest.service.BrandPubService;
 import com.semantyca.datanest.service.BrandService;
 import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.filter.BrandFilter;
+import io.smallrye.mutiny.Uni;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.handler.BodyHandler;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import org.jboss.logging.Logger;
+
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class MixdeckBrandController extends AbstractSecuredController<Brand, BrandDTO> {
     private static final Logger LOGGER = Logger.getLogger(MixdeckBrandController.class);
 
     private final BrandService service;
+    private final BrandPubService pubService;
+    private final Validator validator;
 
     public MixdeckBrandController() {
         super(null);
         this.service = null;
+        this.pubService = null;
+        this.validator = null;
     }
 
     @Inject
-    public MixdeckBrandController(UserService userService, BrandService service) {
+    public MixdeckBrandController(UserService userService, BrandService service, BrandPubService pubService,
+                                  Validator validator) {
         super(userService);
         this.service = service;
+        this.pubService = pubService;
+        this.validator = validator;
     }
 
     public void setupRoutes(Router router) {
         router.route(HttpMethod.GET, "/datanest/public/brands").handler(this::getAll);
+        router.route(HttpMethod.POST, "/datanest/public/brands/:slugName/close").handler(BodyHandler.create()).handler(this::closeBrand);
+        router.route(HttpMethod.POST, "/datanest/public/brands/:slugName?").handler(BodyHandler.create()).handler(this::upsertBySlugName);
         router.route(HttpMethod.GET, "/datanest/public/brands/:slugName").handler(this::getBySlugName);
     }
 
@@ -84,6 +108,14 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
 
         getContextUser(rc, false, true)
                 .chain(user -> {
+                    if ("new".equalsIgnoreCase(slugName)) {
+                        BrandDTO dto = new BrandDTO();
+                        dto.setLocalizedName(new EnumMap<>(LanguageCode.class));
+                        dto.getLocalizedName().put(LanguageCode.en, "");
+                        dto.setColor(WebHelper.generateRandomBrightColor());
+                        dto.setBitRate(64000);
+                        return Uni.createFrom().item(dto);
+                    }
                     assert service != null;
                     return service.getDTOBySlug(slugName, user, languageCode);
                 })
@@ -99,6 +131,71 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
                         },
                         throwable -> {
                             LOGGER.error("Failed to get brand by slug: " + slugName, throwable);
+                            rc.fail(throwable);
+                        }
+                );
+    }
+
+    /** Mirrors BrandController.upsertBySlug on the mixdeck /public path; path key is slug. */
+    private void upsertBySlugName(RoutingContext rc) {
+        try {
+            if (!validateJsonBody(rc)) {
+                return;
+            }
+
+            String slugName = rc.pathParam("slugName");
+            var body = rc.body().asJsonObject();
+            body.remove("id");
+            BrandDTO dto = body.mapTo(BrandDTO.class);
+
+            Set<ConstraintViolation<BrandDTO>> violations = validator.validate(dto);
+            if (violations != null && !violations.isEmpty()) {
+                Map<String, List<String>> fieldErrors = new HashMap<>();
+                for (ConstraintViolation<BrandDTO> v : violations) {
+                    String field = v.getPropertyPath().toString();
+                    fieldErrors.computeIfAbsent(field, k -> new ArrayList<>()).add(v.getMessage());
+                }
+                String detail = fieldErrors.entrySet().stream()
+                        .flatMap(e -> e.getValue().stream().map(msg -> e.getKey() + ": " + msg))
+                        .collect(Collectors.joining(", "));
+                ProblemDetailsUtil.respondValidationError(rc, detail, fieldErrors);
+                return;
+            }
+
+            boolean isNew = slugName == null || slugName.isBlank() || "new".equalsIgnoreCase(slugName);
+            String upsertKey = isNew ? "new" : slugName;
+
+            getContextUser(rc, false, true)
+                    .chain(user -> {
+                        assert pubService != null;
+                        return pubService.upsert(upsertKey, dto, user, LanguageCode.en);
+                    })
+                    .subscribe().with(
+                            doc -> rc.response()
+                                    .setStatusCode(isNew ? 201 : 200)
+                                    .putHeader("Content-Type", "application/json")
+                                    .end(io.vertx.core.json.Json.encode(doc)),
+                            throwable -> {
+                                LOGGER.error("Failed to upsert brand by slug: " + slugName, throwable);
+                                rc.fail(throwable);
+                            }
+                    );
+        } catch (Exception e) {
+            rc.fail(400, e instanceof IllegalArgumentException ? e : new IllegalArgumentException("Invalid JSON payload"));
+        }
+    }
+
+    private void closeBrand(RoutingContext rc) {
+        String slugName = rc.pathParam("slugName");
+        getContextUser(rc, false, true)
+                .chain(user -> {
+                    assert service != null;
+                    return service.closeBrand(slugName, user);
+                })
+                .subscribe().with(
+                        count -> rc.response().setStatusCode(count > 0 ? 204 : 404).end(),
+                        throwable -> {
+                            LOGGER.error("Failed to close brand by slug: " + slugName, throwable);
                             rc.fail(throwable);
                         }
                 );

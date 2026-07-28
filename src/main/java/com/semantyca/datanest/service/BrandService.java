@@ -141,7 +141,6 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
     private BrandPublicFlatDTO toPublicFlatDTO(Brand doc) {
         BrandPublicFlatDTO dto = new BrandPublicFlatDTO();
-        dto.setId(doc.getId());
         dto.setRegDate(doc.getRegDate());
         dto.setLastModifiedDate(doc.getLastModifiedDate());
         dto.setLocalizedName(doc.getLocalizedName());
@@ -306,24 +305,25 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         return repository.archive(id, SuperUser.build());
     }
 
-    public Uni<Integer> closeBrand(String id, IUser user) {
+    public Uni<Integer> closeBrand(String slugName, IUser user) {
         assert repository != null;
-        UUID brandId = UUID.fromString(id);
-        return repository.findById(brandId, user, false)
-                .chain(brand -> repository.closeBrand(brandId, user)
-                        .invoke(count -> {
-                            if (count > 0) {
-                                assert metricPublisher != null;
-                                metricPublisher.publishMetric(
-                                        brand.getSlugName(),
-                                        MetricEventType.WARNING,
-                                        ProcessType.INDEPENDENT,
-                                        "brand_closed",
-                                        Map.of("brandId", brandId.toString(), "closedBy", user.getUserName())
-                                );
-                            }
-                        })
-                );
+        return repository.getBySlugName(slugName, user, false)
+                .chain(brand -> {
+                    UUID brandId = brand.getId();
+                    return repository.closeBrand(brandId, user)
+                            .invoke(count -> {
+                                if (count > 0) {
+                                    assert metricPublisher != null;
+                                    metricPublisher.publishMetric(
+                                            brand.getSlugName(),
+                                            MetricEventType.WARNING,
+                                            ProcessType.INDEPENDENT,
+                                            "brand_closed",
+                                            Map.of("brandId", brandId.toString(), "closedBy", user.getUserName())
+                                    );
+                                }
+                            });
+                });
     }
 
     Uni<BrandDTO> mapToDTO(Brand doc) {

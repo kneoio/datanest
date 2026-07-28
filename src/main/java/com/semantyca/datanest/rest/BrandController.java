@@ -247,7 +247,9 @@
                 }
 
                 String id = rc.pathParam("id");
-                BrandDTO dto = rc.body().asJsonObject().mapTo(BrandDTO.class);
+                var body = rc.body().asJsonObject();
+                body.remove("id");
+                BrandDTO dto = body.mapTo(BrandDTO.class);
 
                 Set<ConstraintViolation<BrandDTO>> violations = validator.validate(dto);
                 if (violations != null && !violations.isEmpty()) {
@@ -338,62 +340,54 @@
         }
 
         private void uploadLogo(RoutingContext rc) {
-            String id = rc.pathParam("id");
-            try {
-                UUID brandId = UUID.fromString(id);
-                getContextUser(rc, false, true)
-                        .chain(user -> logoService.uploadLogo(rc, brandId, user))
-                        .subscribe().with(
-                                meta -> rc.response()
-                                        .setStatusCode(200)
-                                        .putHeader("Content-Type", "application/json")
-                                        .end(io.vertx.core.json.Json.encode(meta)),
-                                throwable -> {
-                                    LOGGER.error("Failed to upload logo for brand: {}", id, throwable);
-                                    if (throwable instanceof IllegalArgumentException) {
-                                        rc.fail(400, throwable);
-                                    } else {
-                                        rc.fail(throwable);
-                                    }
+            String slugName = rc.pathParam("id");
+            getContextUser(rc, false, true)
+                    .chain(user -> service.getBySlugNameForUser(slugName, user)
+                            .chain(brand -> logoService.uploadLogo(rc, brand.getId(), user)))
+                    .subscribe().with(
+                            meta -> rc.response()
+                                    .setStatusCode(200)
+                                    .putHeader("Content-Type", "application/json")
+                                    .end(io.vertx.core.json.Json.encode(meta)),
+                            throwable -> {
+                                LOGGER.error("Failed to upload logo for brand: {}", slugName, throwable);
+                                if (throwable instanceof IllegalArgumentException) {
+                                    rc.fail(400, throwable);
+                                } else {
+                                    rc.fail(throwable);
                                 }
-                        );
-            } catch (IllegalArgumentException e) {
-                rc.fail(400, new IllegalArgumentException("Invalid brand ID"));
-            }
+                            }
+                    );
         }
 
         private void getLogo(RoutingContext rc) {
-            String id = rc.pathParam("id");
-            String slug = rc.pathParam("slug");
-            try {
-                UUID brandId = UUID.fromString(id);
-                getContextUser(rc, false, true)
-                        .chain(user -> logoService.getLogoMetadata(brandId, slug)
-                                .chain(meta -> logoService.getLogo(brandId, slug, user)
-                                        .map(bytes -> new Object[]{meta, bytes})))
-                        .subscribe().with(
-                                result -> {
-                                    FileMetadata meta = (FileMetadata) result[0];
-                                    byte[] bytes = (byte[]) result[1];
-                                    rc.response()
-                                            .setStatusCode(200)
-                                            .putHeader("Content-Type", meta.getMimeType() != null ? meta.getMimeType() : "application/octet-stream")
-                                            .putHeader("Content-Disposition", "inline; filename=\"" + meta.getFileOriginalName() + "\"")
-                                            .putHeader("Content-Length", String.valueOf(bytes.length))
-                                            .end(Buffer.buffer(bytes));
-                                },
-                                throwable -> {
-                                    if (throwable instanceof DocumentHasNotFoundException || throwable instanceof FileNotFoundException) {
-                                        rc.response().setStatusCode(204).end();
-                                    } else {
-                                        LOGGER.error("Failed to get logo for brand: {}", id, throwable);
-                                        rc.fail(throwable);
-                                    }
+            String brandSlug = rc.pathParam("id");
+            String fileSlug = rc.pathParam("slug");
+            getContextUser(rc, false, true)
+                    .chain(user -> service.getBySlugNameForUser(brandSlug, user)
+                            .chain(brand -> logoService.getLogoMetadata(brand.getId(), fileSlug)
+                                    .chain(meta -> logoService.getLogo(brand.getId(), fileSlug, user)
+                                            .map(bytes -> new Object[]{meta, bytes}))))
+                    .subscribe().with(
+                            result -> {
+                                FileMetadata meta = (FileMetadata) result[0];
+                                byte[] bytes = (byte[]) result[1];
+                                rc.response()
+                                        .setStatusCode(200)
+                                        .putHeader("Content-Type", meta.getMimeType() != null ? meta.getMimeType() : "application/octet-stream")
+                                        .putHeader("Content-Disposition", "inline; filename=\"" + meta.getFileOriginalName() + "\"")
+                                        .putHeader("Content-Length", String.valueOf(bytes.length))
+                                        .end(Buffer.buffer(bytes));
+                            },
+                            throwable -> {
+                                if (throwable instanceof DocumentHasNotFoundException || throwable instanceof FileNotFoundException) {
+                                    rc.response().setStatusCode(204).end();
+                                } else {
+                                    LOGGER.error("Failed to get logo for brand: {}", brandSlug, throwable);
+                                    rc.fail(throwable);
                                 }
-                        );
-            } catch (IllegalArgumentException e) {
-                rc.fail(400, new IllegalArgumentException("Invalid brand ID"));
-            }
+                            }
+                    );
         }
 
         public static BrandFilter parseFilterDTO(RoutingContext rc) {

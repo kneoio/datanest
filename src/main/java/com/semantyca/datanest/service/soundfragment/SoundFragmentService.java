@@ -364,9 +364,27 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         return repository.getFileBySlugName(soundFragmentId, slugName, user, false);
     }
 
-    public Uni<SoundFragmentDTO> upsert(String id, SoundFragmentDTO dto, IUser user, LanguageCode code) {
+  public Uni<SoundFragmentDTO> upsert(String id, SoundFragmentDTO dto, IUser user, LanguageCode code) {
         return resolveCustomTags(dto, user, code)
+                .chain(() -> resolveBrandSlugsOnDto(dto))
                 .chain(() -> doUpsert(id, dto, user, code));
+    }
+
+    /** Maps DTO.brands (slugs) → representedInBrands (UUIDs) using existing resolveBrandSlug. */
+    private Uni<Void> resolveBrandSlugsOnDto(SoundFragmentDTO dto) {
+        if (dto.getBrands() == null || dto.getBrands().isEmpty()) {
+            return Uni.createFrom().voidItem();
+        }
+        List<Uni<UUID>> lookups = dto.getBrands().stream()
+                .map(this::resolveBrandSlug)
+                .collect(Collectors.toList());
+        return Uni.join().all(lookups).andFailFast()
+                .invoke(ids -> {
+                    List<UUID> brandIds = ids.stream().filter(Objects::nonNull).toList();
+                    dto.setRepresentedInBrands(brandIds);
+                    dto.setBrands(null);
+                })
+                .replaceWithVoid();
     }
 
     private Uni<Void> resolveCustomTags(SoundFragmentDTO dto, IUser user, LanguageCode code) {

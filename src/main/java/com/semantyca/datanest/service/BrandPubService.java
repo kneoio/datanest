@@ -82,7 +82,7 @@ public class BrandPubService extends BrandService {
                             Map.of("brandId", saved.getId().toString(), "slug", saved.getSlugName(), "savedBy", user.getUserName())
                     );
                 })
-                .chain(this::mapToDTO);
+                .chain(this::mapToMixdeckDTO);
     }
 
     private Uni<Brand> doUpsert(String id, BrandDTO dto, boolean isNew, boolean isCustom, IUser user) {
@@ -100,7 +100,7 @@ public class BrandPubService extends BrandService {
                 return repository.insert(brand, List.of(), user);
             }
         } else {
-            return repository.findById(UUID.fromString(id), user, false)
+            return repository.getBySlugName(id, user, false)
                     .chain(existingBrand -> {
                         String slug = existingBrand.getSlugName();
                         Brand brand = super.buildEntity(dto, user, slug, existingBrand.getOwner());
