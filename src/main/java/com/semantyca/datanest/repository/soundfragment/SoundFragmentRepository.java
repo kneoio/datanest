@@ -601,7 +601,8 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract imp
                                                     assert brandHandler != null;
                                                     return brandHandler.updateBrandAssociations(tx, id, representedInBrands, user);
                                                 })
-                                                .onItem().transformToUni(v -> applyRlsActions(tx, id, rlsActions))
+                                                // ACL changes after create go through bulkUpdateACL (/datanest/bulk-acl),
+                                                // not general SF update. Brand-team grants still happen in addBrands.
                                                 .onItem().transformToUni(v -> updateSoundFragmentRecord(tx, id, doc, user, nowTime));
                                     }).onItem().transformToUni(rowSet -> {
                                         if (rowSet.rowCount() == 0) {
@@ -644,7 +645,6 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract imp
                                                     assert brandHandler != null;
                                                     return brandHandler.updateBrandAssociations(tx, id, representedInBrands, user);
                                                 })
-                                                .onItem().transformToUni(v -> applyRlsActions(tx, id, rlsActions))
                                                 .onItem().transformToUni(v -> updateSoundFragmentRecord(tx, id, doc, user, nowTime));
                                     }).onItem().transformToUni(rowSet -> {
                                         if (rowSet.rowCount() == 0) {

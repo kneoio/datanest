@@ -45,7 +45,6 @@ import com.semantyca.datanest.service.maintenance.LocalFileCleanupService;
 import com.semantyca.datanest.service.manipulation.OpusEncodingService;
 import com.semantyca.mixpla.dto.queue.command.CommandType;
 import com.semantyca.mixpla.model.brand.Brand;
-import com.semantyca.mixpla.model.brand.Owner;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.cnst.SourceType;
 import com.semantyca.mixpla.model.filter.SoundFragmentFilter;
@@ -61,7 +60,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.validation.Validator;
 import org.jboss.logging.Logger;
-import org.jspecify.annotations.NonNull;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -479,10 +477,14 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 entity.setSource(SourceType.USER_UPLOAD);
             }
             List<UUID> targetBrands = dto.getRepresentedInBrands() != null ? dto.getRepresentedInBrands() : List.of();
+            // Brand owner/co-owner fragment RLS is granted only when brands are newly assigned
+            // (SoundFragmentBrandAssociationHandler.grantFragmentRlsToBrands) or on brand save
+            // backfill — do not re-expand them into rlsActions here (was double-granting on create
+            // and pointless re-grant on every update).
+            List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
             return checkSubscriptionSongLimit(user)
                     .chain(() -> checkBrandSongLimits(targetBrands, user))
-                    .chain(() -> buildRlsActionsWithCoOwners(dto.getRepresentedInBrands(), dto.getRlsActions())
-                            .chain(rlsActions -> repository.insert(entity, dto.getRepresentedInBrands(), rlsActions, user))
+                    .chain(() -> repository.insert(entity, dto.getRepresentedInBrands(), rlsActions, user)
                             .chain(doc -> moveFilesForNewEntity(doc, fileMetadataList, user))
                             .invoke(this::triggerSpectraAnalysis)
                             .chain(doc -> mapToDTO(doc, true, null, null))
@@ -497,6 +499,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         } else {
             List<UUID> brandIds = dto.getRepresentedInBrands() != null ? dto.getRepresentedInBrands() : List.of();
             UUID brandId = brandIds.isEmpty() ? null : brandIds.getFirst();
+            // rlsActions on update are ignored — post-create ACL edits use bulkUpdateACL.
             boolean isPrerecorded = entity.getType() == PlaylistItemType.PRERECORDED_ADVERTISEMENT
                     || entity.getType() == PlaylistItemType.PRERECORDED_PODCAST;
             if (isPrerecorded) {
@@ -507,8 +510,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                 .filter(Objects::nonNull)
                                 .toList()
                         : List.of();
-                return buildRlsActionsWithCoOwners(dto.getRepresentedInBrands(), dto.getRlsActions())
-                        .chain(rlsActions -> repository.update(UUID.fromString(id), entity, dto.getRepresentedInBrands(), rlsActions, user, slugsToRemove))
+                return repository.update(UUID.fromString(id), entity, dto.getRepresentedInBrands(), List.of(), user, slugsToRemove)
                         .chain(doc -> mapToDTO(doc, true, null, null))
                         .onFailure().invoke(failure -> {
                             LOGGER.warnf("Entity update failed, cleaning up files for user: %s, entity: %s",
@@ -520,8 +522,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                     );
                         });
             }
-            return buildRlsActionsWithCoOwners(dto.getRepresentedInBrands(), dto.getRlsActions())
-                    .chain(rlsActions -> repository.update(UUID.fromString(id), entity, dto.getRepresentedInBrands(), rlsActions, user))
+            return repository.update(UUID.fromString(id), entity, dto.getRepresentedInBrands(), List.of(), user)
                     .invoke(doc -> triggerOpusEncodingIfMissing(doc, brandId, fileMetadataList))
                     .invoke(this::triggerSpectraAnalysis)
                     .chain(doc -> mapToDTO(doc, true, null, null))
@@ -863,49 +864,6 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
             doc.setScheduler(scheduler);
         }
         return doc;
-    }
-
-    private Uni<List<RlsActionDTO>> buildRlsActionsWithCoOwners(List<UUID> brandIds, List<RlsActionDTO> existing) {
-        if (brandIds == null || brandIds.isEmpty()) {
-            return Uni.createFrom().item(existing != null ? existing : List.of());
-        }
-        List<Uni<Brand>> brandUnis = brandIds.stream()
-                .map(brandId -> brandService.getById(brandId, SuperUser.build())
-                        .onFailure().recoverWithNull())
-                .collect(Collectors.toList());
-        return Uni.join().all(brandUnis).andFailFast()
-                .map(brands -> {
-                    Set<Long> coOwnerIds = getCoOwnerIds(brands);
-                    if (coOwnerIds.isEmpty()) {
-                        return existing != null ? existing : List.<RlsActionDTO>of();
-                    }
-                    List<RlsActionDTO> combined = new ArrayList<>(existing != null ? existing : List.of());
-                    for (Long userId : coOwnerIds) {
-                        RlsActionDTO grant = new RlsActionDTO();
-                        grant.setAction(RlsActionType.GRANT);
-                        grant.setUserId(userId);
-                        grant.setCanEdit(true);
-                        grant.setCanDelete(true);
-                        combined.add(grant);
-                    }
-                    return combined;
-                });
-    }
-
-    private static @NonNull Set<Long> getCoOwnerIds(List<Brand> brands) {
-        Set<Long> coOwnerIds = new HashSet<>();
-        for (Brand brand : brands) {
-            if (brand == null) continue;
-            Owner owner = brand.getOwner();
-            if (owner == null) continue;
-            if (owner.getUserId() != null) coOwnerIds.add(owner.getUserId());
-            if (owner.getCoOwners() != null) {
-                for (Owner co : owner.getCoOwners()) {
-                    if (co.getUserId() != null) coOwnerIds.add(co.getUserId());
-                }
-            }
-        }
-        return coOwnerIds;
     }
 
     public Uni<Integer> delete(String id, IUser user) {

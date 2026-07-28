@@ -31,6 +31,9 @@ Both grant a **full** (`can_edit = true`, `can_delete = true`) fragment reader r
 owner and every co-owner. Both are `ON CONFLICT DO NOTHING` (idempotent) and run inside the caller's
 transaction. SQL mirrors `SharedSoundFragmentRepository.grantFragmentRlsToBrand`.
 
+Do **not** also expand brand owners into `rlsActions` on SF create/update — that double-granted the
+same `(reader, entity_id)` and collided with explicit client grants. Team visibility is only:
+
 | When | Where | Scope |
 |---|---|---|
 | A fragment is assigned to a brand (SF create **or** update — both funnel through `addBrands`) | `SoundFragmentBrandAssociationHandler.grantFragmentRlsToBrands` | that fragment × each newly-added brand's owner + co-owners |
