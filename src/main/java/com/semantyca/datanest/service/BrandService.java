@@ -126,6 +126,19 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         return repository.getBySlugName(slugName, user, false).map(this::toPublicFlatDTO);
     }
 
+    public Uni<BrandDTO> getDTOBySlug(final String slugName, final IUser user, final LanguageCode language) {
+        assert repository != null;
+        return repository.getBySlugName(slugName, user, false).chain(this::mapToMixdeckDTO);
+    }
+
+    /**
+     * Mixdeck form mapping. Currently mirrors {@link #mapToDTO} but omits the brand UUID;
+     * kept separate so Mixdeck can ramify independently later.
+     */
+    Uni<BrandDTO> mapToMixdeckDTO(Brand doc) {
+        return mapToDTO(doc).invoke(dto -> dto.setId(null));
+    }
+
     private BrandPublicFlatDTO toPublicFlatDTO(Brand doc) {
         BrandPublicFlatDTO dto = new BrandPublicFlatDTO();
         dto.setId(doc.getId());

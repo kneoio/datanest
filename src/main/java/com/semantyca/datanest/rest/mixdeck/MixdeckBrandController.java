@@ -3,11 +3,14 @@ package com.semantyca.datanest.rest.mixdeck;
 import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.cnst.PayloadType;
+import com.semantyca.core.dto.form.FormPage;
 import com.semantyca.core.dto.view.View;
 import com.semantyca.core.dto.view.ViewPage;
+import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.datanest.dto.actionbars.SoundFragmentActionsFactory;
+import com.semantyca.datanest.dto.brand.BrandDTO;
 import com.semantyca.datanest.dto.brand.BrandPublicFlatDTO;
 import com.semantyca.datanest.rest.BrandController;
 import com.semantyca.datanest.service.BrandService;
@@ -21,7 +24,7 @@ import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 @ApplicationScoped
-public class MixdeckBrandController extends AbstractSecuredController<Brand, BrandPublicFlatDTO> {
+public class MixdeckBrandController extends AbstractSecuredController<Brand, BrandDTO> {
     private static final Logger LOGGER = Logger.getLogger(MixdeckBrandController.class);
 
     private final BrandService service;
@@ -77,14 +80,23 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
 
     private void getBySlugName(RoutingContext rc) {
         String slugName = rc.pathParam("slugName");
+        LanguageCode languageCode = LanguageCode.valueOf(rc.request().getParam("lang", LanguageCode.en.name()));
 
         getContextUser(rc, false, true)
-                .chain(user -> service.getPublicFlatDTOBySlug(slugName, user))
+                .chain(user -> {
+                    assert service != null;
+                    return service.getDTOBySlug(slugName, user, languageCode);
+                })
                 .subscribe().with(
-                        doc -> rc.response()
-                                .setStatusCode(200)
-                                .putHeader("Content-Type", "application/json")
-                                .end(io.vertx.core.json.Json.encode(doc)),
+                        doc -> {
+                            FormPage page = new FormPage();
+                            page.addPayload(PayloadType.DOC_DATA, doc);
+                            page.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());
+                            rc.response()
+                                    .setStatusCode(200)
+                                    .putHeader("Content-Type", "application/json")
+                                    .end(io.vertx.core.json.Json.encode(page));
+                        },
                         throwable -> {
                             LOGGER.error("Failed to get brand by slug: " + slugName, throwable);
                             rc.fail(throwable);
