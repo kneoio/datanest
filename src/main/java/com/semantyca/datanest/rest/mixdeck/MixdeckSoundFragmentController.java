@@ -360,7 +360,7 @@ public class MixdeckSoundFragmentController extends AbstractSecuredController<So
 
     private void updateBoostBySlugName(RoutingContext rc) {
         String slugName = rc.pathParam("slugName");
-        String brandId = rc.pathParam("brandId");
+        String brandSlug = rc.pathParam("brandId");
         try {
             var body = rc.body().asJsonObject();
             Integer boost = body.getInteger("boost");
@@ -377,25 +377,22 @@ public class MixdeckSoundFragmentController extends AbstractSecuredController<So
                 rc.fail(400, new IllegalArgumentException("boost must be between -1 and 2"));
                 return;
             }
-            UUID brandUUID;
-            try {
-                brandUUID = UUID.fromString(brandId);
-            } catch (IllegalArgumentException e) {
-                rc.fail(400, new IllegalArgumentException("Invalid brandId format"));
-                return;
-            }
 
             getContextUser(rc, false, true)
                     .chain(user -> {
                         assert service != null;
                         return service.getIdBySlug(slugName, user)
-                                .chain(soundFragmentId -> {
-                                    if ("shared".equals(type)) {
-                                        assert sharedSoundFragmentService != null;
-                                        return sharedSoundFragmentService.updateBoostBySoundFragmentAndBrand(soundFragmentId, brandUUID, boost);
-                                    }
-                                    return service.updateBoost(soundFragmentId.toString(), brandId, boost, type);
-                                });
+                                .chain(soundFragmentId -> service.resolveBrandSlug(brandSlug)
+                                        .chain(brandUUID -> {
+                                            if (brandUUID == null) {
+                                                return Uni.createFrom().failure(new IllegalArgumentException("Brand not found: " + brandSlug));
+                                            }
+                                            if ("shared".equals(type)) {
+                                                assert sharedSoundFragmentService != null;
+                                                return sharedSoundFragmentService.updateBoostBySoundFragmentAndBrand(soundFragmentId, brandUUID, boost);
+                                            }
+                                            return service.updateBoost(soundFragmentId.toString(), brandUUID.toString(), boost, type);
+                                        }));
                     })
                     .subscribe().with(
                             ignored -> rc.response().setStatusCode(204).end(),
