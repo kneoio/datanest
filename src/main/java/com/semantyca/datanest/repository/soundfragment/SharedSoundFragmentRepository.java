@@ -355,7 +355,8 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     }
 
     // Lets the receiver preview the audio before accepting/rejecting. Deliberately bypasses the
-    // fragment's own RLS gate (not granted until accept, see SHARING_WORKFLOW.md §0) - safe here
+    // fragment's own RLS gate (accept never grants it, see the knowledge bundle
+    // workflows/sharing-and-approvals.md) - safe here
     // because this is only reached after findById's own share-entity RLS check above already
     // passed, so the caller is already an authorized reader of this specific share.
     private Uni<SharedSoundFragment> attachPreviewFiles(SharedSoundFragment e) {

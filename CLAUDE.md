@@ -10,15 +10,21 @@ datanest is a CRUD backend; it works with the `Mixdeck` (user) and `42next` (adm
 
 ## Documentation Map
 
-- `src/main/java/com/semantyca/datanest/repository/RLS_WORKFLOW.md` — how Row-Level Security scopes
-  every read/write to the caller (ACL tables, grant-on-insert, sharing).
-- `src/main/java/com/semantyca/datanest/repository/soundfragment/SHARING_WORKFLOW.md` — station-to-
-  station shares **and** artist contributions (chatbot + public web form) — same
-  `SharedSoundFragment`/`ApprovalStatus` mechanism for both, plus submitter-account resolution and
-  the "received" inbox.
-- `src/main/java/com/semantyca/datanest/repository/soundfragment/BRAND_TEAM_VISIBILITY.md` — why every
-  owner + co-owner of a brand sees all songs the team saved, and the two fragment-RLS grant points.
-- _(candidates)_ — one-time-stream data flow.
+Platform behaviour is documented in the **OKF knowledge bundle**, which lives in jesoos at
+`src/main/resources/knowledge/`. datanest's own `*_WORKFLOW.md` files were folded into it and deleted —
+there is no second copy. The datanest-relevant concepts are:
+
+- `concepts/data-access.md` — how Row-Level Security scopes every read/write to the caller (ACL tables,
+  grant-on-insert, `SuperUser`).
+- `workflows/sharing-and-approvals.md` — station-to-station shares **and** artist contributions — the
+  same `SharedSoundFragment`/`ApprovalStatus` mechanism for both, the two access layers, reversibility,
+  audio preview, and the "received" inbox.
+- `workflows/song-submission.md` — the chat and public web-form intake, `requiresApproval`, and
+  submitter-account resolution.
+- `workflows/brand-team-visibility.md` — why every owner and co-owner of a brand sees all songs the team
+  saved, and the two fragment-RLS grant points.
+
+Update the concept in jesoos when datanest behaviour changes.
 
 ## datanest Conventions
 
@@ -28,7 +34,8 @@ datanest is a CRUD backend; it works with the `Mixdeck` (user) and `42next` (adm
 - **Repositories are private to their Service.** A repository is accessed **only** through its own
   service; never call another feature's repository directly from elsewhere.
 - **RLS is always on** in datanest (it backs the Mixdeck subscriber FE) — every query is user-scoped.
-  See `RLS_WORKFLOW.md`. Do not carry this into jesoos/aivox, which skip RLS for performance.
+  See the bundle's `concepts/data-access.md`. Do not carry this into jesoos/aivox, which skip RLS for
+  performance.
 
 ## Database
 

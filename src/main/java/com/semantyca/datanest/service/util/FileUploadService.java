@@ -72,7 +72,8 @@ public class FileUploadService {
     // Resolves each station slug to a brand UUID once per batch (cached, so later chunks of the
     // same upload don't need to resend/re-resolve them). A submission may target multiple
     // stations — each becomes its own independent PENDING share on the same SoundFragment, see
-    // SharedSoundFragmentService.shareContribution and SHARING_WORKFLOW.md §3.
+    // SharedSoundFragmentService.shareContribution and the knowledge bundle
+    // workflows/sharing-and-approvals.md.
     private Uni<Void> resolveBrandSlugsIfNeeded(String batchId, List<String> brandSlugs) {
         if (brandSlugs.isEmpty()) {
             return Uni.createFrom().voidItem();

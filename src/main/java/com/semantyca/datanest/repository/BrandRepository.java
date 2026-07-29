@@ -592,7 +592,8 @@ public class BrandRepository extends AsyncRepository {
 
     // Re-check on brand save: grant every current owner + co-owner full fragment RLS on every
     // sound fragment already assigned to this brand, so a newly added co-owner retroactively sees
-    // songs saved before they joined. Never revokes (deliberate — see SHARING_WORKFLOW §2a).
+    // songs saved before they joined. Never revokes (deliberate — see the knowledge bundle
+    // workflows/brand-team-visibility.md).
     private Uni<Void> backfillFragmentRlsForBrandMembers(SqlClient tx, UUID brandId) {
         String sfRls = soundFragmentEntityData.getRlsName();
         String ownerSql = "INSERT INTO " + sfRls + " (reader, entity_id, can_edit, can_delete) " +

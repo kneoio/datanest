@@ -961,7 +961,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         // authenticated bulk upload (self-owned, no review needed). Contributions get NO brand
         // association and NO direct station RLS at creation — station-owner visibility comes
         // entirely from a PENDING share created below, the same mechanism used for station-to-
-        // station sharing (see SHARING_WORKFLOW.md).
+        // station sharing (see the knowledge bundle workflows/sharing-and-approvals.md).
         fragment.setSource(requiresApproval ? SourceType.CONTRIBUTION : SourceType.USER_UPLOAD);
         fragment.setStatus(1);
         fragment.setType(PlaylistItemType.SONG);
