@@ -1,5 +1,7 @@
 package com.semantyca.datanest.repository;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.model.FileMetadata;
@@ -19,6 +21,7 @@ import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.brand.BrandScriptEntry;
 import com.semantyca.mixpla.model.brand.Owner;
 import com.semantyca.mixpla.model.brand.ProfileOverriding;
+import com.semantyca.mixpla.model.brand.StreamHistoryEntry;
 import com.semantyca.mixpla.model.brand.StreamingOptions;
 import com.semantyca.mixpla.model.cnst.ChatFeatureFlag;
 import com.semantyca.mixpla.model.cnst.ManagedBy;
@@ -431,6 +434,17 @@ public class BrandRepository extends AsyncRepository {
                 }
             });
             doc.setChatFeatureFlags(chatFeatureFlags);
+        }
+
+        JsonArray streamHistoryJson = row.getJsonArray("stream_history");
+        if (streamHistoryJson != null && !streamHistoryJson.isEmpty()) {
+            try {
+                List<StreamHistoryEntry> streamHistory = mapper.readValue(streamHistoryJson.encode(), new TypeReference<>() {
+                });
+                doc.setStreamHistory(streamHistory);
+            } catch (JsonProcessingException e) {
+                doc.setStreamHistory(List.of());
+            }
         }
 
         Uni<Brand> uni = Uni.createFrom().item(doc);

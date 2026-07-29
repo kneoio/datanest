@@ -11,6 +11,7 @@ import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.datanest.dto.script.BrandScriptEntryDTO;
 import com.semantyca.datanest.dto.script.CustomScriptDTO;
 import com.semantyca.datanest.model.cnst.ScriptMode;
+import com.semantyca.mixpla.model.brand.StreamHistoryEntry;
 import com.semantyca.mixpla.model.brand.StreamingOptions;
 import com.semantyca.mixpla.model.cnst.ChatFeatureFlag;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
@@ -77,6 +78,7 @@ public class BrandDTO extends AbstractDTO {
     private UUID customScriptId;
     private ScriptMode scriptMode = ScriptMode.PREDEFINED;
     private StreamingOptions streamingOptions;
+    private StreamHistoryEntry lastStreamHistoryEntry;
     private CustomScriptDTO customScript;
     private OwnerDTO owner;
     private List<UUID> labels;

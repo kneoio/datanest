@@ -31,6 +31,7 @@ import com.semantyca.mixpla.model.brand.AiOverriding;
 import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.brand.BrandScriptEntry;
 import com.semantyca.mixpla.model.brand.Owner;
+import com.semantyca.mixpla.model.brand.StreamHistoryEntry;
 import com.semantyca.mixpla.model.brand.ProfileOverriding;
 import com.semantyca.mixpla.model.cnst.ManagedBy;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
@@ -432,6 +433,11 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             dto.setScriptMode(earlyMode);
             dto.setStreamingOptions(doc.getStreamingOptions());
             dto.setChatFeatureFlags(doc.getChatFeatureFlags());
+
+            List<StreamHistoryEntry> streamHistory = doc.getStreamHistory();
+            if (streamHistory != null && !streamHistory.isEmpty()) {
+                dto.setLastStreamHistoryEntry(streamHistory.get(streamHistory.size() - 1));
+            }
 
             if (ScriptMode.CUSTOM.equals(earlyMode) && doc.getCustomScriptId() != null) {
                 assert scriptService != null;
