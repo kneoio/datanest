@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
 import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.model.cnst.LanguageCode;
+import com.semantyca.datanest.dto.LabelFlatDTO;
 import com.semantyca.mixpla.model.cnst.PromptType;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -43,5 +44,5 @@ public class PromptDTO extends AbstractDTO {
     private List<RlsActionDTO> rlsActions = new ArrayList<>();
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<PromptDTO> children = new ArrayList<>();
-    private List<UUID> labels;
+    private List<LabelFlatDTO> labels;
 }

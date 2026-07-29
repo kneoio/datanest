@@ -67,7 +67,13 @@ public class PromptRepository extends AsyncRepository {
                 .execute()
                 .onFailure().invoke(throwable -> LOGGER.error("Failed to retrieve prompts for user: {}", user.getId(), throwable))
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
-                .onItem().transform(this::from)
+                .onItem().transformToUniAndConcatenate(row -> {
+                    DjPrompt doc = from(row);
+                    return loadLabels(doc.getId()).map(labels -> {
+                        doc.setLabels(labels);
+                        return doc;
+                    });
+                })
                 .collect().asList();
     }
 
@@ -86,7 +92,13 @@ public class PromptRepository extends AsyncRepository {
                 .execute()
                 .onFailure().invoke(throwable -> LOGGER.error("Failed to retrieve master prompts for user: {}", user.getId(), throwable))
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
-                .onItem().transform(this::from)
+                .onItem().transformToUniAndConcatenate(row -> {
+                    DjPrompt doc = from(row);
+                    return loadLabels(doc.getId()).map(labels -> {
+                        doc.setLabels(labels);
+                        return doc;
+                    });
+                })
                 .collect().asList();
     }
 
@@ -118,7 +130,13 @@ public class PromptRepository extends AsyncRepository {
         return client.preparedQuery(sql)
                 .execute(params)
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
-                .onItem().transform(this::from)
+                .onItem().transformToUniAndConcatenate(row -> {
+                    DjPrompt doc = from(row);
+                    return loadLabels(doc.getId()).map(labels -> {
+                        doc.setLabels(labels);
+                        return doc;
+                    });
+                })
                 .collect().asList();
     }
 

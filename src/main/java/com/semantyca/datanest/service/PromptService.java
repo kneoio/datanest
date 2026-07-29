@@ -7,11 +7,14 @@ import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
+import com.semantyca.datanest.dto.LabelFlatDTO;
 import com.semantyca.datanest.dto.script.PromptDTO;
 import com.semantyca.datanest.dto.script.PromptOptionDTO;
 import com.semantyca.datanest.repository.prompt.PromptRepository;
 import com.semantyca.mixpla.model.DjPrompt;
 import com.semantyca.mixpla.model.filter.PromptFilter;
+import com.semantyca.officeframe.dto.LabelDTO;
+import com.semantyca.officeframe.service.LabelService;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -21,17 +24,20 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class PromptService extends AbstractService<DjPrompt, PromptDTO> {
     private final PromptRepository repository;
+    private final LabelService labelService;
 
     @Inject
-    public PromptService(UserService userService, PromptRepository repository) {
+    public PromptService(UserService userService, PromptRepository repository, LabelService labelService) {
         super(userService);
         this.repository = repository;
+        this.labelService = labelService;
     }
 
     public Uni<List<PromptDTO>> getAllDTO(final int limit, final int offset, final IUser user, final PromptFilter filter) {
@@ -167,7 +173,8 @@ public class PromptService extends AbstractService<DjPrompt, PromptDTO> {
     private Uni<PromptDTO> mapToDTO(DjPrompt doc) {
         return Uni.combine().all().unis(
                 userService.getUserName(doc.getAuthor()),
-                userService.getUserName(doc.getLastModifier())
+                userService.getUserName(doc.getLastModifier()),
+                mapLabels(doc.getLabels())
         ).asTuple().map(tuple -> {
             PromptDTO dto = new PromptDTO();
             dto.setId(doc.getId());
@@ -190,9 +197,20 @@ public class PromptService extends AbstractService<DjPrompt, PromptDTO> {
             dto.setAllowAsOption(doc.getAllowAsOption());
             dto.setLocalizedOptionName(doc.getLocalizedOptionName());
             dto.setExposedVariables(doc.getExposedVariables());
-            dto.setLabels(doc.getLabels());
+            dto.setLabels(tuple.getItem3());
             return dto;
         });
+    }
+
+    private Uni<List<LabelFlatDTO>> mapLabels(List<UUID> labelIds) {
+        if (labelIds == null || labelIds.isEmpty()) {
+            return Uni.createFrom().item(List.of());
+        }
+        List<Uni<LabelDTO>> labelUnis = labelIds.stream()
+                .map(labelId -> labelService.getDTO(labelId, null, LanguageCode.en))
+                .collect(Collectors.toList());
+        return Uni.join().all(labelUnis).andFailFast()
+                .map(labels -> labels.stream().map(LabelFlatDTO::from).toList());
     }
 
     private DjPrompt buildEntity(PromptDTO dto) {
@@ -217,7 +235,12 @@ public class PromptService extends AbstractService<DjPrompt, PromptDTO> {
         doc.setAllowAsOption(dto.getAllowAsOption());
         doc.setLocalizedOptionName(dto.getLocalizedOptionName());
         doc.setExposedVariables(dto.getExposedVariables() != null ? dto.getExposedVariables() : new io.vertx.core.json.JsonArray());
-        doc.setLabels(dto.getLabels());
+        if (dto.getLabels() != null) {
+            doc.setLabels(dto.getLabels().stream()
+                    .map(LabelFlatDTO::getId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toCollection(ArrayList::new)));
+        }
         return doc;
     }
 
