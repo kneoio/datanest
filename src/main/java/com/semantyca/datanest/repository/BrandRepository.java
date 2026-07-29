@@ -16,6 +16,7 @@ import com.semantyca.core.repository.exception.DocumentModificationAccessExcepti
 import com.semantyca.core.repository.rls.RLSRepository;
 import com.semantyca.core.repository.rls.RlsActionUtil;
 import com.semantyca.core.repository.table.EntityData;
+import com.semantyca.datanest.dto.script.BrandScriptEntryDTO;
 import com.semantyca.mixpla.model.brand.AiOverriding;
 import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.brand.BrandScriptEntry;
@@ -729,6 +730,26 @@ public class BrandRepository extends AsyncRepository {
                 .onItem().transform(row -> {
                     BrandScriptEntry entry = new BrandScriptEntry();
                     entry.setScriptId(row.getUUID("script_id"));
+                    JsonObject userVarsJson = row.getJsonObject("user_variables");
+                    if (userVarsJson != null) {
+                        entry.setUserVariables(userVarsJson.getMap());
+                    }
+                    return entry;
+                })
+                .collect().asList();
+    }
+
+    public Uni<List<BrandScriptEntryDTO>> getScriptEntryDTOsForBrand(UUID brandId) {
+        String sql = "SELECT s.slug_name, bs.user_variables " +
+                "FROM mixpla__brand_scripts bs " +
+                "JOIN mixpla__scripts s ON s.id = bs.script_id " +
+                "WHERE bs.brand_id = $1 ORDER BY bs.rank";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(brandId))
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transform(row -> {
+                    BrandScriptEntryDTO entry = new BrandScriptEntryDTO();
+                    entry.setSlugName(row.getString("slug_name"));
                     JsonObject userVarsJson = row.getJsonObject("user_variables");
                     if (userVarsJson != null) {
                         entry.setUserVariables(userVarsJson.getMap());

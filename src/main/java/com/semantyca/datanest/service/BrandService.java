@@ -235,6 +235,10 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                         resolvedDto, user,
                         existing != null ? existing.getSlugName() : WebHelper.generateSlug(dto.getLocalizedName()),
                         existing != null ? existing.getOwner() : null)))
+                .chain(entity -> resolveScriptEntries(dto, user).map(entries -> {
+                    entity.setScriptIds(entries);
+                    return entity;
+                }))
                 .chain(entity -> {
                     if (isNew) {
                         entity.setPopularityRate(5);
@@ -332,7 +336,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         return Uni.combine().all().unis(
                 userService.getUserName(doc.getAuthor()),
                 userService.getUserName(doc.getLastModifier()),
-                repository.getScriptEntriesForBrand(doc.getId())
+                repository.getScriptEntryDTOsForBrand(doc.getId())
         ).asTuple().chain(tuple -> {
             BrandDTO dto = new BrandDTO();
             dto.setId(doc.getId());
@@ -392,15 +396,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             }
             ScriptMode earlyMode = ScriptMode.valueOf(doc.getScriptMode() != null ? doc.getScriptMode() : ScriptMode.PREDEFINED.name());
             if (!ScriptMode.CUSTOM.equals(earlyMode)) {
-                List<BrandScriptEntryDTO> scriptDTOs = tuple.getItem3().stream()
-                        .map(entry -> {
-                            BrandScriptEntryDTO scriptDTO = new BrandScriptEntryDTO();
-                            scriptDTO.setScriptId(entry.getScriptId());
-                            scriptDTO.setUserVariables(entry.getUserVariables());
-                            return scriptDTO;
-                        })
-                        .collect(Collectors.toList());
-                dto.setScriptIds(scriptDTOs);
+                dto.setScriptIds(tuple.getItem3());
             } else {
                 dto.setCustomScriptId(doc.getCustomScriptId());
             }
@@ -617,15 +613,32 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
         if (ScriptMode.CUSTOM.equals(dto.getScriptMode())) {
             doc.setCustomScriptId(dto.getCustomScriptId());
-        } else if (dto.getScriptIds() != null && !dto.getScriptIds().isEmpty()) {
-            BrandScriptEntryDTO first = dto.getScriptIds().getFirst();
-            doc.setScriptIds(List.of(new BrandScriptEntry(first.getScriptId(), first.getUserVariables())));
         }
         doc.setScriptMode(dto.getScriptMode() != null ? dto.getScriptMode().name() : ScriptMode.PREDEFINED.name());
         doc.setStreamingOptions(dto.getStreamingOptions());
         doc.setChatFeatureFlags(dto.getChatFeatureFlags());
 
         return doc;
+    }
+
+    /**
+     * Resolves {@link BrandScriptEntryDTO#getSlugName()} to domain entries.
+     * Returns {@code null} when no scripts were sent (skip updating brand_scripts) or mode is CUSTOM.
+     */
+    protected Uni<List<BrandScriptEntry>> resolveScriptEntries(BrandDTO dto, IUser user) {
+        if (ScriptMode.CUSTOM.equals(dto.getScriptMode())) {
+            return Uni.createFrom().nullItem();
+        }
+        if (dto.getScriptIds() == null || dto.getScriptIds().isEmpty()) {
+            return Uni.createFrom().nullItem();
+        }
+        BrandScriptEntryDTO first = dto.getScriptIds().getFirst();
+        if (first.getSlugName() == null || first.getSlugName().isBlank()) {
+            return Uni.createFrom().nullItem();
+        }
+        assert scriptService != null;
+        return scriptService.getIdBySlug(first.getSlugName(), user)
+                .map(uuid -> List.of(new BrandScriptEntry(uuid, first.getUserVariables())));
     }
 
     public Uni<List<DocumentAccessDTO>> getDocumentAccess(UUID documentId, IUser user) {
