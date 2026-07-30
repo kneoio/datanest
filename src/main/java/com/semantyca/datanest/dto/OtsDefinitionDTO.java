@@ -12,8 +12,6 @@ import lombok.Setter;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-
 @Setter
 @Getter
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -21,10 +19,10 @@ public class OtsDefinitionDTO extends AbstractDTO {
     private String name;
     private String slugName;
     @NotNull
-    private UUID scriptId;
+    private String scriptSlug;
     private Map<String, Object> userVariables;
-    private UUID brandId;
-    private UUID agentId;
+    private String brandSlug;
+    private String agentSlug;
     private OtsRunStatus status;
     private List<OtsStatusHistoryEntry> statusHistory;
     private OtsRunType type;

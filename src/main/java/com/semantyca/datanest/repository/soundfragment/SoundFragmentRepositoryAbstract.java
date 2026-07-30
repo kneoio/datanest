@@ -198,6 +198,28 @@ public abstract class SoundFragmentRepositoryAbstract extends AsyncRepository {
                 .collect().asList();
     }
 
+    public Uni<List<String>> loadGenreIdentifiers(UUID soundFragmentId) {
+        String sql = "SELECT g.identifier FROM __genres g " +
+                "JOIN mixpla__sound_fragment_genres sfg ON g.id = sfg.genre_id " +
+                "WHERE sfg.sound_fragment_id = $1 ORDER BY g.identifier";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(soundFragmentId))
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transform(row -> row.getString("identifier"))
+                .collect().asList();
+    }
+
+    public Uni<List<String>> loadLabelIdentifiers(UUID soundFragmentId) {
+        String sql = "SELECT l.identifier FROM __labels l " +
+                "JOIN mixpla__sound_fragment_labels sfl ON l.id = sfl.label_id " +
+                "WHERE sfl.id = $1 ORDER BY l.identifier";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(soundFragmentId))
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transform(row -> row.getString("identifier"))
+                .collect().asList();
+    }
+
     public Uni<Integer> markAsCorrupted(UUID uuid) {
         IUser user = SuperUser.build();
         return rlsRepository.findById(entityData.getRlsName(), user.getId(), uuid)

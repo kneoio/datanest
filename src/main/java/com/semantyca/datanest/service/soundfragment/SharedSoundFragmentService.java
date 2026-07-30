@@ -176,7 +176,12 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
                 .chain(list -> {
                     List<UUID> soundFragmentIds = list.stream().map(SharedSoundFragment::getSoundFragmentId).collect(Collectors.toList());
                     return soundFragmentRepository.getSlugNamesByIds(soundFragmentIds)
-                            .map(slugMap -> list.stream().map(e -> toPublicSharingPreviewDTO(e, slugMap)).collect(Collectors.toList()));
+                            .chain(slugMap -> {
+                                List<Uni<ReceivedSharePublicDTO>> unis = list.stream()
+                                        .map(e -> toPublicSharingPreviewDTO(e, slugMap))
+                                        .collect(Collectors.toList());
+                                return Uni.join().all(unis).andFailFast();
+                            });
                 });
     }
 
@@ -289,35 +294,40 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return dto;
     }
 
-    private ReceivedSharePublicDTO toPublicSharingPreviewDTO(SharedSoundFragment e, Map<UUID, String> soundFragmentSlugs) {
-        ReceivedSharePublicDTO dto = new ReceivedSharePublicDTO();
-        dto.setId(e.getId());
-        dto.setTitle(e.getTitle());
-        dto.setArtist(e.getArtist());
-        dto.setType(e.getType());
-        dto.setAlbum(e.getAlbum());
-        dto.setGenres(e.getGenres());
-        dto.setLabels(e.getLabels());
-        dto.setSharerUserName(e.getSourceUserName());
-        dto.setSharerUserEmail(e.getSourceUserEmail());
-        dto.setTargetBrandId(e.getTargetBrandId());
-        dto.setTargetBrandName(e.getTargetBrandName());
-        dto.setBoost(e.getBoost() != null ? e.getBoost() : 0);
-        dto.setStatus(e.getStatus());
-        dto.setNotifyOnPlay(Boolean.TRUE.equals(e.getNotifyOnPlay()));
-        String soundFragmentSlug = soundFragmentSlugs.get(e.getSoundFragmentId());
-        dto.setSlugName(soundFragmentSlug);
-        if (e.getFileMetadataList() != null && !e.getFileMetadataList().isEmpty() && soundFragmentSlug != null) {
-            dto.setUploadedFiles(e.getFileMetadataList().stream().map(meta -> {
-                UploadFileDTO fileDto = new UploadFileDTO();
-                fileDto.setId(meta.getSlugName());
-                fileDto.setName(meta.getFileOriginalName());
-                fileDto.setUrl("/datanest/public/soundfragments/files/" + soundFragmentSlug + "/" + meta.getSlugName());
-                fileDto.setType(meta.getFileType() == FileType.OPUS_ENCODED_SOUND_FRAGMENT ? "opus" : "original");
-                return fileDto;
-            }).collect(Collectors.toList()));
-        }
-        return dto;
+    private Uni<ReceivedSharePublicDTO> toPublicSharingPreviewDTO(SharedSoundFragment e, Map<UUID, String> soundFragmentSlugs) {
+        return Uni.combine().all().unis(
+                repository.loadGenreIdentifiers(e.getSoundFragmentId()),
+                repository.loadLabelIdentifiers(e.getSoundFragmentId())
+        ).asTuple().map(tuple -> {
+            ReceivedSharePublicDTO dto = new ReceivedSharePublicDTO();
+            dto.setId(e.getId());
+            dto.setTitle(e.getTitle());
+            dto.setArtist(e.getArtist());
+            dto.setType(e.getType());
+            dto.setAlbum(e.getAlbum());
+            dto.setGenres(tuple.getItem1());
+            dto.setLabels(tuple.getItem2());
+            dto.setSharerUserName(e.getSourceUserName());
+            dto.setSharerUserEmail(e.getSourceUserEmail());
+            dto.setTargetBrandId(e.getTargetBrandId());
+            dto.setTargetBrandName(e.getTargetBrandName());
+            dto.setBoost(e.getBoost() != null ? e.getBoost() : 0);
+            dto.setStatus(e.getStatus());
+            dto.setNotifyOnPlay(Boolean.TRUE.equals(e.getNotifyOnPlay()));
+            String soundFragmentSlug = soundFragmentSlugs.get(e.getSoundFragmentId());
+            dto.setSlugName(soundFragmentSlug);
+            if (e.getFileMetadataList() != null && !e.getFileMetadataList().isEmpty() && soundFragmentSlug != null) {
+                dto.setUploadedFiles(e.getFileMetadataList().stream().map(meta -> {
+                    UploadFileDTO fileDto = new UploadFileDTO();
+                    fileDto.setId(meta.getSlugName());
+                    fileDto.setName(meta.getFileOriginalName());
+                    fileDto.setUrl("/datanest/public/soundfragments/files/" + soundFragmentSlug + "/" + meta.getSlugName());
+                    fileDto.setType(meta.getFileType() == FileType.OPUS_ENCODED_SOUND_FRAGMENT ? "opus" : "original");
+                    return fileDto;
+                }).collect(Collectors.toList()));
+            }
+            return dto;
+        });
     }
 
     private ShareDTO toDTO(SharedSoundFragment e) {

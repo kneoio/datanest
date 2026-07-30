@@ -26,6 +26,7 @@ import org.jboss.logging.Logger;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -40,6 +41,8 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
 
     private final OtsDefinitionRepository repository;
     private final ScriptService scriptService;
+    private final BrandService brandService;
+    private final AiAgentService aiAgentService;
     private final AnthropicTextClient anthropicTextClient;
     private final DatanestConfig config;
     private final CommandPublisher commandPublisher;
@@ -48,12 +51,16 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
     public OtsDefinitionService(UserService userService,
                                  OtsDefinitionRepository repository,
                                  ScriptService scriptService,
+                                 BrandService brandService,
+                                 AiAgentService aiAgentService,
                                  AnthropicTextClient anthropicTextClient,
                                  DatanestConfig config,
                                  CommandPublisher commandPublisher) {
         super(userService);
         this.repository = repository;
         this.scriptService = scriptService;
+        this.brandService = brandService;
+        this.aiAgentService = aiAgentService;
         this.anthropicTextClient = anthropicTextClient;
         this.config = config;
         this.commandPublisher = commandPublisher;
@@ -81,11 +88,12 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
         return repository.findById(id, user, false).chain(this::mapToDTO);
     }
 
-    public Uni<OtsDefinitionDTO> getNewDTO(UUID scriptId, IUser user) {
-        return scriptService.getById(scriptId, SuperUser.build())
+    public Uni<OtsDefinitionDTO> getNewDTO(String scriptSlug, IUser user) {
+        return scriptService.getIdBySlug(scriptSlug, user)
+                .chain(scriptId -> scriptService.getById(scriptId, SuperUser.build()))
                 .map(script -> {
                     OtsDefinitionDTO dto = new OtsDefinitionDTO();
-                    dto.setScriptId(script.getId());
+                    dto.setScriptSlug(script.getSlugName());
                     dto.setName(script.getName());
                     dto.setColor(script.getColor());
                     dto.setRequiredVariables(script.getRequiredVariables());
@@ -95,9 +103,9 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
 
     @Override
     public Uni<OtsDefinitionDTO> upsert(String id, OtsDefinitionDTO dto, IUser user, LanguageCode code) {
-        if (dto.getBrandId() == null && dto.getAgentId() == null) {
+        if (dto.getBrandSlug() == null && dto.getAgentSlug() == null) {
             return Uni.createFrom().failure(
-                    new IllegalArgumentException("agentId is required when brandId is not set"));
+                    new IllegalArgumentException("agentSlug is required when brandSlug is not set"));
         }
         if ("new".equalsIgnoreCase(id) || id == null || id.isBlank()) {
             return create(dto, user);
@@ -119,21 +127,23 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
     }
 
     private Uni<OtsDefinitionDTO> update(UUID id, OtsDefinitionDTO dto, IUser user) {
-        return scriptService.getById(dto.getScriptId(), SuperUser.build())
+        return getScriptBySlug(dto.getScriptSlug(), user)
                 .chain(script -> validateOtsCompatible(script)
-                        .chain(v -> calculateEstimatedDurationMin(dto.getScriptId(), user))
+                        .chain(v -> calculateEstimatedDurationMin(script.getId(), user))
                         .chain(estimatedDurationMin -> {
-                            OtsDefinition entity = buildEntity(dto);
-                            entity.setName(script.getName());
-                            entity.setEstimatedDurationMin(estimatedDurationMin);
-                            entity.setChatContext(buildChatContext(script, dto.getUserVariables()));
-                            return repository.update(id, entity, user);
+                            return buildEntity(dto, script.getId(), user)
+                                    .chain(entity -> {
+                                        entity.setName(script.getName());
+                                        entity.setEstimatedDurationMin(estimatedDurationMin);
+                                        entity.setChatContext(buildChatContext(script, dto.getUserVariables()));
+                                        return repository.update(id, entity, user);
+                                    });
                         }))
                 .chain(this::mapToDTO);
     }
 
     private Uni<OtsDefinitionDTO> create(OtsDefinitionDTO dto, IUser user) {
-        return scriptService.getById(dto.getScriptId(), SuperUser.build())
+        return getScriptBySlug(dto.getScriptSlug(), user)
                 .chain(script -> validateOtsCompatible(script).chain(v -> generateName(script, dto.getUserVariables()))
                         .chain(name -> {
                             String slug = WebHelper.generateSlug(name + "-" + System.currentTimeMillis());
@@ -143,14 +153,16 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
                                             return Uni.createFrom().failure(
                                                     new IllegalArgumentException("An ots definition with slug '" + slug + "' already exists"));
                                         }
-                                        return calculateEstimatedDurationMin(dto.getScriptId(), user)
+                                        return calculateEstimatedDurationMin(script.getId(), user)
                                                 .chain(estimatedDurationMin -> {
-                                                    OtsDefinition entity = buildEntity(dto);
-                                                    entity.setName(name);
-                                                    entity.setSlugName(slug);
-                                                    entity.setEstimatedDurationMin(estimatedDurationMin);
-                                                    entity.setChatContext(buildChatContext(script, dto.getUserVariables()));
-                                                    return repository.insert(entity, user);
+                                                    return buildEntity(dto, script.getId(), user)
+                                                            .chain(entity -> {
+                                                                entity.setName(name);
+                                                                entity.setSlugName(slug);
+                                                                entity.setEstimatedDurationMin(estimatedDurationMin);
+                                                                entity.setChatContext(buildChatContext(script, dto.getUserVariables()));
+                                                                return repository.insert(entity, user);
+                                                            });
                                                 });
                                     });
                         })
@@ -177,15 +189,30 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
                 });
     }
 
-    private OtsDefinition buildEntity(OtsDefinitionDTO dto) {
+    private Uni<Script> getScriptBySlug(String scriptSlug, IUser user) {
+        return scriptService.getIdBySlug(scriptSlug, user)
+                .chain(scriptId -> scriptService.getById(scriptId, SuperUser.build()));
+    }
+
+    private Uni<OtsDefinition> buildEntity(OtsDefinitionDTO dto, UUID scriptId, IUser user) {
         OtsDefinition entity = new OtsDefinition();
         entity.setName(dto.getName());
-        entity.setScriptId(dto.getScriptId());
+        entity.setScriptId(scriptId);
         entity.setUserVariables(dto.getUserVariables());
-        entity.setBrandId(dto.getBrandId());
-        entity.setAgentId(dto.getAgentId());
         entity.setType(dto.getType());
-        return entity;
+
+        Uni<Void> brandUni = dto.getBrandSlug() == null || dto.getBrandSlug().isBlank()
+                ? Uni.createFrom().voidItem()
+                : brandService.getBySlugNameForUser(dto.getBrandSlug(), user)
+                        .invoke(brand -> entity.setBrandId(brand.getId()))
+                        .replaceWithVoid();
+        Uni<Void> agentUni = dto.getAgentSlug() == null || dto.getAgentSlug().isBlank()
+                ? Uni.createFrom().voidItem()
+                : aiAgentService.getIdBySlug(dto.getAgentSlug(), user)
+                        .invoke(entity::setAgentId)
+                        .replaceWithVoid();
+
+        return Uni.combine().all().unis(brandUni, agentUni).discardItems().replaceWith(entity);
     }
 
     private String buildChatContext(Script script, Map<String, Object> userVariables) {
@@ -234,7 +261,15 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
     private Uni<OtsDefinitionDTO> mapToDTO(OtsDefinition ots) {
         return Uni.combine().all().unis(
                 userService.getUserName(ots.getAuthor()),
-                userService.getUserName(ots.getLastModifier())
+                userService.getUserName(ots.getLastModifier()),
+                scriptService.getSlugById(ots.getScriptId()),
+                ots.getBrandId() == null
+                        ? Uni.createFrom().item(Optional.<String>empty())
+                        : brandService.getById(ots.getBrandId(), SuperUser.build())
+                                .map(brand -> Optional.ofNullable(brand.getSlugName())),
+                ots.getAgentId() == null
+                        ? Uni.createFrom().item(Optional.<String>empty())
+                        : aiAgentService.getSlugById(ots.getAgentId()).map(Optional::ofNullable)
         ).asTuple().map(tuple -> {
             OtsDefinitionDTO dto = new OtsDefinitionDTO();
             dto.setId(ots.getId());
@@ -244,10 +279,10 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
             dto.setLastModifiedDate(ots.getLastModifiedDate());
             dto.setName(ots.getName());
             dto.setSlugName(ots.getSlugName());
-            dto.setScriptId(ots.getScriptId());
+            dto.setScriptSlug(tuple.getItem3());
             dto.setUserVariables(ots.getUserVariables());
-            dto.setBrandId(ots.getBrandId());
-            dto.setAgentId(ots.getAgentId());
+            dto.setBrandSlug(tuple.getItem4().orElse(null));
+            dto.setAgentSlug(tuple.getItem5().orElse(null));
             dto.setStatus(ots.getStatus());
             dto.setStatusHistory(ots.getStatusHistory());
             dto.setType(ots.getType());

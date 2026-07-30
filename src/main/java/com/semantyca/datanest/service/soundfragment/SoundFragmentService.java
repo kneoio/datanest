@@ -288,51 +288,56 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                 assert sharedSoundFragmentService != null;
                                 return sharedSoundFragmentService.listShareDTO(doc.getId())
                                         .chain(shared -> mapToDTO(doc, true, representedInBrands, shared))
-                                        .map(dto -> {
+                                        .chain(dto -> {
                                             dto.setLikes(ratings[0]);
                                             dto.setDislikes(ratings[1]);
                                             if (dto.getUploadedFiles() != null) {
                                                 dto.getUploadedFiles().forEach(f ->
                                                         f.setUrl("/datanest/public/soundfragments/files/" + slugName + "/" + f.getId()));
                                             }
-                                            return toPublicDTO(dto, slugName, brandSlugs);
+                                            return toPublicDTO(dto, slugName, brandSlugs, doc.getId());
                                         });
                             });
                 });
     }
 
-    private SoundFragmentPublicDTO toPublicDTO(SoundFragmentDTO src, String slugName, List<String> brandSlugs) {
-        SoundFragmentPublicDTO dto = new SoundFragmentPublicDTO();
-        dto.setRegDate(src.getRegDate());
-        dto.setLastModifiedDate(src.getLastModifiedDate());
-        dto.setSource(src.getSource());
-        dto.setStreamUrl(src.getStreamUrl());
-        dto.setStatus(src.getStatus());
-        dto.setType(src.getType());
-        dto.setTitle(src.getTitle());
-        dto.setArtist(src.getArtist());
-        dto.setArtistId(src.getArtistId());
-        dto.setGenres(src.getGenres());
-        dto.setLabels(src.getLabels());
-        dto.setAlbum(src.getAlbum());
-        dto.setSlugName(slugName);
-        dto.setLength(src.getLength());
-        dto.setBoost(src.getBoost());
-        dto.setDescription(src.getDescription());
-        dto.setRepresentedInBrands(brandSlugs);
-        dto.setExpiresAt(src.getExpiresAt());
-        dto.setShared(src.isShared());
-        dto.setScheduled(src.isScheduled());
-        dto.setLikes(src.getLikes());
-        dto.setDislikes(src.getDislikes());
-        dto.setAddInfo(src.getAddInfo());
-        dto.setBrands(src.getBrands());
-        dto.setUploadedFiles(src.getUploadedFiles());
-        dto.setSchedule(src.getSchedule());
-        dto.setPlayHistory(src.getPlayHistory());
-        dto.setSharedWith(src.getSharedWith());
-        dto.setRlsActions(src.getRlsActions());
-        return dto;
+    private Uni<SoundFragmentPublicDTO> toPublicDTO(SoundFragmentDTO src, String slugName, List<String> brandSlugs, UUID soundFragmentId) {
+        return Uni.combine().all().unis(
+                repository.loadGenreIdentifiers(soundFragmentId),
+                repository.loadLabelIdentifiers(soundFragmentId)
+        ).asTuple().map(tuple -> {
+            SoundFragmentPublicDTO dto = new SoundFragmentPublicDTO();
+            dto.setRegDate(src.getRegDate());
+            dto.setLastModifiedDate(src.getLastModifiedDate());
+            dto.setSource(src.getSource());
+            dto.setStreamUrl(src.getStreamUrl());
+            dto.setStatus(src.getStatus());
+            dto.setType(src.getType());
+            dto.setTitle(src.getTitle());
+            dto.setArtist(src.getArtist());
+            dto.setArtistId(src.getArtistId());
+            dto.setGenres(tuple.getItem1());
+            dto.setLabels(tuple.getItem2());
+            dto.setAlbum(src.getAlbum());
+            dto.setSlugName(slugName);
+            dto.setLength(src.getLength());
+            dto.setBoost(src.getBoost());
+            dto.setDescription(src.getDescription());
+            dto.setRepresentedInBrands(brandSlugs);
+            dto.setExpiresAt(src.getExpiresAt());
+            dto.setShared(src.isShared());
+            dto.setScheduled(src.isScheduled());
+            dto.setLikes(src.getLikes());
+            dto.setDislikes(src.getDislikes());
+            dto.setAddInfo(src.getAddInfo());
+            dto.setBrands(src.getBrands());
+            dto.setUploadedFiles(src.getUploadedFiles());
+            dto.setSchedule(src.getSchedule());
+            dto.setPlayHistory(src.getPlayHistory());
+            dto.setSharedWith(src.getSharedWith());
+            dto.setRlsActions(src.getRlsActions());
+            return dto;
+        });
     }
 
     public Uni<UUID> getIdBySlug(String slugName, IUser user) {

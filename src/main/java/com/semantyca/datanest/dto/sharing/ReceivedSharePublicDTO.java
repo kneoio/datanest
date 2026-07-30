@@ -21,8 +21,8 @@ public class ReceivedSharePublicDTO {
     private String title;
     private String artist;
     private PlaylistItemType type;
-    private List<UUID> genres;
-    private List<UUID> labels;
+    private List<String> genres;
+    private List<String> labels;
     private String album;
     private String sharerUserName;
     private String sharerUserEmail;

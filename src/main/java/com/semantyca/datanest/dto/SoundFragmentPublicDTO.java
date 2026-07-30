@@ -39,8 +39,8 @@ public class SoundFragmentPublicDTO {
     private String title;
     private String artist;
     private UUID artistId;
-    private List<UUID> genres;
-    private List<UUID> labels;
+    private List<String> genres;
+    private List<String> labels;
     private String album;
     private String slugName;
     @JsonSerialize(using = DurationSerializer.class)

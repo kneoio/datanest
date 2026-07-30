@@ -453,6 +453,28 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .collect().asList();
     }
 
+    public Uni<List<String>> loadGenreIdentifiers(UUID soundFragmentId) {
+        String sql = "SELECT g.identifier FROM __genres g " +
+                "JOIN " + SF_GENRES_TABLE + " sfg ON g.id = sfg.genre_id " +
+                "WHERE sfg.sound_fragment_id = $1 ORDER BY g.identifier";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(soundFragmentId))
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transform(r -> r.getString("identifier"))
+                .collect().asList();
+    }
+
+    public Uni<List<String>> loadLabelIdentifiers(UUID soundFragmentId) {
+        String sql = "SELECT l.identifier FROM __labels l " +
+                "JOIN " + SF_LABELS_TABLE + " sfl ON l.id = sfl.label_id " +
+                "WHERE sfl.id = $1 ORDER BY l.identifier";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(soundFragmentId))
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transform(r -> r.getString("identifier"))
+                .collect().asList();
+    }
+
     // Grants share-entity RLS (on the SharedSoundFragment row, not the underlying fragment) to the
     // target brand's owner AND co-owners, so all of them see the offer in their "received" inbox.
     // grantFromJsonField only ever extracted the single scalar owner->>'userId' - co-owners were
