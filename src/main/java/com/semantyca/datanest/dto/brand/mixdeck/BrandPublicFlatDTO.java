@@ -11,14 +11,12 @@ import lombok.Setter;
 import java.net.URL;
 import java.time.ZonedDateTime;
 import java.util.EnumMap;
-import java.util.UUID;
 
 @Setter
 @Getter
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class BrandPublicFlatDTO {
-    private UUID id;
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd.MM.yyyy HH:mm")
     private ZonedDateTime regDate;
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd.MM.yyyy HH:mm")

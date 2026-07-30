@@ -201,6 +201,38 @@ public class PromptRepository extends AsyncRepository {
                 }));
     }
 
+    public Uni<UUID> findIdBySlugName(String slugName, IUser user) {
+        String sql = "SELECT theTable.id " +
+                "FROM %s theTable " +
+                "JOIN %s rls ON theTable.id = rls.entity_id " +
+                "WHERE rls.reader = $1 AND theTable.slug_name = $2 AND theTable.archived = 0";
+
+        return client.preparedQuery(String.format(sql, entityData.getTableName(), entityData.getRlsName()))
+                .execute(Tuple.of(user.getId(), slugName))
+                .onItem().transform(RowSet::iterator)
+                .onItem().transformToUni(iterator -> {
+                    if (iterator.hasNext()) {
+                        return Uni.createFrom().item(iterator.next().getUUID("id"));
+                    }
+                    return Uni.createFrom().failure(new DocumentHasNotFoundException(slugName));
+                });
+    }
+
+    public Uni<String> findSlugNameById(UUID id) {
+        String sql = "SELECT slug_name FROM " + entityData.getTableName() +
+                " WHERE id = $1 AND archived = 0";
+
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(id))
+                .onItem().transform(RowSet::iterator)
+                .onItem().transformToUni(iterator -> {
+                    if (iterator.hasNext()) {
+                        return Uni.createFrom().item(iterator.next().getString("slug_name"));
+                    }
+                    return Uni.createFrom().failure(new DocumentHasNotFoundException(id));
+                });
+    }
+
     public Uni<List<DjPrompt>> findByIds(List<UUID> ids, IUser user) {
         if (ids == null || ids.isEmpty()) {
             return Uni.createFrom().item(List.of());

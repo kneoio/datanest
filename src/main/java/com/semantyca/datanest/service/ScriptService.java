@@ -22,6 +22,9 @@ import com.semantyca.datanest.dto.script.ScenePromptDTO;
 import com.semantyca.datanest.dto.script.ScriptDTO;
 import com.semantyca.datanest.dto.script.ScriptExportDTO;
 import com.semantyca.datanest.dto.script.ScriptFlatDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.LabelMixdeckFlatDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.ScriptMixdeckDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.ScriptMixdeckFlatDTO;
 import com.semantyca.datanest.repository.ScriptRepository;
 import com.semantyca.mixpla.model.BrandScript;
 import com.semantyca.mixpla.model.DjPrompt;
@@ -55,6 +58,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
     private final PromptService promptService;
     private final DraftService draftService;
     private final LabelService labelService;
+    private final ProfileService profileService;
 
     protected ScriptService() {
         super();
@@ -63,6 +67,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         this.promptService = null;
         this.draftService = null;
         this.labelService = null;
+        this.profileService = null;
     }
 
     @Inject
@@ -72,7 +77,8 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
             SceneService scriptSceneService,
             PromptService promptService,
             DraftService draftService,
-            LabelService labelService
+            LabelService labelService,
+            ProfileService profileService
     ) {
         super(userService);
         this.repository = repository;
@@ -80,6 +86,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         this.promptService = promptService;
         this.draftService = draftService;
         this.labelService = labelService;
+        this.profileService = profileService;
     }
 
     public Uni<List<ScriptDTO>> getAllDTO(final int limit, final int offset, final IUser user, final ScriptFilter filter) {
@@ -127,6 +134,44 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                             .map(this::mapToFlatDTO)
                             .collect(Collectors.toList());
                     return Uni.join().all(unis).andFailFast();
+                });
+    }
+
+    public Uni<List<ScriptMixdeckFlatDTO>> getAllMixdeckFlatNonCustom(final int limit, final int offset, final IUser user, ScriptFilter filter) {
+        assert repository != null;
+        ScriptFilter nonCustomFilter = filter != null ? filter : new ScriptFilter();
+        nonCustomFilter.setCustom(false);
+        return repository.getAll(limit, offset, false, user, nonCustomFilter)
+                .chain(list -> {
+                    if (list.isEmpty()) {
+                        return Uni.createFrom().item(List.of());
+                    }
+                    List<Uni<ScriptMixdeckFlatDTO>> unis = list.stream()
+                            .map(this::mapToMixdeckFlatDTO)
+                            .collect(Collectors.toList());
+                    return Uni.join().all(unis).andFailFast();
+                });
+    }
+
+    private Uni<ScriptMixdeckFlatDTO> mapToMixdeckFlatDTO(Script script) {
+        ScriptMixdeckFlatDTO dto = new ScriptMixdeckFlatDTO();
+        dto.setSlugName(script.getSlugName());
+        dto.setName(script.getName());
+        dto.setDescription(script.getDescription());
+        if (script.getTimingMode() != null) {
+            dto.setTimingMode(script.getTimingMode().name());
+        }
+        dto.setCustom(script.isCustom());
+        if (script.getLabels() == null || script.getLabels().isEmpty()) {
+            return Uni.createFrom().item(dto);
+        }
+        List<Uni<LabelDTO>> labelUnis = script.getLabels().stream()
+                .map(labelId -> labelService.getDTO(labelId, null, LanguageCode.en))
+                .collect(Collectors.toList());
+        return Uni.join().all(labelUnis).andFailFast()
+                .map(fullLabels -> {
+                    dto.setTags(fullLabels.stream().map(LabelMixdeckFlatDTO::from).toList());
+                    return dto;
                 });
     }
 
@@ -197,6 +242,52 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         assert repository != null;
         return repository.findById(id, SuperUser.build(), false)
                 .chain(script -> mapToDTO(script, SuperUser.build()));
+    }
+
+    public Uni<ScriptMixdeckDTO> getMixdeckDTOBySlug(String slugName) {
+        assert repository != null;
+        IUser user = SuperUser.build();
+        return repository.findIdBySlugName(slugName, user)
+                .chain(id -> repository.findById(id, user, false))
+                .chain(this::mapToMixdeckDTO);
+    }
+
+    private Uni<ScriptMixdeckDTO> mapToMixdeckDTO(Script script) {
+        return Uni.combine().all().unis(
+                userService.getUserName(script.getAuthor()),
+                userService.getUserName(script.getLastModifier())
+        ).asTuple().chain(tuple -> {
+            ScriptMixdeckDTO dto = new ScriptMixdeckDTO();
+            dto.setAuthor(tuple.getItem1());
+            dto.setRegDate(script.getRegDate());
+            dto.setLastModifier(tuple.getItem2());
+            dto.setLastModifiedDate(script.getLastModifiedDate());
+            dto.setName(script.getName());
+            dto.setSlugName(script.getSlugName());
+            dto.setDescription(script.getDescription());
+            dto.setCustom(script.isCustom());
+            dto.setColor(script.getColor());
+            dto.setTimingMode(script.getTimingMode() != null ? script.getTimingMode().name() : null);
+            dto.setRequiredVariables(script.getRequiredVariables());
+
+            Uni<Void> profileUni = script.getDefaultProfileId() == null
+                    ? Uni.createFrom().voidItem()
+                    : profileService.getSlugById(script.getDefaultProfileId())
+                            .invoke(dto::setDefaultProfileSlug)
+                            .replaceWithVoid();
+            Uni<Void> labelsUni;
+            if (script.getLabels() == null || script.getLabels().isEmpty()) {
+                labelsUni = Uni.createFrom().voidItem();
+            } else {
+                List<Uni<String>> labelUnis = script.getLabels().stream()
+                        .map(labelId -> labelService.getById(labelId).map(label -> label.getIdentifier()))
+                        .collect(Collectors.toList());
+                labelsUni = Uni.join().all(labelUnis).andFailFast()
+                        .invoke(dto::setLabels)
+                        .replaceWithVoid();
+            }
+            return Uni.combine().all().unis(profileUni, labelsUni).discardItems().replaceWith(dto);
+        });
     }
 
     public Uni<ScriptDTO> upsert(String id, ScriptDTO dto, IUser user) {

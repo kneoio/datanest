@@ -120,6 +120,14 @@ public class PromptService extends AbstractService<DjPrompt, PromptDTO> {
         return repository.findByIds(ids, user);
     }
 
+    public Uni<UUID> getIdBySlug(String slugName, IUser user) {
+        return repository.findIdBySlugName(slugName, user);
+    }
+
+    public Uni<String> getSlugById(UUID id) {
+        return repository.findSlugNameById(id);
+    }
+
     @Override
     public Uni<PromptDTO> getDTO(UUID id, IUser user, LanguageCode language) {
         return repository.findById(id, user, false).chain(this::mapToDTO);

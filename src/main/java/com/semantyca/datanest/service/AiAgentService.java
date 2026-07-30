@@ -16,6 +16,8 @@ import com.semantyca.datanest.dto.aiagent.LanguagePreferenceDTO;
 import com.semantyca.datanest.dto.aiagent.TTSSettingDTO;
 import com.semantyca.datanest.dto.aiagent.VoiceDTO;
 import com.semantyca.datanest.dto.brand.mixdeck.AiAgentMixdeckDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.AiAgentMixdeckFlatDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.LabelMixdeckFlatDTO;
 import com.semantyca.datanest.repository.AiAgentRepository;
 import com.semantyca.mixpla.model.aiagent.AiAgent;
 import com.semantyca.mixpla.model.aiagent.LanguagePreference;
@@ -138,8 +140,45 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
                 });
     }
 
+    public Uni<List<AiAgentMixdeckFlatDTO>> getAllMixdeckFlatByLabelIdentifiers(final int limit, final int offset, final IUser user, List<String> identifiers) {
+        return repository.getAllByLabelIdentifiers(limit, offset, false, user, identifiers)
+                .chain(list -> {
+                    if (list.isEmpty()) {
+                        return Uni.createFrom().item(List.of());
+                    }
+                    List<Uni<AiAgentMixdeckFlatDTO>> unis = list.stream()
+                            .map(this::mapToMixdeckFlatDTO)
+                            .collect(Collectors.toList());
+                    return Uni.join().all(unis).andFailFast();
+                });
+    }
+
     public Uni<Integer> getAllCountByLabelIdentifiers(final IUser user, List<String> identifiers) {
         return repository.getAllCountByLabelIdentifiers(user, false, identifiers);
+    }
+
+    private Uni<AiAgentMixdeckFlatDTO> mapToMixdeckFlatDTO(AiAgent doc) {
+        AiAgentMixdeckFlatDTO dto = new AiAgentMixdeckFlatDTO();
+        dto.setSlugName(doc.getSlugName());
+        dto.setName(doc.getName());
+        dto.setDescription(doc.getDescription());
+        dto.setManner(doc.getManner());
+        if (doc.getPreferredLang() != null && !doc.getPreferredLang().isEmpty()) {
+            dto.setPreferredLang(doc.getPreferredLang().stream()
+                    .map(pref -> new LanguagePreferenceDTO(pref.getLanguageTag().tag(), pref.getWeight()))
+                    .toList());
+        }
+        if (doc.getLabels() != null && !doc.getLabels().isEmpty()) {
+            List<Uni<LabelDTO>> labelUnis = doc.getLabels().stream()
+                    .map(labelId -> labelService.getDTO(labelId, null, LanguageCode.en))
+                    .collect(Collectors.toList());
+            return Uni.join().all(labelUnis).andFailFast()
+                    .map(labels -> {
+                        dto.setLabels(labels.stream().map(LabelMixdeckFlatDTO::from).toList());
+                        return dto;
+                    });
+        }
+        return Uni.createFrom().item(dto);
     }
 
     private Uni<AiAgentFlatDTO> mapToFlatDTO(AiAgent doc) {

@@ -9,14 +9,14 @@ import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
-import com.semantyca.datanest.dto.GenreFlatDTO;
-import com.semantyca.datanest.dto.LabelFlatDTO;
-import com.semantyca.datanest.dto.ProfileFlatDTO;
 import com.semantyca.datanest.dto.actionbars.AiAgentActionsFactory;
 import com.semantyca.datanest.dto.actionbars.ProfileActionsFactory;
-import com.semantyca.datanest.dto.aiagent.AiAgentFlatDTO;
 import com.semantyca.datanest.dto.aiagent.VoiceDTO;
-import com.semantyca.datanest.dto.script.ScriptFlatDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.AiAgentMixdeckFlatDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.GenreMixdeckFlatDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.LabelMixdeckFlatDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.ProfileMixdeckFlatDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.ScriptMixdeckFlatDTO;
 import com.semantyca.datanest.service.AiAgentService;
 import com.semantyca.datanest.service.ProfileService;
 import com.semantyca.datanest.service.RefService;
@@ -124,7 +124,7 @@ public class RefController extends AbstractController<Void, Void> {
                                     ? subscription.getDjType() : List.of("free");
                             return Uni.combine().all().unis(
                                             aiAgentService.getAllCountByLabelIdentifiers(superUser, djTypes),
-                                            aiAgentService.getAllFlatByLabelIdentifiers(size, (page - 1) * size, superUser, djTypes)
+                                            aiAgentService.getAllMixdeckFlatByLabelIdentifiers(size, (page - 1) * size, superUser, djTypes)
                                     )
                                     .asTuple()
                                     .map(tuple -> buildAgentsPage(tuple.getItem2(), tuple.getItem1(), page, size));
@@ -150,12 +150,12 @@ public class RefController extends AbstractController<Void, Void> {
                             }
                             return Uni.combine().all().unis(
                                             scriptService.getAllNonCustomCount(superUser, scriptFilter),
-                                            scriptService.getAllFlatNonCustom(size, (page - 1) * size, superUser, scriptFilter)
+                                            scriptService.getAllMixdeckFlatNonCustom(size, (page - 1) * size, superUser, scriptFilter)
                                     )
                                     .asTuple()
                                     .map(tuple -> {
                                         ViewPage viewPage = new ViewPage();
-                                        View<ScriptFlatDTO> dtoEntries = new View<>(
+                                        View<ScriptMixdeckFlatDTO> dtoEntries = new View<>(
                                                 tuple.getItem2(),
                                                 tuple.getItem1(),
                                                 page,
@@ -178,12 +178,12 @@ public class RefController extends AbstractController<Void, Void> {
             case "profiles":
                 Uni.combine().all().unis(
                                 profileService.getAllCount(superUser),
-                                profileService.getAllFlat(size, (page - 1) * size, superUser)
+                                profileService.getAllMixdeckFlat(size, (page - 1) * size, superUser)
                         )
                         .asTuple()
                         .map(tuple -> {
                             ViewPage viewPage = new ViewPage();
-                            View<ProfileFlatDTO> dtoEntries = new View<>(
+                            View<ProfileMixdeckFlatDTO> dtoEntries = new View<>(
                                     tuple.getItem2(),
                                     tuple.getItem1(),
                                     page,
@@ -206,13 +206,13 @@ public class RefController extends AbstractController<Void, Void> {
             case "genres":
                 Uni.combine().all().unis(
                                 service.getAllGenresCount(),
-                                service.getAllGenresFlat(size, (page - 1) * size)
+                                service.getAllGenresMixdeckFlat(size, (page - 1) * size)
                         )
                         .asTuple()
                         .map(tuple -> {
                             ViewPage viewPage = new ViewPage();
                             viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());
-                            View<GenreFlatDTO> dtoEntries = new View<>(tuple.getItem2(),
+                            View<GenreMixdeckFlatDTO> dtoEntries = new View<>(tuple.getItem2(),
                                     tuple.getItem1(), page,
                                     countMaxPage(tuple.getItem1(), size),
                                     size);
@@ -236,13 +236,13 @@ public class RefController extends AbstractController<Void, Void> {
                 }
                 service.getSoundFragmentLabels(category)
                         .map(labels -> {
-                            List<LabelFlatDTO> flat = labels.stream()
-                                    .map(LabelFlatDTO::from)
+                            List<LabelMixdeckFlatDTO> flat = labels.stream()
+                                    .map(LabelMixdeckFlatDTO::from)
                                     .toList();
                             ViewPage viewPage = new ViewPage();
                             viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, new ActionBox());
                             int totalCount = flat.size();
-                            View<LabelFlatDTO> dtoEntries = new View<>(flat,
+                            View<LabelMixdeckFlatDTO> dtoEntries = new View<>(flat,
                                     totalCount, page,
                                     countMaxPage(totalCount, size),
                                     size);
@@ -322,9 +322,9 @@ public class RefController extends AbstractController<Void, Void> {
         }
     }
 
-    private ViewPage buildAgentsPage(List<AiAgentFlatDTO> items, int count, int page, int size) {
+    private ViewPage buildAgentsPage(List<AiAgentMixdeckFlatDTO> items, int count, int page, int size) {
         ViewPage viewPage = new ViewPage();
-        View<AiAgentFlatDTO> dtoEntries = new View<>(items, count, page, countMaxPage(count, size), size);
+        View<AiAgentMixdeckFlatDTO> dtoEntries = new View<>(items, count, page, countMaxPage(count, size), size);
         viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
         viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, AiAgentActionsFactory.getViewActions());
         return viewPage;
@@ -332,7 +332,7 @@ public class RefController extends AbstractController<Void, Void> {
 
     private ViewPage buildEmptyAgentsPage(int page, int size) {
         ViewPage viewPage = new ViewPage();
-        View<AiAgentFlatDTO> dtoEntries = new View<>(List.of(), 0, page, 0, size);
+        View<AiAgentMixdeckFlatDTO> dtoEntries = new View<>(List.of(), 0, page, 0, size);
         viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
         viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, AiAgentActionsFactory.getViewActions());
         return viewPage;

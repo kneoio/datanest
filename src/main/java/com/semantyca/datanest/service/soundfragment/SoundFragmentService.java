@@ -340,6 +340,11 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         return repository.findBySlugName(slugName, user.getId(), false, false, false).map(SoundFragment::getId);
     }
 
+    public Uni<String> getSlugById(UUID id) {
+        assert repository != null;
+        return repository.findById(id).map(SoundFragment::getSlugName);
+    }
+
     public Uni<SoundFragmentDTO> getDTOTemplate(IUser user, LanguageCode code) {
         return brandService.getAll(10, 0, user)
                 .onItem().transform(userRadioStations -> {

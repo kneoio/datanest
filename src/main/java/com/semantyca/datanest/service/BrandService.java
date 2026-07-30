@@ -9,6 +9,7 @@ import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.config.DatanestConfig;
+import com.semantyca.datanest.dto.PlaylistRequestDTO;
 import com.semantyca.datanest.dto.brand.AiOverridingDTO;
 import com.semantyca.datanest.dto.brand.BrandDTO;
 import com.semantyca.datanest.dto.brand.mixdeck.BrandPublicFlatDTO;
@@ -38,9 +39,19 @@ import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
 import com.semantyca.mixpla.model.filter.BrandFilter;
 import com.semantyca.mixpla.repository.UserSubscriptionRepository;
 import com.semantyca.officeframe.model.cnst.CountryCode;
+import com.semantyca.datanest.dto.brand.mixdeck.CustomActionMixdeckDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.CustomSceneMixdeckDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.CustomScriptMixdeckDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.FileMixdeckDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.OwnerMixdeckDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.PlaylistRequestMixdeckDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.ScenePromptMixdeckDTO;
+import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
+import com.semantyca.officeframe.service.GenreService;
 import com.semantyca.officeframe.service.LabelService;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
@@ -61,6 +72,8 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     protected final AiAgentService aiAgentService;
     protected final ProfileService profileService;
     protected final LabelService labelService;
+    protected final GenreService genreService;
+    protected final PromptService promptService;
     protected final CommandPublisher commandPublisher;
     protected final BrandRepository repository;
 
@@ -68,18 +81,24 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     private final MetricPublisher metricPublisher;
     protected final DatanestConfig datanestConfig;
     private final UserSubscriptionRepository userSubscriptionRepository;
+    // Lazy: SoundFragmentService depends on BrandService, so a direct injection would be circular.
+    protected final Instance<SoundFragmentService> soundFragmentServiceSource;
+
     protected BrandService() {
         super();
         this.scriptService = null;
         this.aiAgentService = null;
         this.profileService = null;
         this.labelService = null;
+        this.genreService = null;
+        this.promptService = null;
         this.sceneService = null;
         this.repository = null;
         this.datanestConfig = null;
         this.metricPublisher = null;
         this.commandPublisher = null;
         this.userSubscriptionRepository = null;
+        this.soundFragmentServiceSource = null;
     }
 
     @Inject
@@ -89,24 +108,30 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             AiAgentService aiAgentService,
             ProfileService profileService,
             LabelService labelService,
+            GenreService genreService,
+            PromptService promptService,
             SceneService sceneService,
             BrandRepository repository,
             DatanestConfig datanestConfig,
             MetricPublisher metricPublisher,
             CommandPublisher commandPublisher,
-            UserSubscriptionRepository userSubscriptionRepository
+            UserSubscriptionRepository userSubscriptionRepository,
+            Instance<SoundFragmentService> soundFragmentServiceSource
     ) {
         super(userService);
         this.scriptService = scriptService;
         this.aiAgentService = aiAgentService;
         this.profileService = profileService;
         this.labelService = labelService;
+        this.genreService = genreService;
+        this.promptService = promptService;
         this.sceneService = sceneService;
         this.repository = repository;
         this.datanestConfig = datanestConfig;
         this.metricPublisher = metricPublisher;
         this.commandPublisher = commandPublisher;
         this.userSubscriptionRepository = userSubscriptionRepository;
+        this.soundFragmentServiceSource = soundFragmentServiceSource;
     }
 
     public Uni<List<BrandDTO>> getAllDTO(final int limit, final int offset, final IUser user, final BrandFilter filter) {
@@ -211,8 +236,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             }
 
             if (doc.getOwner() != null) {
-                OwnerDTO ownerDTO = new OwnerDTO();
-                ownerDTO.setUserId(doc.getOwner().getUserId());
+                OwnerMixdeckDTO ownerDTO = new OwnerMixdeckDTO();
                 ownerDTO.setName(doc.getOwner().getName());
                 ownerDTO.setEmail(doc.getOwner().getEmail());
                 ownerDTO.setExposeWhileSharing(doc.getOwner().isExposeWhileSharing());
@@ -220,8 +244,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 if (doc.getOwner().getCoOwners() != null) {
                     ownerDTO.setCoOwners(doc.getOwner().getCoOwners().stream()
                             .map(co -> {
-                                OwnerDTO coDTO = new OwnerDTO();
-                                coDTO.setUserId(co.getUserId());
+                                OwnerMixdeckDTO coDTO = new OwnerMixdeckDTO();
                                 coDTO.setName(co.getName());
                                 coDTO.setEmail(co.getEmail());
                                 coDTO.setExposeWhileSharing(co.isExposeWhileSharing());
@@ -232,7 +255,9 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 }
                 dto.setOwner(ownerDTO);
             }
-            dto.setLogoFiles(doc.getFileMetadataList().isEmpty() ? null : doc.getFileMetadataList());
+            dto.setLogoFiles(doc.getFileMetadataList().isEmpty()
+                    ? null
+                    : doc.getFileMetadataList().stream().map(FileMixdeckDTO::from).collect(Collectors.toList()));
             dto.setScriptMode(earlyMode);
             dto.setStreamingOptions(doc.getStreamingOptions());
             dto.setChatFeatureFlags(doc.getChatFeatureFlags());
@@ -257,8 +282,8 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                     : scriptService.getSlugById(doc.getCustomScriptId())
                             .invoke(dto::setCustomScriptSlug)
                             .replaceWithVoid();
-            Uni<Void> labelsUni = toIdentifiers(doc.getLabels()).invoke(dto::setLabels).replaceWithVoid();
-            Uni<Void> genresUni = toIdentifiers(doc.getGenres()).invoke(dto::setGenres).replaceWithVoid();
+            Uni<Void> labelsUni = toLabelIdentifiers(doc.getLabels()).invoke(dto::setLabels).replaceWithVoid();
+            Uni<Void> genresUni = toGenreIdentifiers(doc.getGenres()).invoke(dto::setGenres).replaceWithVoid();
 
             return Uni.combine().all().unis(agentUni, profileUni, customScriptUni, labelsUni, genresUni).discardItems()
                     .chain(v -> {
@@ -268,15 +293,24 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                                     .chain(customScript -> {
                                         assert sceneService != null;
                                         return sceneService.getAllByScript(customScript.getId(), 1000, 0, SuperUser.build())
-                                                .map(sceneDTOs -> {
-                                                    CustomScriptDTO customScriptDTO = new CustomScriptDTO();
+                                                .chain(sceneDTOs -> {
+                                                    CustomScriptMixdeckDTO customScriptDTO = new CustomScriptMixdeckDTO();
                                                     customScriptDTO.setTitle(customScript.getName());
                                                     customScriptDTO.setColor(customScript.getColor());
-                                                    customScriptDTO.setScenes(sceneDTOs.stream()
-                                                            .map(this::toCustomSceneDTO)
-                                                            .collect(Collectors.toList()));
-                                                    dto.setCustomScript(customScriptDTO);
-                                                    return dto;
+                                                    if (sceneDTOs.isEmpty()) {
+                                                        customScriptDTO.setScenes(List.of());
+                                                        dto.setCustomScript(customScriptDTO);
+                                                        return Uni.createFrom().item(dto);
+                                                    }
+                                                    List<Uni<CustomSceneMixdeckDTO>> sceneUnis = sceneDTOs.stream()
+                                                            .map(this::toCustomSceneMixdeckDTO)
+                                                            .collect(Collectors.toList());
+                                                    return Uni.join().all(sceneUnis).andFailFast()
+                                                            .map(scenes -> {
+                                                                customScriptDTO.setScenes(scenes);
+                                                                dto.setCustomScript(customScriptDTO);
+                                                                return dto;
+                                                            });
                                                 });
                                     });
                         }
@@ -285,12 +319,119 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         });
     }
 
-    private Uni<List<String>> toIdentifiers(List<UUID> ids) {
+    private Uni<CustomSceneMixdeckDTO> toCustomSceneMixdeckDTO(AbstractSceneDTO scene) {
+        CustomSceneMixdeckDTO customScene = new CustomSceneMixdeckDTO();
+        customScene.setName(scene.getTitle());
+        if (scene instanceof AbsoluteSceneDTO absoluteScene
+                && absoluteScene.getStartTime() != null && !absoluteScene.getStartTime().isEmpty()) {
+            customScene.setStartTime(absoluteScene.getStartTime().getFirst());
+        }
+        customScene.setTalkativity(scene.getTalkativity());
+        customScene.setAllowJingles(scene.isAllowJingles());
+        customScene.setAllowAds(scene.isAllowAds());
+
+        List<CustomActionMixdeckDTO> merged = new ArrayList<>();
+        List<Uni<Void>> resolutions = new ArrayList<>();
+        if (scene.getActions() != null) {
+            scene.getActions().forEach(a -> {
+                CustomActionMixdeckDTO action = new CustomActionMixdeckDTO();
+                action.setType("custom");
+                action.setName(a.getName());
+                action.setInstruction(a.getInstruction());
+                action.setContextVars(a.getContextVars());
+                merged.add(action);
+            });
+        }
+        if (scene.getPrompts() != null) {
+            scene.getPrompts().forEach(p -> {
+                CustomActionMixdeckDTO action = new CustomActionMixdeckDTO();
+                action.setType("predefined");
+                merged.add(action);
+                if (p.getPromptId() != null) {
+                    resolutions.add(promptService.getSlugById(p.getPromptId())
+                            .invoke(action::setActionSlug)
+                            .replaceWithVoid());
+                }
+            });
+        }
+        if (!merged.isEmpty()) {
+            customScene.setActions(merged);
+        }
+
+        Uni<Void> playlistUni = toPlaylistRequestMixdeckDTO(scene.getPlaylistRequest())
+                .invoke(customScene::setStagePlaylist)
+                .replaceWithVoid();
+
+        List<Uni<Void>> all = new ArrayList<>(resolutions);
+        all.add(playlistUni);
+        return Uni.join().all(all).andFailFast().replaceWith(customScene);
+    }
+
+    private Uni<PlaylistRequestMixdeckDTO> toPlaylistRequestMixdeckDTO(PlaylistRequestDTO src) {
+        if (src == null) {
+            return Uni.createFrom().nullItem();
+        }
+        PlaylistRequestMixdeckDTO dto = new PlaylistRequestMixdeckDTO();
+        dto.setMixingType(src.getMixingType());
+        dto.setMixingArtefacts(src.getMixingArtefacts());
+        dto.setSourcing(src.getSourcing());
+        dto.setTitle(src.getTitle());
+        dto.setArtist(src.getArtist());
+        dto.setType(src.getType());
+        dto.setSource(src.getSource());
+        dto.setSearchTerm(src.getSearchTerm());
+
+        List<Uni<Void>> resolutions = new ArrayList<>();
+        resolutions.add(toGenreIdentifiers(src.getGenres()).invoke(dto::setGenres).replaceWithVoid());
+        resolutions.add(toLabelIdentifiers(src.getLabels()).invoke(dto::setLabels).replaceWithVoid());
+        resolutions.add(toSoundFragmentSlugs(src.getSoundFragments()).invoke(dto::setSoundFragments).replaceWithVoid());
+        if (src.getPrompts() != null && !src.getPrompts().isEmpty()) {
+            List<ScenePromptMixdeckDTO> prompts = new ArrayList<>();
+            src.getPrompts().forEach(p -> {
+                ScenePromptMixdeckDTO sp = new ScenePromptMixdeckDTO();
+                sp.setActive(p.isActive());
+                sp.setMandatory(p.isMandatory());
+                sp.setRank(p.getRank());
+                sp.setWeight(p.getWeight());
+                prompts.add(sp);
+                if (p.getPromptId() != null) {
+                    resolutions.add(promptService.getSlugById(p.getPromptId())
+                            .invoke(sp::setPromptSlug)
+                            .replaceWithVoid());
+                }
+            });
+            dto.setPrompts(prompts);
+        }
+        return Uni.join().all(resolutions).andFailFast().replaceWith(dto);
+    }
+
+    private Uni<List<String>> toSoundFragmentSlugs(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Uni.createFrom().item(List.of());
+        }
+        SoundFragmentService soundFragmentService = soundFragmentServiceSource.get();
+        List<Uni<String>> unis = ids.stream()
+                .map(soundFragmentService::getSlugById)
+                .collect(Collectors.toList());
+        return Uni.join().all(unis).andFailFast();
+    }
+
+    private Uni<List<String>> toLabelIdentifiers(List<UUID> ids) {
         if (ids == null || ids.isEmpty()) {
             return Uni.createFrom().item(List.of());
         }
         List<Uni<String>> unis = ids.stream()
                 .map(id -> labelService.getById(id).map(label -> label.getIdentifier()))
+                .collect(Collectors.toList());
+        return Uni.join().all(unis).andFailFast();
+    }
+
+    private Uni<List<String>> toGenreIdentifiers(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Uni.createFrom().item(List.of());
+        }
+        List<Uni<String>> unis = ids.stream()
+                .map(id -> genreService.getById(id).map(genre -> genre.getIdentifier()))
                 .collect(Collectors.toList());
         return Uni.join().all(unis).andFailFast();
     }

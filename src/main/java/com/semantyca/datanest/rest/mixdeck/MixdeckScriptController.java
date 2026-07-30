@@ -2,7 +2,7 @@ package com.semantyca.datanest.rest.mixdeck;
 
 import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.service.UserService;
-import com.semantyca.datanest.dto.script.ScriptDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.ScriptMixdeckDTO;
 import com.semantyca.datanest.service.ScriptService;
 import com.semantyca.mixpla.model.Script;
 import io.vertx.core.http.HttpMethod;
@@ -11,10 +11,8 @@ import io.vertx.ext.web.RoutingContext;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
-import java.util.UUID;
-
 @ApplicationScoped
-public class MixdeckScriptController extends AbstractSecuredController<Script, ScriptDTO> {
+public class MixdeckScriptController extends AbstractSecuredController<Script, ScriptMixdeckDTO> {
     private final ScriptService service;
 
     public MixdeckScriptController() {
@@ -29,24 +27,19 @@ public class MixdeckScriptController extends AbstractSecuredController<Script, S
     }
 
     public void setupRoutes(Router router) {
-        router.route(HttpMethod.GET, "/datanest/public/scripts/:id").handler(this::getById);
+        router.route(HttpMethod.GET, "/datanest/public/scripts/:slugName").handler(this::getBySlugName);
     }
 
-    private void getById(RoutingContext rc) {
-        String id = rc.pathParam("id");
-        try {
-            UUID scriptId = UUID.fromString(id);
-            assert service != null;
-            service.getPublicDTO(scriptId)
-                    .subscribe().with(
-                            doc -> rc.response()
-                                    .setStatusCode(200)
-                                    .putHeader("Content-Type", "application/json")
-                                    .end(io.vertx.core.json.Json.encode(doc)),
-                            t -> handleFailure(rc, t)
-                    );
-        } catch (IllegalArgumentException e) {
-            rc.fail(400, new IllegalArgumentException("Invalid script id format"));
-        }
+    private void getBySlugName(RoutingContext rc) {
+        String slugName = rc.pathParam("slugName");
+        assert service != null;
+        service.getMixdeckDTOBySlug(slugName)
+                .subscribe().with(
+                        doc -> rc.response()
+                                .setStatusCode(200)
+                                .putHeader("Content-Type", "application/json")
+                                .end(io.vertx.core.json.Json.encode(doc)),
+                        t -> handleFailure(rc, t)
+                );
     }
 }

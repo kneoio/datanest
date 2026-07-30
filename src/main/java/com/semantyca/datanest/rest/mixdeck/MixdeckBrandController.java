@@ -145,7 +145,6 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
 
             String slugName = rc.pathParam("slugName");
             var body = rc.body().asJsonObject();
-            body.remove("id");
             BrandMixdeckDTO dto = body.mapTo(BrandMixdeckDTO.class);
 
             Set<ConstraintViolation<BrandMixdeckDTO>> violations = validator.validate(dto);

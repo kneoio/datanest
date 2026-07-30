@@ -4,15 +4,11 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
-import com.semantyca.core.dto.rls.RlsActionDTO;
 import com.semantyca.core.dto.validation.ValidCountry;
 import com.semantyca.core.dto.validation.ValidLocalizedName;
-import com.semantyca.core.model.FileMetadata;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.datanest.dto.brand.AiOverridingDTO;
-import com.semantyca.datanest.dto.brand.OwnerDTO;
 import com.semantyca.datanest.dto.brand.ProfileOverridingDTO;
-import com.semantyca.datanest.dto.script.CustomScriptDTO;
 import com.semantyca.datanest.model.cnst.ScriptMode;
 import com.semantyca.mixpla.model.brand.StreamHistoryEntry;
 import com.semantyca.mixpla.model.brand.StreamingOptions;
@@ -85,19 +81,17 @@ public class BrandMixdeckDTO extends AbstractDTO {
     private ScriptMode scriptMode = ScriptMode.PREDEFINED;
     private StreamingOptions streamingOptions;
     private StreamHistoryEntry lastStreamHistoryEntry;
-    private CustomScriptDTO customScript;
-    private OwnerDTO owner;
+    private CustomScriptMixdeckDTO customScript;
+    private OwnerMixdeckDTO owner;
     private List<String> labels;
     private List<String> genres;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
-    private List<FileMetadata> logoFiles;
-    @JsonInclude(JsonInclude.Include.NON_EMPTY)
-    private List<RlsActionDTO> rlsActions = new ArrayList<>();
+    private List<FileMixdeckDTO> logoFiles;
     private boolean skipScriptValidation = false;
     private Map<ChatFeatureFlag, Boolean> chatFeatureFlags = new HashMap<>();
 
     @JsonIgnore
-    @AssertTrue(message = "Custom script must have at least one scene, and each scene must have at least one prompt or action")
+    @AssertTrue(message = "Custom script must have at least one scene, and each scene must have at least one action")
     public boolean isCustomScriptValid() {
         if (skipScriptValidation) {
             return true;
@@ -111,9 +105,7 @@ public class BrandMixdeckDTO extends AbstractDTO {
         if (customScript == null || customScript.getScenes() == null || customScript.getScenes().isEmpty()) {
             return false;
         }
-        return customScript.getScenes().stream().anyMatch(scene ->
-                (scene.getIntroPrompts() != null && !scene.getIntroPrompts().isEmpty()) ||
-                (scene.getActions() != null && !scene.getActions().isEmpty())
-        );
+        return customScript.getScenes().stream()
+                .anyMatch(scene -> scene.getActions() != null && !scene.getActions().isEmpty());
     }
 }

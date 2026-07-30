@@ -10,6 +10,7 @@ import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.dto.ProfileDTO;
 import com.semantyca.datanest.dto.ProfileFlatDTO;
 import com.semantyca.datanest.dto.brand.mixdeck.ProfileMixdeckDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.ProfileMixdeckFlatDTO;
 import com.semantyca.datanest.repository.ProfileRepository;
 import com.semantyca.mixpla.model.Profile;
 import io.smallrye.mutiny.Uni;
@@ -49,6 +50,20 @@ public class ProfileService extends AbstractService<Profile, ProfileDTO> {
     public Uni<List<ProfileFlatDTO>> getAllFlat(final int limit, final int offset, final IUser user) {
         return repository.getAll(limit, offset, false, user)
                 .map(list -> list.stream().map(this::mapToFlatDTO).collect(Collectors.toList()));
+    }
+
+    public Uni<List<ProfileMixdeckFlatDTO>> getAllMixdeckFlat(final int limit, final int offset, final IUser user) {
+        return repository.getAll(limit, offset, false, user)
+                .map(list -> list.stream().map(this::mapToMixdeckFlatDTO).collect(Collectors.toList()));
+    }
+
+    private ProfileMixdeckFlatDTO mapToMixdeckFlatDTO(Profile profile) {
+        ProfileMixdeckFlatDTO dto = new ProfileMixdeckFlatDTO();
+        dto.setSlugName(profile.getSlugName());
+        dto.setName(profile.getName());
+        dto.setDescription(profile.getDescription());
+        dto.setExplicitContent(profile.isExplicitContent());
+        return dto;
     }
 
     private ProfileFlatDTO mapToFlatDTO(Profile profile) {
