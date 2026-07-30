@@ -20,6 +20,8 @@ import com.semantyca.datanest.model.cnst.ScriptMode;
 import com.semantyca.datanest.repository.BrandPubRepository;
 import com.semantyca.datanest.repository.BrandRepository;
 import com.semantyca.mixpla.dto.queue.command.CommandType;
+import com.semantyca.mixpla.dto.queue.metric.MetricEventType;
+import com.semantyca.mixpla.dto.queue.metric.ProcessType;
 import com.semantyca.mixpla.repository.UserSubscriptionRepository;
 import com.semantyca.mixpla.model.CustomAction;
 import com.semantyca.mixpla.model.PlaylistRequest;
@@ -90,11 +92,27 @@ public class BrandPubService extends BrandService {
                 .chain(adminDto -> resolveOwnerUserIds(adminDto)
                         .chain(resolvedDto -> doUpsert(id, resolvedDto, dto, isNew, isCustom, user)))
                 .invoke(saved -> {
-                    LOGGER.infof("BrandPubService.upsert: brand saved id=%s slug=%s", saved.getId(), saved.getSlugName());
+                    UUID traceId = UUID.randomUUID();
+                    LOGGER.infof("BrandPubService.upsert: brand saved id=%s slug=%s traceId=%s",
+                            saved.getId(), saved.getSlugName(), traceId);
                     commandPublisher.publishCommand(
                             CommandType.FLOW_RESTART,
                             "brand_saved",
-                            Map.of("brandId", saved.getId().toString(), "slug", saved.getSlugName(), "savedBy", user.getUserName())
+                            Map.of("brandId", saved.getId().toString(), "slug", saved.getSlugName(), "savedBy", user.getUserName()),
+                            traceId
+                    );
+                    metricPublisher.publishMetric(
+                            saved.getSlugName(),
+                            MetricEventType.COMMAND,
+                            ProcessType.INDEPENDENT,
+                            "brand_saved",
+                            Map.of(
+                                    "brandId", saved.getId().toString(),
+                                    "slug", saved.getSlugName(),
+                                    "savedBy", user.getUserName(),
+                                    "commandType", CommandType.FLOW_RESTART.name()
+                            ),
+                            traceId
                     );
                 })
                 .chain(this::mapToMixdeckDTO);

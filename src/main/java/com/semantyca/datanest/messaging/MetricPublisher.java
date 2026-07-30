@@ -43,14 +43,15 @@ public class MetricPublisher {
                     code,
                     payload
             );
+            LOGGER.infof("Publishing metric brand=%s type=%s code=%s traceId=%s", brandName, eventType, code, traceId);
             publish(event)
                     .subscribe()
                     .with(
-                            v -> LOGGER.debugf("Published metric for {}: {}", brandName, eventType),
-                            e -> LOGGER.errorf("Failed to publish metric for {}: {}", brandName, e.getMessage())
+                            v -> LOGGER.infof("Metric published OK brand=%s type=%s code=%s traceId=%s", brandName, eventType, code, traceId),
+                            e -> LOGGER.errorf(e, "Failed to publish metric brand=%s type=%s code=%s", brandName, eventType, code)
                     );
         } catch (Exception e) {
-            LOGGER.errorf("Error publishing metric for {}: {}", brandName, e.getMessage());
+            LOGGER.errorf(e, "Error publishing metric brand=%s type=%s code=%s", brandName, eventType, code);
         }
     }
 

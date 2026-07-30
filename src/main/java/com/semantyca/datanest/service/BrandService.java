@@ -78,7 +78,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     protected final BrandRepository repository;
 
     protected final SceneService sceneService;
-    private final MetricPublisher metricPublisher;
+    protected final MetricPublisher metricPublisher;
     protected final DatanestConfig datanestConfig;
     private final UserSubscriptionRepository userSubscriptionRepository;
     // Lazy: SoundFragmentService depends on BrandService, so a direct injection would be circular.
@@ -542,10 +542,28 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 })
                 .invoke(saved -> {
                     assert commandPublisher != null;
+                    UUID traceId = UUID.randomUUID();
+                    LOGGER.infof("BrandService.upsert: brand saved id=%s slug=%s traceId=%s",
+                            saved.getId(), saved.getSlugName(), traceId);
                     commandPublisher.publishCommand(
                             CommandType.FLOW_RESTART,
                             "brand_saved",
-                            Map.of("brandId", saved.getId().toString(), "slug", saved.getSlugName(), "savedBy", user.getUserName())
+                            Map.of("brandId", saved.getId().toString(), "slug", saved.getSlugName(), "savedBy", user.getUserName()),
+                            traceId
+                    );
+                    assert metricPublisher != null;
+                    metricPublisher.publishMetric(
+                            saved.getSlugName(),
+                            MetricEventType.COMMAND,
+                            ProcessType.INDEPENDENT,
+                            "brand_saved",
+                            Map.of(
+                                    "brandId", saved.getId().toString(),
+                                    "slug", saved.getSlugName(),
+                                    "savedBy", user.getUserName(),
+                                    "commandType", CommandType.FLOW_RESTART.name()
+                            ),
+                            traceId
                     );
                 })
                 .chain(this::mapToDTO);
