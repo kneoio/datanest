@@ -11,7 +11,7 @@ import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.brand.AiOverridingDTO;
 import com.semantyca.datanest.dto.brand.BrandDTO;
-import com.semantyca.datanest.dto.brand.BrandPublicFlatDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.BrandPublicFlatDTO;
 import com.semantyca.datanest.dto.brand.OwnerDTO;
 import com.semantyca.datanest.dto.brand.ProfileOverridingDTO;
 import com.semantyca.datanest.dto.script.BrandScriptEntryDTO;
@@ -57,6 +57,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     private static final Logger LOGGER = Logger.getLogger(BrandService.class);
 
     protected final ScriptService scriptService;
+    protected final AiAgentService aiAgentService;
     protected final CommandPublisher commandPublisher;
     protected final BrandRepository repository;
 
@@ -67,6 +68,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     protected BrandService() {
         super();
         this.scriptService = null;
+        this.aiAgentService = null;
         this.sceneService = null;
         this.repository = null;
         this.datanestConfig = null;
@@ -79,6 +81,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     public BrandService(
             UserService userService,
             ScriptService scriptService,
+            AiAgentService aiAgentService,
             SceneService sceneService,
             BrandRepository repository,
             DatanestConfig datanestConfig,
@@ -88,6 +91,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     ) {
         super(userService);
         this.scriptService = scriptService;
+        this.aiAgentService = aiAgentService;
         this.sceneService = sceneService;
         this.repository = repository;
         this.datanestConfig = datanestConfig;
@@ -127,17 +131,144 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         return repository.getBySlugName(slugName, user, false).map(this::toPublicFlatDTO);
     }
 
-    public Uni<BrandDTO> getDTOBySlug(final String slugName, final IUser user, final LanguageCode language) {
+    public Uni<com.semantyca.datanest.dto.brand.mixdeck.BrandMixdeckDTO> getDTOBySlug(final String slugName, final IUser user, final LanguageCode language) {
         assert repository != null;
         return repository.getBySlugName(slugName, user, false).chain(this::mapToMixdeckDTO);
     }
 
     /**
-     * Mixdeck form mapping. Currently mirrors {@link #mapToDTO} but omits the brand UUID;
-     * kept separate so Mixdeck can ramify independently later.
+     * Mixdeck form mapping — separate DTO; script entries use slugName (no brand UUID).
      */
-    Uni<BrandDTO> mapToMixdeckDTO(Brand doc) {
-        return mapToDTO(doc).invoke(dto -> dto.setId(null));
+    Uni<com.semantyca.datanest.dto.brand.mixdeck.BrandMixdeckDTO> mapToMixdeckDTO(Brand doc) {
+        assert repository != null;
+        return Uni.combine().all().unis(
+                userService.getUserName(doc.getAuthor()),
+                userService.getUserName(doc.getLastModifier()),
+                repository.getScriptEntryDTOsForBrand(doc.getId())
+        ).asTuple().chain(tuple -> {
+            com.semantyca.datanest.dto.brand.mixdeck.BrandMixdeckDTO dto = new com.semantyca.datanest.dto.brand.mixdeck.BrandMixdeckDTO();
+            dto.setAuthor(tuple.getItem1());
+            dto.setRegDate(doc.getRegDate());
+            dto.setLastModifier(tuple.getItem2());
+            dto.setLastModifiedDate(doc.getLastModifiedDate());
+            dto.setLocalizedName(doc.getLocalizedName());
+            dto.setCountry(doc.getCountry() != null ? doc.getCountry().name() : null);
+            dto.setColor(doc.getColor());
+            dto.setTimeZone(doc.getTimeZone().getId());
+            dto.setDescription(doc.getDescription());
+            dto.setTitleFont(doc.getTitleFont());
+            dto.setSlugName(doc.getSlugName());
+            dto.setBitRate(doc.getBitRate());
+            dto.setProfileId(doc.getProfileId());
+            dto.setOneTimeStreamPolicy(doc.getOneTimeStreamPolicy());
+            dto.setSubmissionPolicy(doc.getSubmissionPolicy());
+            dto.setMessagingPolicy(doc.getMessagingPolicy());
+            dto.setIsTemporary(doc.getIsTemporary());
+            dto.setPublicBrand(doc.getPublicBrand());
+            dto.setPopularityRate(doc.getPopularityRate());
+
+            if (doc.getAiOverriding() != null) {
+                AiOverridingDTO aiDto = new AiOverridingDTO();
+                aiDto.setName(doc.getAiOverriding().getName());
+                aiDto.setPrompt(doc.getAiOverriding().getPrompt());
+                aiDto.setPrimaryVoice(doc.getAiOverriding().getPrimaryVoice());
+                dto.setAiOverriding(aiDto);
+                dto.setAiOverridingEnabled(true);
+            } else {
+                dto.setAiOverridingEnabled(false);
+            }
+
+            if (doc.getProfileOverriding() != null) {
+                ProfileOverridingDTO profileDto = new ProfileOverridingDTO();
+                profileDto.setName(doc.getProfileOverriding().getName());
+                profileDto.setDescription(doc.getProfileOverriding().getDescription());
+                dto.setProfileOverriding(profileDto);
+                dto.setProfileOverridingEnabled(true);
+            } else {
+                dto.setProfileOverridingEnabled(false);
+            }
+
+            try {
+                assert datanestConfig != null;
+                dto.setHlsUrl(URI.create(datanestConfig.getHost() + "/live/" + dto.getSlugName() + "/opus").toURL());
+                dto.setMp3Url(URI.create(datanestConfig.getHost() + "/live/" + dto.getSlugName() + "/mp3").toURL());
+                dto.setMixplaUrl(URI.create("https://mixpla.online/" + dto.getSlugName()).toURL());
+            } catch (MalformedURLException e) {
+                throw new RuntimeException(e);
+            }
+
+            ScriptMode earlyMode = ScriptMode.valueOf(doc.getScriptMode() != null ? doc.getScriptMode() : ScriptMode.PREDEFINED.name());
+            if (!ScriptMode.CUSTOM.equals(earlyMode)) {
+                dto.setScriptIds(tuple.getItem3());
+            } else {
+                dto.setCustomScriptId(doc.getCustomScriptId());
+            }
+
+            if (doc.getOwner() != null) {
+                OwnerDTO ownerDTO = new OwnerDTO();
+                ownerDTO.setUserId(doc.getOwner().getUserId());
+                ownerDTO.setName(doc.getOwner().getName());
+                ownerDTO.setEmail(doc.getOwner().getEmail());
+                ownerDTO.setExposeWhileSharing(doc.getOwner().isExposeWhileSharing());
+                ownerDTO.setActionDebugEnabled(doc.getOwner().isActionDebugEnabled());
+                if (doc.getOwner().getCoOwners() != null) {
+                    ownerDTO.setCoOwners(doc.getOwner().getCoOwners().stream()
+                            .map(co -> {
+                                OwnerDTO coDTO = new OwnerDTO();
+                                coDTO.setUserId(co.getUserId());
+                                coDTO.setName(co.getName());
+                                coDTO.setEmail(co.getEmail());
+                                coDTO.setExposeWhileSharing(co.isExposeWhileSharing());
+                                coDTO.setActionDebugEnabled(co.isActionDebugEnabled());
+                                return coDTO;
+                            })
+                            .collect(Collectors.toList()));
+                }
+                dto.setOwner(ownerDTO);
+            }
+            dto.setLabels(doc.getLabels());
+            dto.setGenres(doc.getGenres());
+            dto.setLogoFiles(doc.getFileMetadataList().isEmpty() ? null : doc.getFileMetadataList());
+            dto.setScriptMode(earlyMode);
+            dto.setStreamingOptions(doc.getStreamingOptions());
+            dto.setChatFeatureFlags(doc.getChatFeatureFlags());
+
+            List<StreamHistoryEntry> streamHistory = doc.getStreamHistory();
+            if (streamHistory != null && !streamHistory.isEmpty()) {
+                dto.setLastStreamHistoryEntry(streamHistory.get(streamHistory.size() - 1));
+            }
+
+            Uni<com.semantyca.datanest.dto.brand.mixdeck.BrandMixdeckDTO> withAgent =
+                    doc.getAiAgentId() == null
+                            ? Uni.createFrom().item(dto)
+                            : aiAgentService.getSlugById(doc.getAiAgentId())
+                                    .map(slug -> {
+                                        dto.setAiAgentSlug(slug);
+                                        return dto;
+                                    });
+
+            return withAgent.chain(mapped -> {
+                if (ScriptMode.CUSTOM.equals(earlyMode) && doc.getCustomScriptId() != null) {
+                    assert scriptService != null;
+                    return scriptService.getById(doc.getCustomScriptId(), SuperUser.build())
+                            .chain(customScript -> {
+                                assert sceneService != null;
+                                return sceneService.getAllByScript(customScript.getId(), 1000, 0, SuperUser.build())
+                                        .map(sceneDTOs -> {
+                                            CustomScriptDTO customScriptDTO = new CustomScriptDTO();
+                                            customScriptDTO.setTitle(customScript.getName());
+                                            customScriptDTO.setColor(customScript.getColor());
+                                            customScriptDTO.setScenes(sceneDTOs.stream()
+                                                    .map(this::toCustomSceneDTO)
+                                                    .collect(Collectors.toList()));
+                                            mapped.setCustomScript(customScriptDTO);
+                                            return mapped;
+                                        });
+                            });
+                }
+                return Uni.createFrom().item(mapped);
+            });
+        });
     }
 
     private BrandPublicFlatDTO toPublicFlatDTO(Brand doc) {
@@ -235,10 +366,6 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                         resolvedDto, user,
                         existing != null ? existing.getSlugName() : WebHelper.generateSlug(dto.getLocalizedName()),
                         existing != null ? existing.getOwner() : null)))
-                .chain(entity -> resolveScriptEntries(dto, user).map(entries -> {
-                    entity.setScriptIds(entries);
-                    return entity;
-                }))
                 .chain(entity -> {
                     if (isNew) {
                         entity.setPopularityRate(5);
@@ -336,7 +463,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         return Uni.combine().all().unis(
                 userService.getUserName(doc.getAuthor()),
                 userService.getUserName(doc.getLastModifier()),
-                repository.getScriptEntryDTOsForBrand(doc.getId())
+                repository.getScriptEntriesForBrand(doc.getId())
         ).asTuple().chain(tuple -> {
             BrandDTO dto = new BrandDTO();
             dto.setId(doc.getId());
@@ -396,7 +523,15 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             }
             ScriptMode earlyMode = ScriptMode.valueOf(doc.getScriptMode() != null ? doc.getScriptMode() : ScriptMode.PREDEFINED.name());
             if (!ScriptMode.CUSTOM.equals(earlyMode)) {
-                dto.setScriptIds(tuple.getItem3());
+                List<BrandScriptEntryDTO> scriptDTOs = tuple.getItem3().stream()
+                        .map(entry -> {
+                            BrandScriptEntryDTO scriptDTO = new BrandScriptEntryDTO();
+                            scriptDTO.setScriptId(entry.getScriptId());
+                            scriptDTO.setUserVariables(entry.getUserVariables());
+                            return scriptDTO;
+                        })
+                        .collect(Collectors.toList());
+                dto.setScriptIds(scriptDTOs);
             } else {
                 dto.setCustomScriptId(doc.getCustomScriptId());
             }
@@ -613,32 +748,15 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
         if (ScriptMode.CUSTOM.equals(dto.getScriptMode())) {
             doc.setCustomScriptId(dto.getCustomScriptId());
+        } else if (dto.getScriptIds() != null && !dto.getScriptIds().isEmpty()) {
+            BrandScriptEntryDTO first = dto.getScriptIds().getFirst();
+            doc.setScriptIds(List.of(new BrandScriptEntry(first.getScriptId(), first.getUserVariables())));
         }
         doc.setScriptMode(dto.getScriptMode() != null ? dto.getScriptMode().name() : ScriptMode.PREDEFINED.name());
         doc.setStreamingOptions(dto.getStreamingOptions());
         doc.setChatFeatureFlags(dto.getChatFeatureFlags());
 
         return doc;
-    }
-
-    /**
-     * Resolves {@link BrandScriptEntryDTO#getSlugName()} to domain entries.
-     * Returns {@code null} when no scripts were sent (skip updating brand_scripts) or mode is CUSTOM.
-     */
-    protected Uni<List<BrandScriptEntry>> resolveScriptEntries(BrandDTO dto, IUser user) {
-        if (ScriptMode.CUSTOM.equals(dto.getScriptMode())) {
-            return Uni.createFrom().nullItem();
-        }
-        if (dto.getScriptIds() == null || dto.getScriptIds().isEmpty()) {
-            return Uni.createFrom().nullItem();
-        }
-        BrandScriptEntryDTO first = dto.getScriptIds().getFirst();
-        if (first.getSlugName() == null || first.getSlugName().isBlank()) {
-            return Uni.createFrom().nullItem();
-        }
-        assert scriptService != null;
-        return scriptService.getIdBySlug(first.getSlugName(), user)
-                .map(uuid -> List.of(new BrandScriptEntry(uuid, first.getUserVariables())));
     }
 
     public Uni<List<DocumentAccessDTO>> getDocumentAccess(UUID documentId, IUser user) {

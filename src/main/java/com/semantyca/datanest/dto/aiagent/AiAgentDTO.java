@@ -18,6 +18,7 @@ import java.util.UUID;
 public class AiAgentDTO extends AbstractDTO {
     @NotBlank
     private String name;
+    private String slugName;
     private String description;
     private String manner;
     private LlmType llmType;

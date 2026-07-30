@@ -1,4 +1,4 @@
-package com.semantyca.datanest.dto.brand;
+package com.semantyca.datanest.dto.brand.mixdeck;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;

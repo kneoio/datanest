@@ -1,16 +1,15 @@
-package com.semantyca.datanest.dto.script;
+package com.semantyca.datanest.dto.brand.mixdeck;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.Map;
-import java.util.UUID;
 
 @Setter
 @Getter
 @NoArgsConstructor
-public class BrandScriptEntryDTO {
-    private UUID scriptId;
+public class BrandScriptEntryMixdeckDTO {
+    private String slugName;
     private Map<String, Object> userVariables;
 }

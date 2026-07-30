@@ -8,6 +8,7 @@ import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
+import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.dto.LabelFlatDTO;
 import com.semantyca.datanest.dto.aiagent.AiAgentDTO;
 import com.semantyca.datanest.dto.aiagent.AiAgentFlatDTO;
@@ -80,6 +81,14 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
 
     public Uni<AiAgent> getById(UUID id, IUser user, LanguageCode language) {
         return repository.findById(id, user, false);
+    }
+
+    public Uni<UUID> getIdBySlug(String slugName, IUser user) {
+        return repository.findIdBySlugName(slugName, user);
+    }
+
+    public Uni<String> getSlugById(UUID id) {
+        return repository.findSlugNameById(id);
     }
 
     @Override
@@ -169,6 +178,7 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
             dto.setLastModifier(tuple.getItem2());
             dto.setLastModifiedDate(doc.getLastModifiedDate());
             dto.setName(doc.getName());
+            dto.setSlugName(doc.getSlugName());
             dto.setDescription(doc.getDescription());
             dto.setManner(doc.getManner());
             dto.setLlmType(doc.getLlmType());
@@ -255,6 +265,9 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
         AiAgent doc = new AiAgent();
         doc.setId(dto.getId());
         doc.setName(dto.getName());
+        doc.setSlugName(dto.getSlugName() != null && !dto.getSlugName().isBlank()
+                ? dto.getSlugName()
+                : WebHelper.generateSlug(dto.getName()));
         doc.setDescription(dto.getDescription());
         doc.setManner(dto.getManner());
         doc.setCopilot(dto.getCopilot());

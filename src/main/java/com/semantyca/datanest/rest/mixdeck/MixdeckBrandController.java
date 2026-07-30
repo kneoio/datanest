@@ -12,8 +12,8 @@ import com.semantyca.core.util.ProblemDetailsUtil;
 import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.dto.actionbars.SoundFragmentActionsFactory;
-import com.semantyca.datanest.dto.brand.BrandDTO;
-import com.semantyca.datanest.dto.brand.BrandPublicFlatDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.BrandMixdeckDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.BrandPublicFlatDTO;
 import com.semantyca.datanest.rest.BrandController;
 import com.semantyca.datanest.service.BrandPubService;
 import com.semantyca.datanest.service.BrandService;
@@ -39,7 +39,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
-public class MixdeckBrandController extends AbstractSecuredController<Brand, BrandDTO> {
+public class MixdeckBrandController extends AbstractSecuredController<Brand, BrandMixdeckDTO> {
     private static final Logger LOGGER = Logger.getLogger(MixdeckBrandController.class);
 
     private final BrandService service;
@@ -109,7 +109,7 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
         getContextUser(rc, false, true)
                 .chain(user -> {
                     if ("new".equalsIgnoreCase(slugName)) {
-                        BrandDTO dto = new BrandDTO();
+                        BrandMixdeckDTO dto = new BrandMixdeckDTO();
                         dto.setLocalizedName(new EnumMap<>(LanguageCode.class));
                         dto.getLocalizedName().put(LanguageCode.en, "");
                         dto.setColor(WebHelper.generateRandomBrightColor());
@@ -136,7 +136,7 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
                 );
     }
 
-    /** Mirrors BrandController.upsertBySlug on the mixdeck /public path; path key is slug. */
+    /** Mixdeck public upsert; path key is brand slug. Script entries use slugName. */
     private void upsertBySlugName(RoutingContext rc) {
         try {
             if (!validateJsonBody(rc)) {
@@ -146,12 +146,12 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
             String slugName = rc.pathParam("slugName");
             var body = rc.body().asJsonObject();
             body.remove("id");
-            BrandDTO dto = body.mapTo(BrandDTO.class);
+            BrandMixdeckDTO dto = body.mapTo(BrandMixdeckDTO.class);
 
-            Set<ConstraintViolation<BrandDTO>> violations = validator.validate(dto);
+            Set<ConstraintViolation<BrandMixdeckDTO>> violations = validator.validate(dto);
             if (violations != null && !violations.isEmpty()) {
                 Map<String, List<String>> fieldErrors = new HashMap<>();
-                for (ConstraintViolation<BrandDTO> v : violations) {
+                for (ConstraintViolation<BrandMixdeckDTO> v : violations) {
                     String field = v.getPropertyPath().toString();
                     fieldErrors.computeIfAbsent(field, k -> new ArrayList<>()).add(v.getMessage());
                 }

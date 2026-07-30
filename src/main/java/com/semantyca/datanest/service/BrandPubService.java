@@ -8,6 +8,7 @@ import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.PlaylistRequestDTO;
 import com.semantyca.datanest.dto.brand.BrandDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.BrandScriptEntryMixdeckDTO;
 import com.semantyca.datanest.dto.script.CustomActionDTO;
 import com.semantyca.datanest.dto.script.CustomSceneDTO;
 import com.semantyca.datanest.dto.script.CustomScriptDTO;
@@ -25,6 +26,7 @@ import com.semantyca.mixpla.model.Scene;
 import com.semantyca.mixpla.model.ScenePrompt;
 import com.semantyca.mixpla.model.Script;
 import com.semantyca.mixpla.model.brand.Brand;
+import com.semantyca.mixpla.model.brand.BrandScriptEntry;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.cnst.SceneTimingMode;
 import com.semantyca.mixpla.model.cnst.SourceType;
@@ -56,6 +58,7 @@ public class BrandPubService extends BrandService {
     public BrandPubService(
             UserService userService,
             ScriptService scriptService,
+            AiAgentService aiAgentService,
             SceneService sceneService,
             BrandRepository repository,
             DatanestConfig datanestConfig,
@@ -64,16 +67,18 @@ public class BrandPubService extends BrandService {
             UserSubscriptionRepository userSubscriptionRepository,
             BrandPubRepository brandPubRepository
     ) {
-        super(userService, scriptService, sceneService, repository, datanestConfig, metricPublisher, commandPublisher, userSubscriptionRepository);
+        super(userService, scriptService, aiAgentService, sceneService, repository, datanestConfig, metricPublisher, commandPublisher, userSubscriptionRepository);
         this.brandPubRepository = brandPubRepository;
     }
 
-    public Uni<BrandDTO> upsert(String id, BrandDTO dto, IUser user, LanguageCode code) {
+    public Uni<com.semantyca.datanest.dto.brand.mixdeck.BrandMixdeckDTO> upsert(
+            String id, com.semantyca.datanest.dto.brand.mixdeck.BrandMixdeckDTO dto, IUser user, LanguageCode code) {
         boolean isNew = "new".equalsIgnoreCase(id) || id == null || id.isBlank();
         boolean isCustom = ScriptMode.CUSTOM.equals(dto.getScriptMode());
         LOGGER.infof("BrandPubService.upsert: id=%s isNew=%s isCustom=%s user=%s", id, isNew, isCustom, user.getUserName());
-        return resolveOwnerUserIds(dto)
-                .chain(resolvedDto -> doUpsert(id, resolvedDto, isNew, isCustom, user))
+        return toAdminDto(dto, user)
+                .chain(adminDto -> resolveOwnerUserIds(adminDto)
+                        .chain(resolvedDto -> doUpsert(id, resolvedDto, dto, isNew, isCustom, user)))
                 .invoke(saved -> {
                     LOGGER.infof("BrandPubService.upsert: brand saved id=%s slug=%s", saved.getId(), saved.getSlugName());
                     commandPublisher.publishCommand(
@@ -85,19 +90,20 @@ public class BrandPubService extends BrandService {
                 .chain(this::mapToMixdeckDTO);
     }
 
-    private Uni<Brand> doUpsert(String id, BrandDTO dto, boolean isNew, boolean isCustom, IUser user) {
+    private Uni<Brand> doUpsert(String id, BrandDTO adminDto, com.semantyca.datanest.dto.brand.mixdeck.BrandMixdeckDTO mixdeckDto,
+                                boolean isNew, boolean isCustom, IUser user) {
         if (isNew) {
-            String slug = WebHelper.generateSlug(dto.getLocalizedName());
-            Brand brand = super.buildEntity(dto, user, slug);
+            String slug = WebHelper.generateSlug(adminDto.getLocalizedName());
+            Brand brand = super.buildEntity(adminDto, user, slug);
             brand.setPopularityRate(5);
-            return resolveScriptEntries(dto, user)
+            return resolveScriptEntries(mixdeckDto, user)
                     .chain(entries -> {
                         brand.setScriptIds(entries);
                         if (isCustom) {
-                            Script script = buildScript(slug, dto.getCustomScript().getTitle());
+                            Script script = buildScript(slug, mixdeckDto.getCustomScript().getTitle());
                             String color = ColorUtil.generateContrastColorPair()[0];
                             script.setColor(color);
-                            return brandPubRepository.insertBrandWithScript(brand, script, buildScenes(dto.getCustomScript()), List.of(), user)
+                            return brandPubRepository.insertBrandWithScript(brand, script, buildScenes(mixdeckDto.getCustomScript()), List.of(), user)
                                     .chain(brandId -> repository.findById(brandId, user, true));
                         } else {
                             return repository.insert(brand, List.of(), user);
@@ -107,17 +113,17 @@ public class BrandPubService extends BrandService {
             return repository.getBySlugName(id, user, false)
                     .chain(existingBrand -> {
                         String slug = existingBrand.getSlugName();
-                        Brand brand = super.buildEntity(dto, user, slug, existingBrand.getOwner());
-                        return resolveScriptEntries(dto, user)
+                        Brand brand = super.buildEntity(adminDto, user, slug, existingBrand.getOwner());
+                        return resolveScriptEntries(mixdeckDto, user)
                                 .chain(entries -> {
                                     brand.setScriptIds(entries);
                                     if (isCustom) {
                                         return resolveExistingCustomScriptId(existingBrand)
                                                 .chain(existingScriptId -> {
                                                     String color = ColorUtil.generateContrastColorPair()[0];
-                                                    Script script = buildScript(slug, dto.getCustomScript() != null ? dto.getCustomScript().getTitle() : null);
+                                                    Script script = buildScript(slug, mixdeckDto.getCustomScript() != null ? mixdeckDto.getCustomScript().getTitle() : null);
                                                     script.setColor(color);
-                                                    List<Scene> scenes = buildScenes(dto.getCustomScript());
+                                                    List<Scene> scenes = buildScenes(mixdeckDto.getCustomScript());
                                                     if (existingScriptId == null) {
                                                         return brandPubRepository.insertScriptAndUpdateBrand(existingBrand.getId(), brand, script, scenes, List.of(), user)
                                                                 .chain(brandId -> repository.findById(brandId, user, true));
@@ -133,6 +139,65 @@ public class BrandPubService extends BrandService {
                                 });
                     });
         }
+    }
+
+    /** Maps Mixdeck DTO → admin DTO for shared build/owner logic. Slugs resolved to UUIDs. */
+    private Uni<BrandDTO> toAdminDto(com.semantyca.datanest.dto.brand.mixdeck.BrandMixdeckDTO src, IUser user) {
+        BrandDTO dto = new BrandDTO();
+        dto.setLocalizedName(src.getLocalizedName());
+        dto.setSlugName(src.getSlugName());
+        dto.setCountry(src.getCountry());
+        dto.setTimeZone(src.getTimeZone());
+        dto.setColor(src.getColor());
+        dto.setDescription(src.getDescription());
+        dto.setTitleFont(src.getTitleFont());
+        dto.setBitRate(src.getBitRate());
+        dto.setPopularityRate(src.getPopularityRate());
+        dto.setOneTimeStreamPolicy(src.getOneTimeStreamPolicy());
+        dto.setSubmissionPolicy(src.getSubmissionPolicy());
+        dto.setMessagingPolicy(src.getMessagingPolicy());
+        dto.setIsTemporary(src.getIsTemporary());
+        dto.setPublicBrand(src.getPublicBrand());
+        dto.setProfileId(src.getProfileId());
+        dto.setAiOverridingEnabled(src.isAiOverridingEnabled());
+        dto.setProfileOverridingEnabled(src.isProfileOverridingEnabled());
+        dto.setAiOverriding(src.getAiOverriding());
+        dto.setProfileOverriding(src.getProfileOverriding());
+        dto.setCustomScriptId(src.getCustomScriptId());
+        dto.setScriptMode(src.getScriptMode());
+        dto.setStreamingOptions(src.getStreamingOptions());
+        dto.setCustomScript(src.getCustomScript());
+        dto.setOwner(src.getOwner());
+        dto.setLabels(src.getLabels());
+        dto.setGenres(src.getGenres());
+        dto.setLogoFiles(src.getLogoFiles());
+        dto.setRlsActions(src.getRlsActions());
+        dto.setSkipScriptValidation(src.isSkipScriptValidation());
+        dto.setChatFeatureFlags(src.getChatFeatureFlags());
+
+        if (src.getAiAgentSlug() == null || src.getAiAgentSlug().isBlank()) {
+            return Uni.createFrom().item(dto);
+        }
+        return aiAgentService.getIdBySlug(src.getAiAgentSlug(), user)
+                .map(uuid -> {
+                    dto.setAiAgentId(uuid);
+                    return dto;
+                });
+    }
+
+    private Uni<List<BrandScriptEntry>> resolveScriptEntries(com.semantyca.datanest.dto.brand.mixdeck.BrandMixdeckDTO dto, IUser user) {
+        if (ScriptMode.CUSTOM.equals(dto.getScriptMode())) {
+            return Uni.createFrom().nullItem();
+        }
+        if (dto.getScriptIds() == null || dto.getScriptIds().isEmpty()) {
+            return Uni.createFrom().nullItem();
+        }
+        BrandScriptEntryMixdeckDTO first = dto.getScriptIds().getFirst();
+        if (first.getSlugName() == null || first.getSlugName().isBlank()) {
+            return Uni.createFrom().nullItem();
+        }
+        return scriptService.getIdBySlug(first.getSlugName(), user)
+                .map(uuid -> List.of(new BrandScriptEntry(uuid, first.getUserVariables())));
     }
 
     private Uni<UUID> resolveExistingCustomScriptId(Brand existing) {
