@@ -188,6 +188,11 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         return repository.findIdBySlugName(slugName, user);
     }
 
+    public Uni<String> getSlugById(UUID id) {
+        assert repository != null;
+        return repository.findSlugNameById(id);
+    }
+
     public Uni<ScriptDTO> getPublicDTO(UUID id) {
         assert repository != null;
         return repository.findById(id, SuperUser.build(), false)

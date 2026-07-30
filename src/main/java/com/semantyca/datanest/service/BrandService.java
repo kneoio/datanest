@@ -38,6 +38,7 @@ import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
 import com.semantyca.mixpla.model.filter.BrandFilter;
 import com.semantyca.mixpla.repository.UserSubscriptionRepository;
 import com.semantyca.officeframe.model.cnst.CountryCode;
+import com.semantyca.officeframe.service.LabelService;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -58,6 +59,8 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
     protected final ScriptService scriptService;
     protected final AiAgentService aiAgentService;
+    protected final ProfileService profileService;
+    protected final LabelService labelService;
     protected final CommandPublisher commandPublisher;
     protected final BrandRepository repository;
 
@@ -69,6 +72,8 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         super();
         this.scriptService = null;
         this.aiAgentService = null;
+        this.profileService = null;
+        this.labelService = null;
         this.sceneService = null;
         this.repository = null;
         this.datanestConfig = null;
@@ -82,6 +87,8 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             UserService userService,
             ScriptService scriptService,
             AiAgentService aiAgentService,
+            ProfileService profileService,
+            LabelService labelService,
             SceneService sceneService,
             BrandRepository repository,
             DatanestConfig datanestConfig,
@@ -92,6 +99,8 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         super(userService);
         this.scriptService = scriptService;
         this.aiAgentService = aiAgentService;
+        this.profileService = profileService;
+        this.labelService = labelService;
         this.sceneService = sceneService;
         this.repository = repository;
         this.datanestConfig = datanestConfig;
@@ -159,7 +168,6 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             dto.setTitleFont(doc.getTitleFont());
             dto.setSlugName(doc.getSlugName());
             dto.setBitRate(doc.getBitRate());
-            dto.setProfileId(doc.getProfileId());
             dto.setOneTimeStreamPolicy(doc.getOneTimeStreamPolicy());
             dto.setSubmissionPolicy(doc.getSubmissionPolicy());
             dto.setMessagingPolicy(doc.getMessagingPolicy());
@@ -199,9 +207,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
             ScriptMode earlyMode = ScriptMode.valueOf(doc.getScriptMode() != null ? doc.getScriptMode() : ScriptMode.PREDEFINED.name());
             if (!ScriptMode.CUSTOM.equals(earlyMode)) {
-                dto.setScriptIds(tuple.getItem3());
-            } else {
-                dto.setCustomScriptId(doc.getCustomScriptId());
+                dto.setScripts(tuple.getItem3());
             }
 
             if (doc.getOwner() != null) {
@@ -226,8 +232,6 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 }
                 dto.setOwner(ownerDTO);
             }
-            dto.setLabels(doc.getLabels());
-            dto.setGenres(doc.getGenres());
             dto.setLogoFiles(doc.getFileMetadataList().isEmpty() ? null : doc.getFileMetadataList());
             dto.setScriptMode(earlyMode);
             dto.setStreamingOptions(doc.getStreamingOptions());
@@ -238,37 +242,57 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                 dto.setLastStreamHistoryEntry(streamHistory.get(streamHistory.size() - 1));
             }
 
-            Uni<com.semantyca.datanest.dto.brand.mixdeck.BrandMixdeckDTO> withAgent =
-                    doc.getAiAgentId() == null
-                            ? Uni.createFrom().item(dto)
-                            : aiAgentService.getSlugById(doc.getAiAgentId())
-                                    .map(slug -> {
-                                        dto.setAiAgentSlug(slug);
-                                        return dto;
-                                    });
+            Uni<Void> agentUni = doc.getAiAgentId() == null
+                    ? Uni.createFrom().voidItem()
+                    : aiAgentService.getSlugById(doc.getAiAgentId())
+                            .invoke(dto::setAiAgentSlug)
+                            .replaceWithVoid();
+            Uni<Void> profileUni = doc.getProfileId() == null
+                    ? Uni.createFrom().voidItem()
+                    : profileService.getSlugById(doc.getProfileId())
+                            .invoke(dto::setProfileSlug)
+                            .replaceWithVoid();
+            Uni<Void> customScriptUni = (!ScriptMode.CUSTOM.equals(earlyMode) || doc.getCustomScriptId() == null)
+                    ? Uni.createFrom().voidItem()
+                    : scriptService.getSlugById(doc.getCustomScriptId())
+                            .invoke(dto::setCustomScriptSlug)
+                            .replaceWithVoid();
+            Uni<Void> labelsUni = toIdentifiers(doc.getLabels()).invoke(dto::setLabels).replaceWithVoid();
+            Uni<Void> genresUni = toIdentifiers(doc.getGenres()).invoke(dto::setGenres).replaceWithVoid();
 
-            return withAgent.chain(mapped -> {
-                if (ScriptMode.CUSTOM.equals(earlyMode) && doc.getCustomScriptId() != null) {
-                    assert scriptService != null;
-                    return scriptService.getById(doc.getCustomScriptId(), SuperUser.build())
-                            .chain(customScript -> {
-                                assert sceneService != null;
-                                return sceneService.getAllByScript(customScript.getId(), 1000, 0, SuperUser.build())
-                                        .map(sceneDTOs -> {
-                                            CustomScriptDTO customScriptDTO = new CustomScriptDTO();
-                                            customScriptDTO.setTitle(customScript.getName());
-                                            customScriptDTO.setColor(customScript.getColor());
-                                            customScriptDTO.setScenes(sceneDTOs.stream()
-                                                    .map(this::toCustomSceneDTO)
-                                                    .collect(Collectors.toList()));
-                                            mapped.setCustomScript(customScriptDTO);
-                                            return mapped;
-                                        });
-                            });
-                }
-                return Uni.createFrom().item(mapped);
-            });
+            return Uni.combine().all().unis(agentUni, profileUni, customScriptUni, labelsUni, genresUni).discardItems()
+                    .chain(v -> {
+                        if (ScriptMode.CUSTOM.equals(earlyMode) && doc.getCustomScriptId() != null) {
+                            assert scriptService != null;
+                            return scriptService.getById(doc.getCustomScriptId(), SuperUser.build())
+                                    .chain(customScript -> {
+                                        assert sceneService != null;
+                                        return sceneService.getAllByScript(customScript.getId(), 1000, 0, SuperUser.build())
+                                                .map(sceneDTOs -> {
+                                                    CustomScriptDTO customScriptDTO = new CustomScriptDTO();
+                                                    customScriptDTO.setTitle(customScript.getName());
+                                                    customScriptDTO.setColor(customScript.getColor());
+                                                    customScriptDTO.setScenes(sceneDTOs.stream()
+                                                            .map(this::toCustomSceneDTO)
+                                                            .collect(Collectors.toList()));
+                                                    dto.setCustomScript(customScriptDTO);
+                                                    return dto;
+                                                });
+                                    });
+                        }
+                        return Uni.createFrom().item(dto);
+                    });
         });
+    }
+
+    private Uni<List<String>> toIdentifiers(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Uni.createFrom().item(List.of());
+        }
+        List<Uni<String>> unis = ids.stream()
+                .map(id -> labelService.getById(id).map(label -> label.getIdentifier()))
+                .collect(Collectors.toList());
+        return Uni.join().all(unis).andFailFast();
     }
 
     private BrandPublicFlatDTO toPublicFlatDTO(Brand doc) {

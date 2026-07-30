@@ -1,6 +1,7 @@
 package com.semantyca.datanest.dto.brand.mixdeck;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.AbstractDTO;
 import com.semantyca.core.dto.rls.RlsActionDTO;
@@ -31,16 +32,15 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 /**
- * Mixdeck brand form DTO. Script entries use {@link BrandScriptEntryMixdeckDTO#getSlugName()}.
- * No brand document id is exposed.
+ * Mixdeck brand form DTO — slugs/identifiers only; no document UUIDs.
  */
 @Setter
 @Getter
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties({"id"})
 public class BrandMixdeckDTO extends AbstractDTO {
     @NotNull(message = "Localized name is required")
     @ValidLocalizedName(
@@ -75,20 +75,20 @@ public class BrandMixdeckDTO extends AbstractDTO {
     private Integer isTemporary = 0;
     private int publicBrand;
     private String aiAgentSlug;
-    private UUID profileId;
+    private String profileSlug;
     private boolean aiOverridingEnabled;
     private boolean profileOverridingEnabled;
     private AiOverridingDTO aiOverriding;
     private ProfileOverridingDTO profileOverriding;
-    private List<BrandScriptEntryMixdeckDTO> scriptIds;
-    private UUID customScriptId;
+    private List<BrandScriptEntryMixdeckDTO> scripts;
+    private String customScriptSlug;
     private ScriptMode scriptMode = ScriptMode.PREDEFINED;
     private StreamingOptions streamingOptions;
     private StreamHistoryEntry lastStreamHistoryEntry;
     private CustomScriptDTO customScript;
     private OwnerDTO owner;
-    private List<UUID> labels;
-    private List<UUID> genres;
+    private List<String> labels;
+    private List<String> genres;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<FileMetadata> logoFiles;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
@@ -105,7 +105,7 @@ public class BrandMixdeckDTO extends AbstractDTO {
         if (!ScriptMode.CUSTOM.equals(scriptMode)) {
             return true;
         }
-        if (customScriptId != null) {
+        if (customScriptSlug != null && !customScriptSlug.isBlank()) {
             return true;
         }
         if (customScript == null || customScript.getScenes() == null || customScript.getScenes().isEmpty()) {

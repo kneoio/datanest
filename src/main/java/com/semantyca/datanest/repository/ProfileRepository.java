@@ -102,8 +102,8 @@ public class ProfileRepository extends AsyncRepository {
         OffsetDateTime nowTime = ZonedDateTime.now(ZoneOffset.UTC).toOffsetDateTime();
 
         String sql = "INSERT INTO " + entityData.getTableName() +
-                " (author, reg_date, last_mod_user, last_mod_date, name, description, explicit_content, archived) " +
-                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id";
+                " (author, reg_date, last_mod_user, last_mod_date, name, slug_name, description, explicit_content, archived) " +
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id";
 
         Tuple params = Tuple.tuple()
                 .addLong(user.getId())
@@ -111,6 +111,7 @@ public class ProfileRepository extends AsyncRepository {
                 .addLong(user.getId())
                 .addOffsetDateTime(nowTime)
                 .addString(profile.getName())
+                .addString(profile.getSlugName())
                 .addString(profile.getDescription())
                 .addBoolean(profile.isExplicitContent())
                 .addInteger(0);
@@ -145,12 +146,13 @@ public class ProfileRepository extends AsyncRepository {
                             OffsetDateTime nowTime = ZonedDateTime.now(ZoneOffset.UTC).toOffsetDateTime();
 
                             String sql = "UPDATE " + entityData.getTableName() +
-                                    " SET name=$1, description=$2, " +
-                                    "explicit_content=$3, last_mod_user=$4, last_mod_date=$5 " +
-                                    "WHERE id=$6";
+                                    " SET name=$1, slug_name=$2, description=$3, " +
+                                    "explicit_content=$4, last_mod_user=$5, last_mod_date=$6 " +
+                                    "WHERE id=$7";
 
                             Tuple params = Tuple.tuple()
                                     .addString(profile.getName())
+                                    .addString(profile.getSlugName())
                                     .addString(profile.getDescription())
                                     .addBoolean(profile.isExplicitContent())
                                     .addLong(user.getId())
@@ -223,11 +225,40 @@ public class ProfileRepository extends AsyncRepository {
         setDefaultFields(profile, row);
 
         profile.setName(row.getString("name"));
+        profile.setSlugName(row.getString("slug_name"));
         profile.setDescription(row.getString("description"));
         profile.setExplicitContent(row.getBoolean("explicit_content"));
         profile.setArchived(row.getInteger("archived"));
 
         return profile;
+    }
+
+    public Uni<UUID> findIdBySlugName(String slugName) {
+        String sql = "SELECT id FROM " + entityData.getTableName() +
+                " WHERE slug_name = $1 AND (archived IS NULL OR archived = 0)";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(slugName))
+                .onItem().transform(RowSet::iterator)
+                .onItem().transformToUni(iterator -> {
+                    if (iterator.hasNext()) {
+                        return Uni.createFrom().item(iterator.next().getUUID("id"));
+                    }
+                    return Uni.createFrom().failure(new DocumentHasNotFoundException(slugName));
+                });
+    }
+
+    public Uni<String> findSlugNameById(UUID id) {
+        String sql = "SELECT slug_name FROM " + entityData.getTableName() +
+                " WHERE id = $1 AND (archived IS NULL OR archived = 0)";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(id))
+                .onItem().transform(RowSet::iterator)
+                .onItem().transformToUni(iterator -> {
+                    if (iterator.hasNext()) {
+                        return Uni.createFrom().item(iterator.next().getString("slug_name"));
+                    }
+                    return Uni.createFrom().failure(new DocumentHasNotFoundException(id));
+                });
     }
 
     public Uni<List<DocumentAccessInfo>> getDocumentAccessInfo(UUID documentId, IUser user) {

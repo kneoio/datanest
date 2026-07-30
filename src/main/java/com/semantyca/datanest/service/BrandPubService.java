@@ -31,6 +31,7 @@ import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.cnst.SceneTimingMode;
 import com.semantyca.mixpla.model.cnst.SourceType;
 import com.semantyca.mixpla.model.cnst.WayOfSourcing;
+import com.semantyca.officeframe.service.LabelService;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Typed;
@@ -59,6 +60,8 @@ public class BrandPubService extends BrandService {
             UserService userService,
             ScriptService scriptService,
             AiAgentService aiAgentService,
+            ProfileService profileService,
+            LabelService labelService,
             SceneService sceneService,
             BrandRepository repository,
             DatanestConfig datanestConfig,
@@ -67,7 +70,7 @@ public class BrandPubService extends BrandService {
             UserSubscriptionRepository userSubscriptionRepository,
             BrandPubRepository brandPubRepository
     ) {
-        super(userService, scriptService, aiAgentService, sceneService, repository, datanestConfig, metricPublisher, commandPublisher, userSubscriptionRepository);
+        super(userService, scriptService, aiAgentService, profileService, labelService, sceneService, repository, datanestConfig, metricPublisher, commandPublisher, userSubscriptionRepository);
         this.brandPubRepository = brandPubRepository;
     }
 
@@ -141,7 +144,7 @@ public class BrandPubService extends BrandService {
         }
     }
 
-    /** Maps Mixdeck DTO → admin DTO for shared build/owner logic. Slugs resolved to UUIDs. */
+    /** Maps Mixdeck DTO → admin DTO for shared build/owner logic. Slugs/identifiers resolved to UUIDs. */
     private Uni<BrandDTO> toAdminDto(com.semantyca.datanest.dto.brand.mixdeck.BrandMixdeckDTO src, IUser user) {
         BrandDTO dto = new BrandDTO();
         dto.setLocalizedName(src.getLocalizedName());
@@ -158,41 +161,59 @@ public class BrandPubService extends BrandService {
         dto.setMessagingPolicy(src.getMessagingPolicy());
         dto.setIsTemporary(src.getIsTemporary());
         dto.setPublicBrand(src.getPublicBrand());
-        dto.setProfileId(src.getProfileId());
         dto.setAiOverridingEnabled(src.isAiOverridingEnabled());
         dto.setProfileOverridingEnabled(src.isProfileOverridingEnabled());
         dto.setAiOverriding(src.getAiOverriding());
         dto.setProfileOverriding(src.getProfileOverriding());
-        dto.setCustomScriptId(src.getCustomScriptId());
         dto.setScriptMode(src.getScriptMode());
         dto.setStreamingOptions(src.getStreamingOptions());
         dto.setCustomScript(src.getCustomScript());
         dto.setOwner(src.getOwner());
-        dto.setLabels(src.getLabels());
-        dto.setGenres(src.getGenres());
         dto.setLogoFiles(src.getLogoFiles());
         dto.setRlsActions(src.getRlsActions());
         dto.setSkipScriptValidation(src.isSkipScriptValidation());
         dto.setChatFeatureFlags(src.getChatFeatureFlags());
 
-        if (src.getAiAgentSlug() == null || src.getAiAgentSlug().isBlank()) {
-            return Uni.createFrom().item(dto);
+        Uni<Void> agentUni = (src.getAiAgentSlug() == null || src.getAiAgentSlug().isBlank())
+                ? Uni.createFrom().voidItem()
+                : aiAgentService.getIdBySlug(src.getAiAgentSlug(), user)
+                        .invoke(dto::setAiAgentId)
+                        .replaceWithVoid();
+        Uni<Void> profileUni = (src.getProfileSlug() == null || src.getProfileSlug().isBlank())
+                ? Uni.createFrom().voidItem()
+                : profileService.getIdBySlug(src.getProfileSlug())
+                        .invoke(dto::setProfileId)
+                        .replaceWithVoid();
+        Uni<Void> customScriptUni = (src.getCustomScriptSlug() == null || src.getCustomScriptSlug().isBlank())
+                ? Uni.createFrom().voidItem()
+                : scriptService.getIdBySlug(src.getCustomScriptSlug(), user)
+                        .invoke(dto::setCustomScriptId)
+                        .replaceWithVoid();
+        Uni<Void> labelsUni = toLabelIds(src.getLabels()).invoke(dto::setLabels).replaceWithVoid();
+        Uni<Void> genresUni = toLabelIds(src.getGenres()).invoke(dto::setGenres).replaceWithVoid();
+
+        return Uni.combine().all().unis(agentUni, profileUni, customScriptUni, labelsUni, genresUni).discardItems()
+                .replaceWith(dto);
+    }
+
+    private Uni<List<UUID>> toLabelIds(List<String> identifiers) {
+        if (identifiers == null || identifiers.isEmpty()) {
+            return Uni.createFrom().item(List.of());
         }
-        return aiAgentService.getIdBySlug(src.getAiAgentSlug(), user)
-                .map(uuid -> {
-                    dto.setAiAgentId(uuid);
-                    return dto;
-                });
+        List<Uni<UUID>> unis = identifiers.stream()
+                .map(identifier -> labelService.findByIdentifier(identifier).map(label -> label.getId()))
+                .collect(Collectors.toList());
+        return Uni.join().all(unis).andFailFast();
     }
 
     private Uni<List<BrandScriptEntry>> resolveScriptEntries(com.semantyca.datanest.dto.brand.mixdeck.BrandMixdeckDTO dto, IUser user) {
         if (ScriptMode.CUSTOM.equals(dto.getScriptMode())) {
             return Uni.createFrom().nullItem();
         }
-        if (dto.getScriptIds() == null || dto.getScriptIds().isEmpty()) {
+        if (dto.getScripts() == null || dto.getScripts().isEmpty()) {
             return Uni.createFrom().nullItem();
         }
-        BrandScriptEntryMixdeckDTO first = dto.getScriptIds().getFirst();
+        BrandScriptEntryMixdeckDTO first = dto.getScripts().getFirst();
         if (first.getSlugName() == null || first.getSlugName().isBlank()) {
             return Uni.createFrom().nullItem();
         }

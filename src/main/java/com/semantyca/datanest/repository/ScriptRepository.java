@@ -249,6 +249,21 @@ public class ScriptRepository extends AsyncRepository {
                 });
     }
 
+    public Uni<String> findSlugNameById(UUID id) {
+        String sql = "SELECT slug_name FROM " + entityData.getTableName() +
+                " WHERE id = $1 AND archived = 0";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(id))
+                .onItem().transform(RowSet::iterator)
+                .onItem().transformToUni(iterator -> {
+                    if (iterator.hasNext()) {
+                        return Uni.createFrom().item(iterator.next().getString("slug_name"));
+                    } else {
+                        return Uni.createFrom().failure(new DocumentHasNotFoundException(id));
+                    }
+                });
+    }
+
     public Uni<Script> insert(Script script, IUser user) {
         return insert(script, List.of(), user);
     }

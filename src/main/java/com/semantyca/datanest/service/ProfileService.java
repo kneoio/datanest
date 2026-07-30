@@ -6,8 +6,10 @@ import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
+import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.dto.ProfileDTO;
 import com.semantyca.datanest.dto.ProfileFlatDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.ProfileMixdeckDTO;
 import com.semantyca.datanest.repository.ProfileRepository;
 import com.semantyca.mixpla.model.Profile;
 import io.smallrye.mutiny.Uni;
@@ -113,9 +115,28 @@ public class ProfileService extends AbstractService<Profile, ProfileDTO> {
     private Profile buildEntity(ProfileDTO dto) {
         Profile entity = new Profile();
         entity.setName(dto.getName());
+        entity.setSlugName(WebHelper.generateSlug(dto.getName()));
         entity.setDescription(dto.getDescription());
         entity.setExplicitContent(dto.isExplicitContent());
         return entity;
+    }
+
+    public Uni<UUID> getIdBySlug(String slugName) {
+        return repository.findIdBySlugName(slugName);
+    }
+
+    public Uni<String> getSlugById(UUID id) {
+        return repository.findSlugNameById(id);
+    }
+
+    public Uni<ProfileMixdeckDTO> mapToMixdeckDTO(Profile profile) {
+        ProfileMixdeckDTO dto = new ProfileMixdeckDTO();
+        dto.setAuthor(null);
+        dto.setName(profile.getName());
+        dto.setSlugName(profile.getSlugName());
+        dto.setDescription(profile.getDescription());
+        dto.setExplicitContent(profile.isExplicitContent());
+        return Uni.createFrom().item(dto);
     }
 
     public Uni<List<DocumentAccessDTO>> getDocumentAccess(UUID documentId, IUser user) {

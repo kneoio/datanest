@@ -15,6 +15,7 @@ import com.semantyca.datanest.dto.aiagent.AiAgentFlatDTO;
 import com.semantyca.datanest.dto.aiagent.LanguagePreferenceDTO;
 import com.semantyca.datanest.dto.aiagent.TTSSettingDTO;
 import com.semantyca.datanest.dto.aiagent.VoiceDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.AiAgentMixdeckDTO;
 import com.semantyca.datanest.repository.AiAgentRepository;
 import com.semantyca.mixpla.model.aiagent.AiAgent;
 import com.semantyca.mixpla.model.aiagent.LanguagePreference;
@@ -89,6 +90,16 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
 
     public Uni<String> getSlugById(UUID id) {
         return repository.findSlugNameById(id);
+    }
+
+    public Uni<AiAgentMixdeckDTO> mapToMixdeckDTO(AiAgent doc) {
+        AiAgentMixdeckDTO dto = new AiAgentMixdeckDTO();
+        dto.setName(doc.getName());
+        dto.setSlugName(doc.getSlugName());
+        dto.setDescription(doc.getDescription());
+        dto.setManner(doc.getManner());
+        dto.setLlmType(doc.getLlmType());
+        return Uni.createFrom().item(dto);
     }
 
     @Override
@@ -178,7 +189,6 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
             dto.setLastModifier(tuple.getItem2());
             dto.setLastModifiedDate(doc.getLastModifiedDate());
             dto.setName(doc.getName());
-            dto.setSlugName(doc.getSlugName());
             dto.setDescription(doc.getDescription());
             dto.setManner(doc.getManner());
             dto.setLlmType(doc.getLlmType());
@@ -265,9 +275,7 @@ public class AiAgentService extends AbstractService<AiAgent, AiAgentDTO> {
         AiAgent doc = new AiAgent();
         doc.setId(dto.getId());
         doc.setName(dto.getName());
-        doc.setSlugName(dto.getSlugName() != null && !dto.getSlugName().isBlank()
-                ? dto.getSlugName()
-                : WebHelper.generateSlug(dto.getName()));
+        doc.setSlugName(WebHelper.generateSlug(dto.getName()));
         doc.setDescription(dto.getDescription());
         doc.setManner(dto.getManner());
         doc.setCopilot(dto.getCopilot());
