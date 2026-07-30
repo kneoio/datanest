@@ -104,7 +104,7 @@ public class BrandPubService extends BrandService {
                     metricPublisher.publishMetric(
                             saved.getSlugName(),
                             MetricEventType.COMMAND,
-                            ProcessType.INDEPENDENT,
+                            ProcessType.FLOW,
                             "brand_saved",
                             Map.of(
                                     "brandId", saved.getId().toString(),

@@ -555,7 +555,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                     metricPublisher.publishMetric(
                             saved.getSlugName(),
                             MetricEventType.COMMAND,
-                            ProcessType.INDEPENDENT,
+                            ProcessType.FLOW,
                             "brand_saved",
                             Map.of(
                                     "brandId", saved.getId().toString(),
