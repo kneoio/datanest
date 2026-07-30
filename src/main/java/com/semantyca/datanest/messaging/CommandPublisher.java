@@ -41,9 +41,13 @@ public class CommandPublisher extends AbstractCommandPublisher {
         UUID id = traceId != null ? traceId : UUID.randomUUID();
         try {
             CommandDTO event = CommandDTO.of(EnvConst.APP_ID, type, id, command, payload);
-            publishEvent(event, "jesoos");
-            if (CommandType.FLOW_RESTART.equals(type)) {
+            if (CommandType.AIVOX_STOP_BRAND.equals(type)) {
                 publishEvent(event, "aivox");
+            } else {
+                publishEvent(event, "jesoos");
+                if (CommandType.FLOW_RESTART.equals(type)) {
+                    publishEvent(event, "aivox");
+                }
             }
             return id;
         } catch (Exception e) {

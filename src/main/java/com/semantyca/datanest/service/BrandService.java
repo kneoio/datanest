@@ -609,10 +609,35 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
 
     public Uni<Integer> archive(String id, IUser user) {
         assert repository != null;
-        return repository.findById(UUID.fromString(id), user, false)
-                .chain(radioStation -> {
-                    return repository.archive(UUID.fromString(id), user);
-                });
+        UUID brandId = UUID.fromString(id);
+        return repository.findById(brandId, user, false)
+                .chain(brand -> repository.archive(brandId, user)
+                        .invoke(count -> {
+                            if (count > 0 && brand.getSlugName() != null) {
+                                assert commandPublisher != null;
+                                assert metricPublisher != null;
+                                UUID traceId = UUID.randomUUID();
+                                commandPublisher.publishCommand(
+                                        CommandType.AIVOX_STOP_BRAND,
+                                        "brand_deleted",
+                                        Map.of("brandId", brand.getId().toString(), "slug", brand.getSlugName()),
+                                        traceId
+                                );
+                                metricPublisher.publishMetric(
+                                        brand.getSlugName(),
+                                        MetricEventType.COMMAND,
+                                        ProcessType.FLOW,
+                                        "brand_deleted",
+                                        Map.of(
+                                                "brandId", brand.getId().toString(),
+                                                "slug", brand.getSlugName(),
+                                                "deletedBy", user.getUserName(),
+                                                "commandType", CommandType.AIVOX_STOP_BRAND.name()
+                                        ),
+                                        traceId
+                                );
+                            }
+                        }));
     }
 
     public Uni<Integer> archive(UUID id) {
