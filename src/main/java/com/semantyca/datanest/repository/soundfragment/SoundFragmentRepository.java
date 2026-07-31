@@ -260,6 +260,20 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract imp
                 });
     }
 
+    /** Global slug check (no RLS). Pass excludeId on update so the row keeps its own slug. */
+    public Uni<Boolean> existsBySlug(String slugName, UUID excludeId) {
+        if (excludeId == null) {
+            String sql = "SELECT 1 FROM " + entityData.getTableName() + " WHERE slug_name = $1 LIMIT 1";
+            return client.preparedQuery(sql)
+                    .execute(Tuple.of(slugName))
+                    .onItem().transform(rows -> rows.iterator().hasNext());
+        }
+        String sql = "SELECT 1 FROM " + entityData.getTableName() + " WHERE slug_name = $1 AND id <> $2 LIMIT 1";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(slugName, excludeId))
+                .onItem().transform(rows -> rows.iterator().hasNext());
+    }
+
     public Uni<SoundFragment> findById(UUID uuid) {
         String sql = "SELECT * FROM " + entityData.getTableName() + " WHERE id = $1";
 

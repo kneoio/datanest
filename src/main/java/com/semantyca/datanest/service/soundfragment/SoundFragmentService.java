@@ -496,6 +496,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
             List<RlsActionDTO> rlsActions = dto.getRlsActions() != null ? dto.getRlsActions() : List.of();
             return checkSubscriptionSongLimit(user)
                     .chain(() -> checkBrandSongLimits(targetBrands, user))
+                    .chain(() -> assignUniqueSlug(entity, targetBrands, null, user))
                     .chain(() -> repository.insert(entity, dto.getRepresentedInBrands(), rlsActions, user)
                             .chain(doc -> moveFilesForNewEntity(doc, fileMetadataList, user))
                             .invoke(this::triggerSpectraAnalysis)
@@ -511,6 +512,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         } else {
             List<UUID> brandIds = dto.getRepresentedInBrands() != null ? dto.getRepresentedInBrands() : List.of();
             UUID brandId = brandIds.isEmpty() ? null : brandIds.getFirst();
+            UUID entityId = UUID.fromString(id);
             // rlsActions on update are ignored — post-create ACL edits use bulkUpdateACL.
             boolean isPrerecorded = entity.getType() == PlaylistItemType.PRERECORDED_ADVERTISEMENT
                     || entity.getType() == PlaylistItemType.PRERECORDED_PODCAST;
@@ -522,7 +524,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                 .filter(Objects::nonNull)
                                 .toList()
                         : List.of();
-                return repository.update(UUID.fromString(id), entity, dto.getRepresentedInBrands(), List.of(), user, slugsToRemove)
+                return assignUniqueSlug(entity, brandIds, entityId, user)
+                        .chain(() -> repository.update(entityId, entity, dto.getRepresentedInBrands(), List.of(), user, slugsToRemove))
                         .chain(doc -> mapToDTO(doc, true, null, null))
                         .onFailure().invoke(failure -> {
                             LOGGER.warnf("Entity update failed, cleaning up files for user: %s, entity: %s",
@@ -534,7 +537,8 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                     );
                         });
             }
-            return repository.update(UUID.fromString(id), entity, dto.getRepresentedInBrands(), List.of(), user)
+            return assignUniqueSlug(entity, brandIds, entityId, user)
+                    .chain(() -> repository.update(entityId, entity, dto.getRepresentedInBrands(), List.of(), user))
                     .invoke(doc -> triggerOpusEncodingIfMissing(doc, brandId, fileMetadataList))
                     .invoke(this::triggerSpectraAnalysis)
                     .chain(doc -> mapToDTO(doc, true, null, null))
@@ -548,6 +552,61 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                 );
                     });
         }
+    }
+
+    /**
+     * Makes {@code entity.slugName} globally unique. Order after base collision:
+     * {@code -song}, {@code -song-from-{brand}}, {@code -song-for-you}, {@code -enjoy}, then {@code -2}, {@code -3}, …
+     */
+    private Uni<Void> assignUniqueSlug(SoundFragment entity, List<UUID> brandIds, UUID excludeId, IUser user) {
+        String baseSlug = entity.getSlugName();
+        return firstBrandSlug(brandIds, user)
+                .chain(brandSlug -> ensureUniqueSlug(baseSlug, brandSlug, excludeId))
+                .invoke(entity::setSlugName)
+                .replaceWithVoid();
+    }
+
+    private Uni<String> firstBrandSlug(List<UUID> brandIds, IUser user) {
+        if (brandIds == null || brandIds.isEmpty()) {
+            return Uni.createFrom().nullItem();
+        }
+        return brandService.getById(brandIds.getFirst(), user)
+                .map(Brand::getSlugName)
+                .onFailure().recoverWithItem((String) null);
+    }
+
+    private Uni<String> ensureUniqueSlug(String baseSlug, String brandSlug, UUID excludeId) {
+        List<String> candidates = new ArrayList<>();
+        candidates.add(baseSlug);
+        candidates.add(baseSlug + "-song");
+        if (brandSlug != null && !brandSlug.isBlank()) {
+            candidates.add(baseSlug + "-song-from-" + brandSlug);
+        }
+        candidates.add(baseSlug + "-song-for-you");
+        candidates.add(baseSlug + "-enjoy");
+        return pickFirstFreeSlug(candidates, 0, excludeId)
+                .chain(found -> found != null
+                        ? Uni.createFrom().item(found)
+                        : pickNumberedSlug(baseSlug, 2, excludeId));
+    }
+
+    private Uni<String> pickFirstFreeSlug(List<String> candidates, int index, UUID excludeId) {
+        if (index >= candidates.size()) {
+            return Uni.createFrom().nullItem();
+        }
+        String candidate = candidates.get(index);
+        return repository.existsBySlug(candidate, excludeId)
+                .chain(exists -> exists
+                        ? pickFirstFreeSlug(candidates, index + 1, excludeId)
+                        : Uni.createFrom().item(candidate));
+    }
+
+    private Uni<String> pickNumberedSlug(String baseSlug, int n, UUID excludeId) {
+        String candidate = baseSlug + "-" + n;
+        return repository.existsBySlug(candidate, excludeId)
+                .chain(exists -> exists
+                        ? pickNumberedSlug(baseSlug, n + 1, excludeId)
+                        : Uni.createFrom().item(candidate));
     }
 
     private Uni<Void> checkBrandSongLimits(List<UUID> brandIds, IUser user) {
@@ -1000,6 +1059,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
         String genreIdentifier = metadata != null && metadata.getGenre() != null ? metadata.getGenre() : "other";
         return checkSubscriptionSongLimit(user)
                 .chain(() -> checkBrandSongLimits(targetBrandIds, user))
+                .chain(() -> assignUniqueSlug(fragment, brandIds, null, user))
                 .chain(() -> genreService.getByFuzzyIdentifier(genreIdentifier)
                         .chain(genres -> {
                             List<UUID> genreIds = genres.stream().map(DataEntity::getId).collect(Collectors.toList());
