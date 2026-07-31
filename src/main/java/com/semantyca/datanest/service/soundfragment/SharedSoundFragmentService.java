@@ -226,36 +226,43 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
                                                                      Long sourceUserId, String sourceUserName, String sourceUserEmail,
                                                                      boolean stayIncognito, boolean notifyOnPlay,
                                                                      List<UUID> assignedBrandIds) {
-        List<Uni<SharedSoundFragment>> unis = targetBrandIds.stream()
-                .map(targetBrandId -> {
-                    if (assignedBrandIds != null && assignedBrandIds.contains(targetBrandId)) {
-                        return Uni.<SharedSoundFragment>createFrom().failure(new IllegalArgumentException(
-                                "Cannot share to a brand the song is already assigned to: " + targetBrandId));
-                    }
-                    return brandService.getById(targetBrandId, SuperUser.build())
-                            .onItem().transformToUni(targetBrand -> {
-                                if (targetBrand.getSubmissionPolicy() != SubmissionPolicy.NO_RESTRICTIONS) {
-                                    return Uni.createFrom().failure(new IllegalArgumentException(
-                                            "Brand does not accept contributions without restrictions: " + targetBrandId));
-                                }
-                                SharedSoundFragment entity = new SharedSoundFragment();
-                                entity.setSourceUserId(sourceUserId);
-                                if (!stayIncognito) {
-                                    entity.setSourceUserName(sourceUserName);
-                                    entity.setSourceUserEmail(sourceUserEmail);
-                                }
-                                entity.setTargetBrandId(targetBrandId);
-                                entity.setSoundFragmentId(fragment.getId());
-                                entity.setNotifyOnPlay(notifyOnPlay);
-                                // Every new share starts PENDING regardless of genre fit — no automatic
-                                // accept/reject decision. Genre stays visible to the reviewing station
-                                // owner as context (rendered as tags), it's not an automated gate.
-                                entity.setStatus(ApprovalStatus.PENDING.value());
-                                return Uni.createFrom().item(entity);
-                            });
-                })
-                .collect(Collectors.toList());
+        List<Uni<SharedSoundFragment>> unis = new java.util.ArrayList<>(targetBrandIds.size());
+        for (UUID targetBrandId : targetBrandIds) {
+            unis.add(validateAndBuildEntity(fragment, targetBrandId, sourceUserId, sourceUserName, sourceUserEmail,
+                    stayIncognito, notifyOnPlay, assignedBrandIds));
+        }
         return Uni.join().all(unis).andFailFast();
+    }
+
+    private Uni<SharedSoundFragment> validateAndBuildEntity(SoundFragment fragment, UUID targetBrandId,
+                                                            Long sourceUserId, String sourceUserName, String sourceUserEmail,
+                                                            boolean stayIncognito, boolean notifyOnPlay,
+                                                            List<UUID> assignedBrandIds) {
+        if (assignedBrandIds != null && assignedBrandIds.contains(targetBrandId)) {
+            return Uni.createFrom().failure(new IllegalArgumentException(
+                    "Cannot share to a brand the song is already assigned to: " + targetBrandId));
+        }
+        return brandService.getById(targetBrandId, SuperUser.build())
+                .chain(targetBrand -> {
+                    if (targetBrand.getSubmissionPolicy() != SubmissionPolicy.NO_RESTRICTIONS) {
+                        return Uni.createFrom().failure(new IllegalArgumentException(
+                                "Brand does not accept contributions without restrictions: " + targetBrandId));
+                    }
+                    SharedSoundFragment entity = new SharedSoundFragment();
+                    entity.setSourceUserId(sourceUserId);
+                    if (!stayIncognito) {
+                        entity.setSourceUserName(sourceUserName);
+                        entity.setSourceUserEmail(sourceUserEmail);
+                    }
+                    entity.setTargetBrandId(targetBrandId);
+                    entity.setSoundFragmentId(fragment.getId());
+                    entity.setNotifyOnPlay(notifyOnPlay);
+                    // Every new share starts PENDING regardless of genre fit — no automatic
+                    // accept/reject decision. Genre stays visible to the reviewing station
+                    // owner as context (rendered as tags), it's not an automated gate.
+                    entity.setStatus(ApprovalStatus.PENDING.value());
+                    return Uni.createFrom().item(entity);
+                });
     }
 
     public Uni<List<ShareDTO>> listShareDTO(UUID soundFragmentId) {
