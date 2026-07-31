@@ -205,40 +205,55 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
 
         boolean notifyOnPlay = patch.isNotifyOnPlay();
         Uni<SoundFragment> fragmentUni = soundFragmentRepository.findById(fragmentId, user.getId(), false, true, false);
-        Uni<List<SharedSoundFragment>> entitiesUni = NO_BRAND_SLUG.equals(slug)
-                ? fragmentUni.chain(fragment -> validateAndBuildEntities(fragment, add, user.getId(), user.getUserName(), user.getEmail(), incognito, notifyOnPlay))
-                : fragmentUni.chain(fragment -> brandService.getBySlugNameForUser(slug, user)
-                        .chain(sourceBrand -> validateAndBuildEntities(fragment, add,
-                                sourceBrand.getOwner().getUserId(), sourceBrand.getOwner().getName(),
-                                sourceBrand.getOwner().getEmail(), incognito, notifyOnPlay)));
+        Uni<List<UUID>> assignedBrandsUni = soundFragmentRepository.getBrandsForSoundFragment(fragmentId, user);
+        Uni<List<SharedSoundFragment>> entitiesUni = Uni.combine().all().unis(fragmentUni, assignedBrandsUni).asTuple()
+                .chain(tuple -> {
+                    SoundFragment fragment = tuple.getItem1();
+                    List<UUID> assignedBrandIds = tuple.getItem2();
+                    if (NO_BRAND_SLUG.equals(slug)) {
+                        return validateAndBuildEntities(fragment, add, user.getId(), user.getUserName(), user.getEmail(),
+                                incognito, notifyOnPlay, assignedBrandIds);
+                    }
+                    return brandService.getBySlugNameForUser(slug, user)
+                            .chain(sourceBrand -> validateAndBuildEntities(fragment, add,
+                                    sourceBrand.getOwner().getUserId(), sourceBrand.getOwner().getName(),
+                                    sourceBrand.getOwner().getEmail(), incognito, notifyOnPlay, assignedBrandIds));
+                });
         return entitiesUni.chain(entities -> repository.applyPatch(fragmentId, remove, entities));
     }
 
     private Uni<List<SharedSoundFragment>> validateAndBuildEntities(SoundFragment fragment, List<UUID> targetBrandIds,
                                                                      Long sourceUserId, String sourceUserName, String sourceUserEmail,
-                                                                     boolean stayIncognito, boolean notifyOnPlay) {
+                                                                     boolean stayIncognito, boolean notifyOnPlay,
+                                                                     List<UUID> assignedBrandIds) {
         List<Uni<SharedSoundFragment>> unis = targetBrandIds.stream()
-                .map(targetBrandId -> brandService.getById(targetBrandId, SuperUser.build())
-                        .onItem().transformToUni(targetBrand -> {
-                            if (targetBrand.getSubmissionPolicy() != SubmissionPolicy.NO_RESTRICTIONS) {
-                                return Uni.createFrom().failure(new IllegalArgumentException(
-                                        "Brand does not accept contributions without restrictions: " + targetBrandId));
-                            }
-                            SharedSoundFragment entity = new SharedSoundFragment();
-                            entity.setSourceUserId(sourceUserId);
-                            if (!stayIncognito) {
-                                entity.setSourceUserName(sourceUserName);
-                                entity.setSourceUserEmail(sourceUserEmail);
-                            }
-                            entity.setTargetBrandId(targetBrandId);
-                            entity.setSoundFragmentId(fragment.getId());
-                            entity.setNotifyOnPlay(notifyOnPlay);
-                            // Every new share starts PENDING regardless of genre fit — no automatic
-                            // accept/reject decision. Genre stays visible to the reviewing station
-                            // owner as context (rendered as tags), it's not an automated gate.
-                            entity.setStatus(ApprovalStatus.PENDING.value());
-                            return Uni.createFrom().item(entity);
-                        }))
+                .map(targetBrandId -> {
+                    if (assignedBrandIds != null && assignedBrandIds.contains(targetBrandId)) {
+                        return Uni.<SharedSoundFragment>createFrom().failure(new IllegalArgumentException(
+                                "Cannot share to a brand the song is already assigned to: " + targetBrandId));
+                    }
+                    return brandService.getById(targetBrandId, SuperUser.build())
+                            .onItem().transformToUni(targetBrand -> {
+                                if (targetBrand.getSubmissionPolicy() != SubmissionPolicy.NO_RESTRICTIONS) {
+                                    return Uni.createFrom().failure(new IllegalArgumentException(
+                                            "Brand does not accept contributions without restrictions: " + targetBrandId));
+                                }
+                                SharedSoundFragment entity = new SharedSoundFragment();
+                                entity.setSourceUserId(sourceUserId);
+                                if (!stayIncognito) {
+                                    entity.setSourceUserName(sourceUserName);
+                                    entity.setSourceUserEmail(sourceUserEmail);
+                                }
+                                entity.setTargetBrandId(targetBrandId);
+                                entity.setSoundFragmentId(fragment.getId());
+                                entity.setNotifyOnPlay(notifyOnPlay);
+                                // Every new share starts PENDING regardless of genre fit — no automatic
+                                // accept/reject decision. Genre stays visible to the reviewing station
+                                // owner as context (rendered as tags), it's not an automated gate.
+                                entity.setStatus(ApprovalStatus.PENDING.value());
+                                return Uni.createFrom().item(entity);
+                            });
+                })
                 .collect(Collectors.toList());
         return Uni.join().all(unis).andFailFast();
     }
