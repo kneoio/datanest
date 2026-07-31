@@ -47,6 +47,7 @@ import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 import org.jspecify.annotations.NonNull;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -302,35 +303,46 @@ public class MixdeckSoundFragmentController extends AbstractSecuredController<So
 
             JsonObject body = rc.body().asJsonObject();
             body.remove("id");
+            List<String> genreIdentifiers = readStringList(body, "genres");
+            List<String> labelIdentifiers = readStringList(body, "labels");
+            body.remove("genres");
+            body.remove("labels");
             SoundFragmentDTO dto = body.mapTo(SoundFragmentDTO.class);
             String slugName = rc.pathParam("slugName");
-
-            if (dto.getType() != null && !PlaylistItemType.SONG.equals(dto.getType())) {
-                assert config != null;
-                config.getOtherGenreId().ifPresent(genreId ->
-                        dto.setGenres(List.of(UUID.fromString(genreId))));
-            }
-
-            assert validationService != null;
-            ValidationResult validationResult = validationService.validateSoundFragmentDTO(slugName, dto);
-            if (!validationResult.valid()) {
-                ProblemDetailsUtil.respondValidationError(rc, validationResult.errorMessage(), validationResult.fieldErrors());
-                return;
-            }
 
             getContextUser(rc, false, true)
                     .chain(user -> {
                         assert service != null;
-                        if (slugName == null || "new".equalsIgnoreCase(slugName)) {
-                            return service.upsert(null, dto, user, LanguageCode.en)
-                                    .map(doc -> Tuple2.of((String) null, doc));
-                        }
-                        return service.getIdBySlug(slugName, user)
-                                .chain(id -> service.upsert(id.toString(), dto, user, LanguageCode.en)
-                                        .map(doc -> Tuple2.of(id.toString(), doc)));
+                        return service.applyGenreAndLabelIdentifiers(dto, genreIdentifiers, labelIdentifiers)
+                                .chain(() -> {
+                                    if (dto.getType() != null && !PlaylistItemType.SONG.equals(dto.getType())) {
+                                        assert config != null;
+                                        config.getOtherGenreId().ifPresent(genreId ->
+                                                dto.setGenres(List.of(UUID.fromString(genreId))));
+                                    }
+
+                                    assert validationService != null;
+                                    ValidationResult validationResult = validationService.validateSoundFragmentDTO(slugName, dto);
+                                    if (!validationResult.valid()) {
+                                        ProblemDetailsUtil.respondValidationError(rc, validationResult.errorMessage(), validationResult.fieldErrors());
+                                        return Uni.createFrom().nullItem();
+                                    }
+
+                                    if (slugName == null || "new".equalsIgnoreCase(slugName)) {
+                                        return service.upsert(null, dto, user, LanguageCode.en)
+                                                .map(doc -> Tuple2.of((String) null, doc));
+                                    }
+                                    return service.getIdBySlug(slugName, user)
+                                            .chain(id -> service.upsert(id.toString(), dto, user, LanguageCode.en)
+                                                    .map(doc -> Tuple2.of(id.toString(), doc)));
+                                });
                     })
                     .subscribe().with(
-                            tuple -> sendUpsertResponse(rc, tuple.getItem2(), tuple.getItem1()),
+                            tuple -> {
+                                if (tuple != null) {
+                                    sendUpsertResponse(rc, tuple.getItem2(), tuple.getItem1());
+                                }
+                            },
                             t -> handleFailure(rc, t)
                     );
 
@@ -341,6 +353,18 @@ public class MixdeckSoundFragmentController extends AbstractSecuredController<So
                 rc.fail(400, new IllegalArgumentException("Invalid JSON payload"));
             }
         }
+    }
+
+    private static List<String> readStringList(JsonObject body, String field) {
+        var arr = body.getJsonArray(field);
+        if (arr == null) {
+            return null;
+        }
+        List<String> out = new ArrayList<>(arr.size());
+        for (int i = 0; i < arr.size(); i++) {
+            out.add(arr.getString(i));
+        }
+        return out;
     }
 
     private void deleteBySlugName(RoutingContext rc) {

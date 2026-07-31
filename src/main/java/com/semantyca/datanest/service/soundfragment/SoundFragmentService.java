@@ -380,6 +380,78 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 .chain(() -> doUpsert(id, dto, user, code));
     }
 
+    /** Mixdeck public POST sends genre/label identifiers (or UUID strings); resolve onto DTO before validation/upsert. */
+    public Uni<Void> applyGenreAndLabelIdentifiers(SoundFragmentDTO dto, List<String> genreIdentifiers, List<String> labelIdentifiers) {
+        return resolveGenreIdentifiers(dto, genreIdentifiers)
+                .chain(() -> resolveLabelIdentifiers(dto, labelIdentifiers));
+    }
+
+    private Uni<Void> resolveGenreIdentifiers(SoundFragmentDTO dto, List<String> identifiers) {
+        if (identifiers == null) {
+            return Uni.createFrom().voidItem();
+        }
+        if (identifiers.isEmpty()) {
+            dto.setGenres(List.of());
+            return Uni.createFrom().voidItem();
+        }
+        List<Uni<UUID>> unis = identifiers.stream().map(this::resolveGenreId).collect(Collectors.toList());
+        return Uni.join().all(unis).andFailFast()
+                .invoke(dto::setGenres)
+                .replaceWithVoid();
+    }
+
+    private Uni<Void> resolveLabelIdentifiers(SoundFragmentDTO dto, List<String> identifiers) {
+        if (identifiers == null) {
+            return Uni.createFrom().voidItem();
+        }
+        if (identifiers.isEmpty()) {
+            dto.setLabels(List.of());
+            return Uni.createFrom().voidItem();
+        }
+        List<Uni<UUID>> unis = identifiers.stream().map(this::resolveLabelId).collect(Collectors.toList());
+        return Uni.join().all(unis).andFailFast()
+                .invoke(dto::setLabels)
+                .replaceWithVoid();
+    }
+
+    private Uni<UUID> resolveGenreId(String value) {
+        if (value == null || value.isBlank()) {
+            return Uni.createFrom().failure(new IllegalArgumentException("Empty genre identifier"));
+        }
+        try {
+            return Uni.createFrom().item(UUID.fromString(value));
+        } catch (IllegalArgumentException ignored) {
+            return genreService.getByFuzzyIdentifier(value)
+                    .map(genres -> {
+                        if (genres == null) {
+                            throw new IllegalArgumentException("Unknown genre identifier: " + value);
+                        }
+                        return genres.stream()
+                                .filter(g -> value.equals(g.getIdentifier()))
+                                .findFirst()
+                                .orElseThrow(() -> new IllegalArgumentException("Unknown genre identifier: " + value))
+                                .getId();
+                    });
+        }
+    }
+
+    private Uni<UUID> resolveLabelId(String value) {
+        if (value == null || value.isBlank()) {
+            return Uni.createFrom().failure(new IllegalArgumentException("Empty label identifier"));
+        }
+        try {
+            return Uni.createFrom().item(UUID.fromString(value));
+        } catch (IllegalArgumentException ignored) {
+            return labelService.findByIdentifier(value)
+                    .map(label -> {
+                        if (label == null) {
+                            throw new IllegalArgumentException("Unknown label identifier: " + value);
+                        }
+                        return label.getId();
+                    });
+        }
+    }
+
     /** Maps DTO.brands (slugs) → representedInBrands (UUIDs) using existing resolveBrandSlug. */
     private Uni<Void> resolveBrandSlugsOnDto(SoundFragmentDTO dto) {
         if (dto.getBrands() == null || dto.getBrands().isEmpty()) {
