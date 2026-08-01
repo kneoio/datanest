@@ -12,7 +12,7 @@ import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.PlaylistRequestDTO;
 import com.semantyca.datanest.dto.brand.AiOverridingDTO;
 import com.semantyca.datanest.dto.brand.BrandDTO;
-import com.semantyca.datanest.dto.brand.mixdeck.BrandPublicFlatDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.*;
 import com.semantyca.datanest.dto.brand.OwnerDTO;
 import com.semantyca.datanest.dto.brand.ProfileOverridingDTO;
 import com.semantyca.datanest.dto.script.BrandScriptEntryDTO;
@@ -39,13 +39,6 @@ import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
 import com.semantyca.mixpla.model.filter.BrandFilter;
 import com.semantyca.mixpla.repository.UserSubscriptionRepository;
 import com.semantyca.officeframe.model.cnst.CountryCode;
-import com.semantyca.datanest.dto.brand.mixdeck.CustomActionMixdeckDTO;
-import com.semantyca.datanest.dto.brand.mixdeck.CustomSceneMixdeckDTO;
-import com.semantyca.datanest.dto.brand.mixdeck.CustomScriptMixdeckDTO;
-import com.semantyca.datanest.dto.brand.mixdeck.FileMixdeckDTO;
-import com.semantyca.datanest.dto.brand.mixdeck.OwnerMixdeckDTO;
-import com.semantyca.datanest.dto.brand.mixdeck.PlaylistRequestMixdeckDTO;
-import com.semantyca.datanest.dto.brand.mixdeck.ScenePromptMixdeckDTO;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
 import com.semantyca.officeframe.service.GenreService;
 import com.semantyca.officeframe.service.LabelService;
@@ -165,7 +158,7 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         return repository.getBySlugName(slugName, user, false).map(this::toPublicFlatDTO);
     }
 
-    public Uni<com.semantyca.datanest.dto.brand.mixdeck.BrandMixdeckDTO> getDTOBySlug(final String slugName, final IUser user, final LanguageCode language) {
+    public Uni<BrandMixdeckDTO> getDTOBySlug(final String slugName, final IUser user, final LanguageCode language) {
         assert repository != null;
         return repository.getBySlugName(slugName, user, false).chain(this::mapToMixdeckDTO);
     }
@@ -173,14 +166,14 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
     /**
      * Mixdeck form mapping — separate DTO; script entries use slugName (no brand UUID).
      */
-    Uni<com.semantyca.datanest.dto.brand.mixdeck.BrandMixdeckDTO> mapToMixdeckDTO(Brand doc) {
+    Uni<BrandMixdeckDTO> mapToMixdeckDTO(Brand doc) {
         assert repository != null;
         return Uni.combine().all().unis(
                 userService.getUserName(doc.getAuthor()),
                 userService.getUserName(doc.getLastModifier()),
                 repository.getScriptEntryDTOsForBrand(doc.getId())
         ).asTuple().chain(tuple -> {
-            com.semantyca.datanest.dto.brand.mixdeck.BrandMixdeckDTO dto = new com.semantyca.datanest.dto.brand.mixdeck.BrandMixdeckDTO();
+            BrandMixdeckDTO dto = new BrandMixdeckDTO();
             dto.setAuthor(tuple.getItem1());
             dto.setRegDate(doc.getRegDate());
             dto.setLastModifier(tuple.getItem2());
