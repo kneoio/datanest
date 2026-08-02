@@ -10,6 +10,7 @@ import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.OtsDefinitionDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.OtsDefinitionMixdeckDTO;
 import com.semantyca.datanest.dto.script.RelativeSceneDTO;
 import com.semantyca.datanest.messaging.CommandPublisher;
 import com.semantyca.datanest.repository.OtsDefinitionRepository;
@@ -79,6 +80,20 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
                 });
     }
 
+    public Uni<List<OtsDefinitionMixdeckDTO>> getAllMixdeckDTO(final int limit, final int offset, final IUser user,
+                                                               final OtsDefinitionFilter filter) {
+        return repository.getAll(limit, offset, false, user, filter)
+                .chain(list -> {
+                    if (list.isEmpty()) {
+                        return Uni.createFrom().item(List.of());
+                    }
+                    List<Uni<OtsDefinitionMixdeckDTO>> unis = list.stream()
+                            .map(this::mapToMixdeckDTO)
+                            .collect(Collectors.toList());
+                    return Uni.join().all(unis).andFailFast();
+                });
+    }
+
     public Uni<Integer> getAllCount(final IUser user, final OtsDefinitionFilter filter) {
         return repository.getAllCount(user, false, filter);
     }
@@ -86,6 +101,10 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
     @Override
     public Uni<OtsDefinitionDTO> getDTO(UUID id, IUser user, LanguageCode language) {
         return repository.findById(id, user, false).chain(this::mapToDTO);
+    }
+
+    public Uni<OtsDefinitionMixdeckDTO> getMixdeckDTOBySlug(String slugName, IUser user) {
+        return repository.findBySlugName(slugName, user, false).chain(this::mapToMixdeckDTO);
     }
 
     public Uni<OtsDefinitionDTO> getNewDTO(String scriptSlug, IUser user) {
@@ -101,6 +120,10 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
                 });
     }
 
+    public Uni<OtsDefinitionMixdeckDTO> getNewMixdeckDTO(String scriptSlug, IUser user) {
+        return getNewDTO(scriptSlug, user).map(this::toMixdeckDTO);
+    }
+
     @Override
     public Uni<OtsDefinitionDTO> upsert(String id, OtsDefinitionDTO dto, IUser user, LanguageCode code) {
         if (dto.getBrandSlug() == null && dto.getAgentSlug() == null) {
@@ -111,6 +134,18 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
             return create(dto, user);
         }
         return update(UUID.fromString(id), dto, user);
+    }
+
+    /** Mixdeck upsert; path key is ots definition slug (not UUID). */
+    public Uni<OtsDefinitionMixdeckDTO> upsertMixdeck(String slugName, OtsDefinitionMixdeckDTO mixdeckDto, IUser user) {
+        OtsDefinitionDTO dto = fromMixdeckDTO(mixdeckDto);
+        boolean isNew = slugName == null || slugName.isBlank() || "new".equalsIgnoreCase(slugName);
+        if (isNew) {
+            return upsert("new", dto, user, LanguageCode.en).map(this::toMixdeckDTO);
+        }
+        return repository.findBySlugName(slugName, user, false)
+                .chain(existing -> upsert(existing.getId().toString(), dto, user, LanguageCode.en))
+                .map(this::toMixdeckDTO);
     }
 
     @Override
@@ -124,6 +159,11 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
                                         Map.of("slug", ots.getSlugName()));
                             }
                         }));
+    }
+
+    public Uni<Integer> deleteBySlug(String slugName, IUser user) {
+        return repository.findBySlugName(slugName, user, false)
+                .chain(ots -> delete(ots.getId().toString(), user));
     }
 
     private Uni<OtsDefinitionDTO> update(UUID id, OtsDefinitionDTO dto, IUser user) {
@@ -290,5 +330,49 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
             dto.setChatContext(ots.getChatContext());
             return dto;
         });
+    }
+
+    private Uni<OtsDefinitionMixdeckDTO> mapToMixdeckDTO(OtsDefinition ots) {
+        return mapToDTO(ots).map(this::toMixdeckDTO);
+    }
+
+    private OtsDefinitionMixdeckDTO toMixdeckDTO(OtsDefinitionDTO src) {
+        OtsDefinitionMixdeckDTO dto = new OtsDefinitionMixdeckDTO();
+        dto.setAuthor(src.getAuthor());
+        dto.setRegDate(src.getRegDate());
+        dto.setLastModifier(src.getLastModifier());
+        dto.setLastModifiedDate(src.getLastModifiedDate());
+        dto.setName(src.getName());
+        dto.setSlugName(src.getSlugName());
+        dto.setScriptSlug(src.getScriptSlug());
+        dto.setUserVariables(src.getUserVariables());
+        dto.setBrandSlug(src.getBrandSlug());
+        dto.setAgentSlug(src.getAgentSlug());
+        dto.setStatus(src.getStatus());
+        dto.setStatusHistory(src.getStatusHistory());
+        dto.setType(src.getType());
+        dto.setEstimatedDurationMin(src.getEstimatedDurationMin());
+        dto.setChatContext(src.getChatContext());
+        dto.setColor(src.getColor());
+        dto.setRequiredVariables(src.getRequiredVariables());
+        return dto;
+    }
+
+    private OtsDefinitionDTO fromMixdeckDTO(OtsDefinitionMixdeckDTO src) {
+        OtsDefinitionDTO dto = new OtsDefinitionDTO();
+        dto.setName(src.getName());
+        dto.setSlugName(src.getSlugName());
+        dto.setScriptSlug(src.getScriptSlug());
+        dto.setUserVariables(src.getUserVariables());
+        dto.setBrandSlug(src.getBrandSlug());
+        dto.setAgentSlug(src.getAgentSlug());
+        dto.setStatus(src.getStatus());
+        dto.setStatusHistory(src.getStatusHistory());
+        dto.setType(src.getType());
+        dto.setEstimatedDurationMin(src.getEstimatedDurationMin());
+        dto.setChatContext(src.getChatContext());
+        dto.setColor(src.getColor());
+        dto.setRequiredVariables(src.getRequiredVariables());
+        return dto;
     }
 }

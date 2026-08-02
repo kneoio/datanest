@@ -15,6 +15,7 @@ import com.semantyca.datanest.rest.ProfileController;
 import com.semantyca.datanest.rest.PromptController;
 import com.semantyca.datanest.rest.mixdeck.MixdeckBrandController;
 import com.semantyca.datanest.rest.mixdeck.MixdeckListenerController;
+import com.semantyca.datanest.rest.mixdeck.MixdeckOtsDefinitionController;
 import com.semantyca.datanest.rest.mixdeck.MixdeckScriptController;
 import com.semantyca.datanest.rest.PublicSongSubmissionController;
 import com.semantyca.datanest.rest.mixdeck.MixdeckSoundFragmentController;
@@ -90,6 +91,9 @@ public class DatanestApplication {
     MixdeckScriptController mixdeckScriptController;
 
     @Inject
+    MixdeckOtsDefinitionController mixdeckOtsDefinitionController;
+
+    @Inject
     RefController refController;
 
     @Inject
@@ -126,6 +130,7 @@ public class DatanestApplication {
         sceneController.setupRoutes(router);
         scriptController.setupRoutes(router);
         mixdeckScriptController.setupRoutes(router);
+        mixdeckOtsDefinitionController.setupRoutes(router);
         sharedSoundFragmentController.setupRoutes(router);
         mixdeckSharedSoundFragmentController.setupRoutes(router);
         mixdeckSoundFragmentController.setupRoutes(router);
