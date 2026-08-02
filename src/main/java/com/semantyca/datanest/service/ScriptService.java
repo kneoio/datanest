@@ -2,7 +2,7 @@ package com.semantyca.datanest.service;
 
 import com.semantyca.core.dto.DocumentAccessDTO;
 import com.semantyca.core.dto.rls.RlsActionDTO;
-import com.semantyca.core.model.ScriptVariable;
+import com.semantyca.core.model.SimpleReferenceEntity;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.model.user.IUser;
@@ -14,17 +14,17 @@ import com.semantyca.datanest.dto.BrandScriptDTO;
 import com.semantyca.datanest.dto.DraftDTO;
 import com.semantyca.datanest.dto.LabelFlatDTO;
 import com.semantyca.datanest.dto.PlaylistRequestDTO;
-import com.semantyca.datanest.dto.script.PromptDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.LabelMixdeckFlatDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.ScriptMixdeckDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.ScriptMixdeckFlatDTO;
 import com.semantyca.datanest.dto.script.AbsoluteSceneDTO;
 import com.semantyca.datanest.dto.script.AbstractSceneDTO;
+import com.semantyca.datanest.dto.script.PromptDTO;
 import com.semantyca.datanest.dto.script.RelativeSceneDTO;
 import com.semantyca.datanest.dto.script.ScenePromptDTO;
 import com.semantyca.datanest.dto.script.ScriptDTO;
 import com.semantyca.datanest.dto.script.ScriptExportDTO;
 import com.semantyca.datanest.dto.script.ScriptFlatDTO;
-import com.semantyca.datanest.dto.brand.mixdeck.LabelMixdeckFlatDTO;
-import com.semantyca.datanest.dto.brand.mixdeck.ScriptMixdeckDTO;
-import com.semantyca.datanest.dto.brand.mixdeck.ScriptMixdeckFlatDTO;
 import com.semantyca.datanest.repository.ScriptRepository;
 import com.semantyca.mixpla.model.BrandScript;
 import com.semantyca.mixpla.model.DjPrompt;
@@ -103,8 +103,6 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                 });
     }
 
-
-
     public Uni<Integer> getAllCount(final IUser user) {
         return getAllCount(user, null);
     }
@@ -166,7 +164,10 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
             return Uni.createFrom().item(dto);
         }
         List<Uni<LabelDTO>> labelUnis = script.getLabels().stream()
-                .map(labelId -> labelService.getDTO(labelId, null, LanguageCode.en))
+                .map(labelId -> {
+                    assert labelService != null;
+                    return labelService.getDTO(labelId, null, LanguageCode.en);
+                })
                 .collect(Collectors.toList());
         return Uni.join().all(labelUnis).andFailFast()
                 .map(fullLabels -> {
@@ -189,7 +190,10 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
             return Uni.createFrom().item(dto);
         }
         List<Uni<LabelDTO>> labelUnis = script.getLabels().stream()
-                .map(labelId -> labelService.getDTO(labelId, null, LanguageCode.en))
+                .map(labelId -> {
+                    assert labelService != null;
+                    return labelService.getDTO(labelId, null, LanguageCode.en);
+                })
                 .collect(Collectors.toList());
         return Uni.join().all(labelUnis).andFailFast()
                 .map(fullLabels -> {
@@ -270,17 +274,24 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
             dto.setTimingMode(script.getTimingMode() != null ? script.getTimingMode().name() : null);
             dto.setRequiredVariables(script.getRequiredVariables());
 
-            Uni<Void> profileUni = script.getDefaultProfileId() == null
-                    ? Uni.createFrom().voidItem()
-                    : profileService.getSlugById(script.getDefaultProfileId())
-                            .invoke(dto::setDefaultProfileSlug)
-                            .replaceWithVoid();
+            Uni<Void> profileUni;
+            if (script.getDefaultProfileId() == null) {
+                profileUni = Uni.createFrom().voidItem();
+            } else {
+                assert profileService != null;
+                profileUni = profileService.getSlugById(script.getDefaultProfileId())
+                        .invoke(dto::setDefaultProfileSlug)
+                        .replaceWithVoid();
+            }
             Uni<Void> labelsUni;
             if (script.getLabels() == null || script.getLabels().isEmpty()) {
                 labelsUni = Uni.createFrom().voidItem();
             } else {
                 List<Uni<String>> labelUnis = script.getLabels().stream()
-                        .map(labelId -> labelService.getById(labelId).map(label -> label.getIdentifier()))
+                        .map(labelId -> {
+                            assert labelService != null;
+                            return labelService.getById(labelId).map(SimpleReferenceEntity::getIdentifier);
+                        })
                         .collect(Collectors.toList());
                 labelsUni = Uni.join().all(labelUnis).andFailFast()
                         .invoke(dto::setLabels)

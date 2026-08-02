@@ -1,29 +1,25 @@
 package com.semantyca.datanest.service;
 
 import com.semantyca.core.dto.DocumentAccessDTO;
-import com.semantyca.core.llm.AnthropicTextClient;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.WebHelper;
-import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.OtsDefinitionDTO;
 import com.semantyca.datanest.dto.brand.mixdeck.OtsDefinitionMixdeckDTO;
 import com.semantyca.datanest.dto.script.RelativeSceneDTO;
 import com.semantyca.datanest.messaging.CommandPublisher;
 import com.semantyca.datanest.repository.OtsDefinitionRepository;
-import com.semantyca.mixpla.model.Script;
-import com.semantyca.mixpla.model.cnst.OtsRunStatus;
-import com.semantyca.mixpla.model.cnst.SceneTimingMode;
 import com.semantyca.mixpla.dto.queue.command.CommandType;
+import com.semantyca.mixpla.model.Script;
+import com.semantyca.mixpla.model.cnst.SceneTimingMode;
 import com.semantyca.mixpla.model.filter.OtsDefinitionFilter;
 import com.semantyca.mixpla.model.stream.OtsDefinition;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.jboss.logging.Logger;
 
 import java.util.List;
 import java.util.Map;
@@ -33,19 +29,10 @@ import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefinitionDTO> {
-    private static final Logger LOGGER = Logger.getLogger(OtsDefinitionService.class);
-    private static final long NAME_MAX_TOKENS = 30;
-    private static final String NAME_SYSTEM_PROMPT = """
-            You generate short, friendly display names for a listener's personal radio stream, \
-            based on a script template and the values the listener filled in. \
-            Reply with the name only - no quotes, no explanation, 2 to 6 words, title case.""";
-
     private final OtsDefinitionRepository repository;
     private final ScriptService scriptService;
     private final BrandService brandService;
     private final AiAgentService aiAgentService;
-    private final AnthropicTextClient anthropicTextClient;
-    private final DatanestConfig config;
     private final CommandPublisher commandPublisher;
 
     @Inject
@@ -54,16 +41,12 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
                                  ScriptService scriptService,
                                  BrandService brandService,
                                  AiAgentService aiAgentService,
-                                 AnthropicTextClient anthropicTextClient,
-                                 DatanestConfig config,
                                  CommandPublisher commandPublisher) {
         super(userService);
         this.repository = repository;
         this.scriptService = scriptService;
         this.brandService = brandService;
         this.aiAgentService = aiAgentService;
-        this.anthropicTextClient = anthropicTextClient;
-        this.config = config;
         this.commandPublisher = commandPublisher;
     }
 
@@ -266,27 +249,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
     }
 
     private Uni<String> generateName(Script script, Map<String, Object> userVariables) {
-        // LLM name generation temporarily disabled - Anthropic model config out of date.
         return Uni.createFrom().item(script.getName());
-
-        /*
-        String variablesText = userVariables == null || userVariables.isEmpty()
-                ? "(no variables)"
-                : userVariables.entrySet().stream()
-                        .map(e -> e.getKey() + ": " + e.getValue())
-                        .collect(Collectors.joining("\n"));
-
-        String userMessage = "Script name: " + script.getName() + "\nVariables:\n" + variablesText;
-
-        return anthropicTextClient.createTextMessage(
-                        config.getAnthropicApiKey(),
-                        config.getAnthropicModel(),
-                        NAME_MAX_TOKENS,
-                        NAME_SYSTEM_PROMPT,
-                        userMessage)
-                .map(result -> result.text().trim())
-                .onFailure().invoke(throwable -> LOGGER.errorf("Failed to generate ots definition name for script: %s", script.getId(), throwable));
-        */
     }
 
     public Uni<List<DocumentAccessDTO>> getDocumentAccess(UUID documentId, IUser user) {
