@@ -518,6 +518,16 @@ public class SoundFragmentController extends AbstractSecuredController<SoundFrag
                 dto.setShared(true);
                 hasConcreteFilters = true;
             }
+            String sortBy = json.getString("sortBy");
+            if (sortBy != null && !sortBy.trim().isEmpty()) {
+                String normalized = sortBy.trim().toUpperCase();
+                if ("BOOST".equals(normalized) || "PLAYED".equals(normalized) || "RATE".equals(normalized)) {
+                    dto.setSortBy(normalized);
+                }
+            }
+            if (json.containsKey("sortDesc")) {
+                dto.setSortDesc(json.getBoolean("sortDesc"));
+            }
             if (json.containsKey("activated")) {
                 dto.setActivated(json.getBoolean("activated", false));
             } else if (json.containsKey("filterActivated")) {

@@ -68,11 +68,7 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
             sql += queryBuilder.buildFilterConditions(filter);
         }
 
-        if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
-            sql += " ORDER BY sim DESC";
-        } else {
-            sql += " ORDER BY t.reg_date DESC";
-        }
+        sql += buildOrderBy(filter);
 
         if (limit > 0) {
             sql += String.format(" LIMIT %s OFFSET %s", limit, offset);
@@ -88,6 +84,26 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
                 .onItem().transformToUni(row -> createFlatDTO(row, brandId))
                 .concatenate()
                 .collect().asList();
+    }
+
+    private static String buildOrderBy(SoundFragmentFilter filter) {
+        String sortBy = filter != null ? filter.getSortBy() : null;
+        if (sortBy != null && !sortBy.isBlank()) {
+            String expr = switch (sortBy) {
+                case "BOOST" -> "bsf.boost";
+                case "PLAYED" -> "bsf.played_by_brand_count";
+                case "RATE" -> "(COALESCE(r.likes, 0) - COALESCE(r.dislikes, 0))";
+                default -> null;
+            };
+            if (expr != null) {
+                boolean desc = filter.getSortDesc() == null || filter.getSortDesc();
+                return " ORDER BY " + expr + (desc ? " DESC" : " ASC") + ", t.reg_date DESC";
+            }
+        }
+        if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
+            return " ORDER BY sim DESC";
+        }
+        return " ORDER BY t.reg_date DESC";
     }
 
     public Uni<Integer> findForBrandCount(UUID brandId, IUser user, SoundFragmentFilter filter) {
