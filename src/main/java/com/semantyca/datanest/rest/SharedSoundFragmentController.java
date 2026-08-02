@@ -7,7 +7,6 @@ import com.semantyca.core.dto.view.ViewPage;
 import com.semantyca.core.repository.exception.UserNotFoundException;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
-import com.semantyca.datanest.dto.SharePatchDTO;
 import com.semantyca.datanest.dto.sharing.ShareDTO;
 import com.semantyca.datanest.service.soundfragment.SharedSoundFragmentService;
 import com.semantyca.mixpla.model.soundfragment.SharedSoundFragment;
@@ -45,10 +44,6 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
     public void setupRoutes(Router router) {
         String path = "/datanest/shared-sound-fragments";
         BodyHandler jsonBodyHandler = BodyHandler.create().setHandleFileUploads(false);
-        // sharer adds or removes target brands for a shared fragment62734k. slug is the source
-        // station attributing the share; the FE sends SharedSoundFragmentService.NO_BRAND_SLUG for
-        // a fragment with no brand association (nothing to pick a source station from there).
-        router.route(HttpMethod.PATCH,  path + "/shared/:slug/:fragmentId").handler(jsonBodyHandler).handler(this::patchToShare);
         // receiver: get a single received share by id
         router.route(HttpMethod.GET,    path + "/received/:id").handler(this::getReceivedDoc);
         // receiver: accept a received share — sets status 500 (OPEN) and adds song to brand playlist
@@ -113,35 +108,6 @@ public class SharedSoundFragmentController extends AbstractSecuredController<Sha
                         t -> handleFailure(rc, t)
                 );
     }
-
-    private void patchToShare(RoutingContext rc) {
-        try {
-            if (!validateJsonBody(rc)) return;
-
-            String slug = rc.pathParam("slug");
-            UUID fragmentId = UUID.fromString(rc.pathParam("fragmentId"));
-            SharePatchDTO patch = rc.body().asJsonObject().mapTo(SharePatchDTO.class);
-            if (!validateDTO(rc, patch, validator)) return;
-
-            getContextUser(rc, false, true)
-                    .chain(user -> sharedSoundFragmentService.patchShares(fragmentId, slug, patch, user)
-                            .chain(() -> sharedSoundFragmentService.listShareDTO(fragmentId)))
-                    .subscribe().with(
-                            shares -> rc.response()
-                                    .setStatusCode(200)
-                                    .putHeader("Content-Type", "application/json")
-                                    .end(io.vertx.core.json.Json.encode(shares)),
-                            t -> handleFailure(rc, t)
-                    );
-        } catch (Exception e) {
-            if (e instanceof IllegalArgumentException) {
-                rc.fail(400, e);
-            } else {
-                rc.fail(400, new IllegalArgumentException("Invalid JSON payload"));
-            }
-        }
-    }
-
 
     private void upsertShare(RoutingContext rc) {
         try {

@@ -4,13 +4,12 @@ import com.semantyca.core.dto.DocumentAccessDTO;
 import com.semantyca.core.model.cnst.FileType;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.user.IUser;
-import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
-import com.semantyca.datanest.dto.SharePatchDTO;
 import com.semantyca.datanest.dto.UploadFileDTO;
 import com.semantyca.datanest.dto.sharing.ShareAdminDTO;
 import com.semantyca.datanest.dto.sharing.ShareDTO;
+import com.semantyca.datanest.dto.sharing.SharePatchMixdeckDTO;
 import com.semantyca.datanest.dto.sharing.ReceivedSharePublicDTO;
 import com.semantyca.datanest.dto.sharing.SharingPreviewDTO;
 import com.semantyca.datanest.messaging.CommandPublisher;
@@ -18,6 +17,7 @@ import com.semantyca.datanest.repository.soundfragment.SharedSoundFragmentReposi
 import com.semantyca.datanest.repository.soundfragment.SoundFragmentRepository;
 import com.semantyca.datanest.service.BrandService;
 import com.semantyca.mixpla.dto.queue.command.CommandType;
+import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.cnst.ApprovalStatus;
 import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
 import com.semantyca.mixpla.model.soundfragment.SharedSoundFragment;
@@ -195,58 +195,75 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
     // this sentinel instead, and the sharer is just the current user directly.
     public static final String NO_BRAND_SLUG = "NO_BRAND";
 
-    public Uni<Void> patchShares(UUID fragmentId, String slug, SharePatchDTO patch, IUser user) {
-        List<UUID> remove = patch.getRemoveTargetBrandIds() != null ? patch.getRemoveTargetBrandIds() : List.of();
-        List<UUID> add = patch.getAddTargetBrandIds() != null ? patch.getAddTargetBrandIds() : List.of();
+    public Uni<Void> patchShares(String fragmentSlug, String sourceBrandSlug, SharePatchMixdeckDTO patch, IUser user) {
+        List<String> removeSlugs = patch.getRemoveTargetBrandSlugs() != null ? patch.getRemoveTargetBrandSlugs() : List.of();
+        List<String> addSlugs = patch.getAddTargetBrandSlugs() != null ? patch.getAddTargetBrandSlugs() : List.of();
         boolean incognito = patch.isStayIncognito();
-        if (add.isEmpty()) {
-            return repository.applyPatch(fragmentId, remove, List.of());
-        }
-
         boolean notifyOnPlay = patch.isNotifyOnPlay();
-        Uni<SoundFragment> fragmentUni = soundFragmentRepository.findById(fragmentId, user.getId(), false, true, false);
-        Uni<List<UUID>> assignedBrandsUni = soundFragmentRepository.getBrandsForSoundFragment(fragmentId, user);
-        Uni<List<SharedSoundFragment>> entitiesUni = Uni.combine().all().unis(fragmentUni, assignedBrandsUni).asTuple()
-                .chain(tuple -> {
-                    SoundFragment fragment = tuple.getItem1();
-                    List<UUID> assignedBrandIds = tuple.getItem2();
-                    if (NO_BRAND_SLUG.equals(slug)) {
-                        return validateAndBuildEntities(fragment, add, user.getId(), user.getUserName(), user.getEmail(),
-                                incognito, notifyOnPlay, assignedBrandIds);
+
+        return soundFragmentRepository.findBySlugName(fragmentSlug, user.getId(), false, true, false)
+                .chain(fragment -> {
+                    UUID fragmentId = fragment.getId();
+                    Uni<List<UUID>> removeIdsUni = resolveBrandIds(removeSlugs);
+                    if (addSlugs.isEmpty()) {
+                        return removeIdsUni.chain(remove -> repository.applyPatch(fragmentId, remove, List.of()));
                     }
-                    return brandService.getBySlugNameForUser(slug, user)
-                            .chain(sourceBrand -> validateAndBuildEntities(fragment, add,
-                                    sourceBrand.getOwner().getUserId(), sourceBrand.getOwner().getName(),
-                                    sourceBrand.getOwner().getEmail(), incognito, notifyOnPlay, assignedBrandIds));
+                    Uni<List<UUID>> assignedBrandsUni = soundFragmentRepository.getBrandsForSoundFragment(fragmentId, user);
+                    return Uni.combine().all().unis(removeIdsUni, assignedBrandsUni).asTuple()
+                            .chain(tuple -> {
+                                List<UUID> remove = tuple.getItem1();
+                                List<UUID> assignedBrandIds = tuple.getItem2();
+                                Uni<List<SharedSoundFragment>> entitiesUni;
+                                if (NO_BRAND_SLUG.equals(sourceBrandSlug)) {
+                                    entitiesUni = validateAndBuildEntities(fragment, addSlugs, user.getId(),
+                                            user.getUserName(), user.getEmail(), incognito, notifyOnPlay, assignedBrandIds);
+                                } else {
+                                    entitiesUni = brandService.getBySlugNameForUser(sourceBrandSlug, user)
+                                            .chain(sourceBrand -> validateAndBuildEntities(fragment, addSlugs,
+                                                    sourceBrand.getOwner().getUserId(), sourceBrand.getOwner().getName(),
+                                                    sourceBrand.getOwner().getEmail(), incognito, notifyOnPlay, assignedBrandIds));
+                                }
+                                return entitiesUni.chain(entities -> repository.applyPatch(fragmentId, remove, entities));
+                            });
                 });
-        return entitiesUni.chain(entities -> repository.applyPatch(fragmentId, remove, entities));
     }
 
-    private Uni<List<SharedSoundFragment>> validateAndBuildEntities(SoundFragment fragment, List<UUID> targetBrandIds,
+    private Uni<List<UUID>> resolveBrandIds(List<String> brandSlugs) {
+        if (brandSlugs == null || brandSlugs.isEmpty()) {
+            return Uni.createFrom().item(List.of());
+        }
+        List<Uni<UUID>> unis = brandSlugs.stream()
+                .map(slug -> brandService.getBySlugName(slug).map(Brand::getId))
+                .collect(Collectors.toList());
+        return Uni.join().all(unis).andFailFast();
+    }
+
+    private Uni<List<SharedSoundFragment>> validateAndBuildEntities(SoundFragment fragment, List<String> targetBrandSlugs,
                                                                      Long sourceUserId, String sourceUserName, String sourceUserEmail,
                                                                      boolean stayIncognito, boolean notifyOnPlay,
                                                                      List<UUID> assignedBrandIds) {
-        List<Uni<SharedSoundFragment>> unis = new java.util.ArrayList<>(targetBrandIds.size());
-        for (UUID targetBrandId : targetBrandIds) {
-            unis.add(validateAndBuildEntity(fragment, targetBrandId, sourceUserId, sourceUserName, sourceUserEmail,
+        List<Uni<SharedSoundFragment>> unis = new java.util.ArrayList<>(targetBrandSlugs.size());
+        for (String targetBrandSlug : targetBrandSlugs) {
+            unis.add(validateAndBuildEntity(fragment, targetBrandSlug, sourceUserId, sourceUserName, sourceUserEmail,
                     stayIncognito, notifyOnPlay, assignedBrandIds));
         }
         return Uni.join().all(unis).andFailFast();
     }
 
-    private Uni<SharedSoundFragment> validateAndBuildEntity(SoundFragment fragment, UUID targetBrandId,
+    private Uni<SharedSoundFragment> validateAndBuildEntity(SoundFragment fragment, String targetBrandSlug,
                                                             Long sourceUserId, String sourceUserName, String sourceUserEmail,
                                                             boolean stayIncognito, boolean notifyOnPlay,
                                                             List<UUID> assignedBrandIds) {
-        if (assignedBrandIds != null && assignedBrandIds.contains(targetBrandId)) {
-            return Uni.createFrom().failure(new IllegalArgumentException(
-                    "Cannot share to a brand the song is already assigned to: " + targetBrandId));
-        }
-        return brandService.getById(targetBrandId, SuperUser.build())
+        return brandService.getBySlugName(targetBrandSlug)
                 .chain(targetBrand -> {
+                    UUID targetBrandId = targetBrand.getId();
+                    if (assignedBrandIds != null && assignedBrandIds.contains(targetBrandId)) {
+                        return Uni.createFrom().failure(new IllegalArgumentException(
+                                "Cannot share to a brand the song is already assigned to: " + targetBrandSlug));
+                    }
                     if (targetBrand.getSubmissionPolicy() != SubmissionPolicy.NO_RESTRICTIONS) {
                         return Uni.createFrom().failure(new IllegalArgumentException(
-                                "Brand does not accept contributions without restrictions: " + targetBrandId));
+                                "Brand does not accept contributions without restrictions: " + targetBrandSlug));
                     }
                     SharedSoundFragment entity = new SharedSoundFragment();
                     entity.setSourceUserId(sourceUserId);
@@ -263,6 +280,11 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
                     entity.setStatus(ApprovalStatus.PENDING.value());
                     return Uni.createFrom().item(entity);
                 });
+    }
+
+    public Uni<List<ShareDTO>> listShareDTO(String fragmentSlug, IUser user) {
+        return soundFragmentRepository.findBySlugName(fragmentSlug, user.getId(), false, false, false)
+                .chain(fragment -> listShareDTO(fragment.getId()));
     }
 
     public Uni<List<ShareDTO>> listShareDTO(UUID soundFragmentId) {

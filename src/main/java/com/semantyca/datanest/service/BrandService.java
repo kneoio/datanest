@@ -15,6 +15,7 @@ import com.semantyca.datanest.dto.brand.BrandDTO;
 import com.semantyca.datanest.dto.brand.mixdeck.*;
 import com.semantyca.datanest.dto.brand.OwnerDTO;
 import com.semantyca.datanest.dto.brand.ProfileOverridingDTO;
+import com.semantyca.datanest.dto.sharing.ShareTargetBrandDTO;
 import com.semantyca.datanest.dto.script.BrandScriptEntryDTO;
 import com.semantyca.datanest.dto.script.CustomActionDTO;
 import com.semantyca.datanest.dto.script.CustomSceneDTO;
@@ -52,6 +53,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -593,6 +595,34 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
                             .collect(Collectors.toList());
                     return Uni.join().all(unis).andFailFast();
                 });
+    }
+
+    public Uni<List<ShareTargetBrandDTO>> getAllOpenForSubmissionShareTargets(int limit, int offset, IUser user) {
+        assert repository != null;
+        return repository.getAllOpenForSubmission(limit, offset, user.getId())
+                .chain(list -> {
+                    if (list.isEmpty()) {
+                        return Uni.createFrom().item(List.of());
+                    }
+                    List<Uni<ShareTargetBrandDTO>> unis = list.stream()
+                            .map(this::toShareTargetBrandDTO)
+                            .collect(Collectors.toList());
+                    return Uni.join().all(unis).andFailFast();
+                });
+    }
+
+    private Uni<ShareTargetBrandDTO> toShareTargetBrandDTO(Brand doc) {
+        return toGenreIdentifiers(doc.getGenres()).map(genres -> {
+            ShareTargetBrandDTO dto = new ShareTargetBrandDTO();
+            dto.setSlugName(doc.getSlugName());
+            if (doc.getLocalizedName() != null && doc.getLocalizedName().containsKey(LanguageCode.en)) {
+                EnumMap<LanguageCode, String> localizedName = new EnumMap<>(LanguageCode.class);
+                localizedName.put(LanguageCode.en, doc.getLocalizedName().get(LanguageCode.en));
+                dto.setLocalizedName(localizedName);
+            }
+            dto.setGenres(genres);
+            return dto;
+        });
     }
 
     public Uni<Integer> getAllOpenForSubmissionCount(IUser user) {
