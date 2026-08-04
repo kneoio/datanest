@@ -12,6 +12,8 @@ import lombok.Setter;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+
 @Setter
 @Getter
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -30,4 +32,6 @@ public class OtsDefinitionDTO extends AbstractDTO {
     private String chatContext;
     private String color;
     private List<ScriptVariable> requiredVariables;
+    /** Per-scene duration overrides (seconds). Absent/null => use each scene's own duration. */
+    private Map<UUID, Integer> sceneDurations;
 }

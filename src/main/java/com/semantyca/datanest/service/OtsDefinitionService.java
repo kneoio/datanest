@@ -223,6 +223,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
         entity.setScriptId(scriptId);
         entity.setUserVariables(dto.getUserVariables());
         entity.setType(dto.getType());
+        entity.setSceneDurations(dto.getSceneDurations());
 
         Uni<Void> brandUni = dto.getBrandSlug() == null || dto.getBrandSlug().isBlank()
                 ? Uni.createFrom().voidItem()
@@ -291,6 +292,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
             dto.setType(ots.getType());
             dto.setEstimatedDurationMin(ots.getEstimatedDurationMin());
             dto.setChatContext(ots.getChatContext());
+            dto.setSceneDurations(ots.getSceneDurations());
             return dto;
         });
     }
@@ -318,6 +320,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
         dto.setChatContext(src.getChatContext());
         dto.setColor(src.getColor());
         dto.setRequiredVariables(src.getRequiredVariables());
+        dto.setSceneDurations(src.getSceneDurations());
         return dto;
     }
 
@@ -336,6 +339,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
         dto.setChatContext(src.getChatContext());
         dto.setColor(src.getColor());
         dto.setRequiredVariables(src.getRequiredVariables());
+        dto.setSceneDurations(src.getSceneDurations());
         return dto;
     }
 }

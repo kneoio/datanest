@@ -28,4 +28,6 @@ public class ScriptMixdeckDTO extends AbstractDTO {
     private String timingMode;
     private List<String> labels;
     private List<ScriptVariable> requiredVariables;
+    /** Ordered scenes (relative seq / absolute start). Used e.g. for OTS duration overrides. */
+    private List<ScriptSceneMixdeckDTO> scenes;
 }

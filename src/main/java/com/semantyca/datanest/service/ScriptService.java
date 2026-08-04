@@ -17,6 +17,7 @@ import com.semantyca.datanest.dto.PlaylistRequestDTO;
 import com.semantyca.datanest.dto.brand.mixdeck.LabelMixdeckFlatDTO;
 import com.semantyca.datanest.dto.brand.mixdeck.ScriptMixdeckDTO;
 import com.semantyca.datanest.dto.brand.mixdeck.ScriptMixdeckFlatDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.ScriptSceneMixdeckDTO;
 import com.semantyca.datanest.dto.script.AbsoluteSceneDTO;
 import com.semantyca.datanest.dto.script.AbstractSceneDTO;
 import com.semantyca.datanest.dto.script.PromptDTO;
@@ -297,8 +298,28 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                         .invoke(dto::setLabels)
                         .replaceWithVoid();
             }
-            return Uni.combine().all().unis(profileUni, labelsUni).discardItems().replaceWith(dto);
+            Uni<Void> scenesUni = getScenesByScriptId(script.getId(), SuperUser.build())
+                    .invoke(scenes -> dto.setScenes(scenes.stream()
+                            .map(this::toScriptSceneMixdeckDTO)
+                            .collect(Collectors.toList())))
+                    .replaceWithVoid();
+            return Uni.combine().all().unis(profileUni, labelsUni, scenesUni).discardItems().replaceWith(dto);
         });
+    }
+
+    private ScriptSceneMixdeckDTO toScriptSceneMixdeckDTO(AbstractSceneDTO scene) {
+        ScriptSceneMixdeckDTO dto = new ScriptSceneMixdeckDTO();
+        if (scene.getId() != null) {
+            dto.setId(scene.getId().toString());
+        }
+        dto.setTitle(scene.getTitle());
+        dto.setOneTimeRun(scene.isOneTimeRun());
+        dto.setSceneType(scene.isOneTimeRun() ? "ONE_TIME" : "LOOP");
+        if (scene instanceof RelativeSceneDTO relative) {
+            dto.setDurationSeconds(relative.getDurationSeconds());
+            dto.setSeqNum(relative.getSeqNum());
+        }
+        return dto;
     }
 
     public Uni<ScriptDTO> upsert(String id, ScriptDTO dto, IUser user) {

@@ -29,6 +29,7 @@ import org.jboss.logging.Logger;
 
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -180,14 +181,19 @@ public class OtsDefinitionRepository extends AsyncRepository {
         return Uni.createFrom().deferred(() -> {
             try {
                 String sql = "INSERT INTO " + entityData.getTableName() +
-                        " (author, reg_date, last_mod_user, last_mod_date, name, slug_name, script_id, user_variables, brand_id, agent_id, status, status_history, type, estimated_duration_min, chat_context) " +
-                        "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id";
+                        " (author, reg_date, last_mod_user, last_mod_date, name, slug_name, script_id, user_variables, brand_id, agent_id, status, status_history, type, estimated_duration_min, chat_context, scene_durations) " +
+                        "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id";
 
                 OffsetDateTime now = OffsetDateTime.now();
 
                 JsonObject userVarsJson = null;
                 if (ots.getUserVariables() != null && !ots.getUserVariables().isEmpty()) {
                     userVarsJson = new JsonObject(mapper.writeValueAsString(ots.getUserVariables()));
+                }
+
+                JsonObject sceneDurationsJson = null;
+                if (ots.getSceneDurations() != null && !ots.getSceneDurations().isEmpty()) {
+                    sceneDurationsJson = new JsonObject(mapper.writeValueAsString(ots.getSceneDurations()));
                 }
 
                 OtsRunStatus status = ots.getStatus() != null ? ots.getStatus() : OtsRunStatus.PENDING;
@@ -213,7 +219,8 @@ public class OtsDefinitionRepository extends AsyncRepository {
                         .addJsonArray(statusHistoryJson)
                         .addString(type.name())
                         .addInteger(ots.getEstimatedDurationMin())
-                        .addString(ots.getChatContext());
+                        .addString(ots.getChatContext())
+                        .addJsonObject(sceneDurationsJson);
 
                 return client.withTransaction(tx ->
                         tx.preparedQuery(sql)
@@ -245,6 +252,12 @@ public class OtsDefinitionRepository extends AsyncRepository {
                 }
                 JsonObject finalUserVarsJson = userVarsJson;
 
+                JsonObject sceneDurationsJson = null;
+                if (ots.getSceneDurations() != null && !ots.getSceneDurations().isEmpty()) {
+                    sceneDurationsJson = new JsonObject(mapper.writeValueAsString(ots.getSceneDurations()));
+                }
+                JsonObject finalSceneDurationsJson = sceneDurationsJson;
+
                 return rlsRepository.findById(entityData.getRlsName(), user.getId(), id)
                         .onFailure().invoke(throwable -> LOGGER.errorf("Failed to check RLS permissions for update ots definition: %s by user: %s", id, user.getId(), throwable))
                         .onItem().transformToUni(permissions -> {
@@ -255,8 +268,8 @@ public class OtsDefinitionRepository extends AsyncRepository {
                             }
 
                             String sql = "UPDATE " + entityData.getTableName() +
-                                    " SET name=$1, script_id=$2, user_variables=$3, brand_id=$4, agent_id=$5, type=$6, estimated_duration_min=$7, chat_context=$8, last_mod_user=$9, last_mod_date=$10 " +
-                                    "WHERE id=$11";
+                                    " SET name=$1, script_id=$2, user_variables=$3, brand_id=$4, agent_id=$5, type=$6, estimated_duration_min=$7, chat_context=$8, scene_durations=$9, last_mod_user=$10, last_mod_date=$11 " +
+                                    "WHERE id=$12";
 
                             OffsetDateTime now = OffsetDateTime.now();
                             OtsRunType type = ots.getType() != null ? ots.getType() : OtsRunType.ONE_SHOT;
@@ -270,6 +283,7 @@ public class OtsDefinitionRepository extends AsyncRepository {
                                     .addString(type.name())
                                     .addInteger(ots.getEstimatedDurationMin())
                                     .addString(ots.getChatContext())
+                                    .addJsonObject(finalSceneDurationsJson)
                                     .addLong(user.getId())
                                     .addOffsetDateTime(now)
                                     .addUUID(id);
@@ -386,6 +400,18 @@ public class OtsDefinitionRepository extends AsyncRepository {
                 doc.setUserVariables(userVars);
             } catch (JsonProcessingException e) {
                 doc.setUserVariables(null);
+            }
+        }
+
+        JsonObject sceneDurationsJson = row.getJsonObject("scene_durations");
+        if (sceneDurationsJson != null && !sceneDurationsJson.isEmpty()) {
+            try {
+                Map<UUID, Integer> sceneDurations = new HashMap<>();
+                sceneDurationsJson.forEach(e ->
+                        sceneDurations.put(UUID.fromString(e.getKey()), ((Number) e.getValue()).intValue()));
+                doc.setSceneDurations(sceneDurations);
+            } catch (Exception e) {
+                doc.setSceneDurations(null);
             }
         }
         return doc;
