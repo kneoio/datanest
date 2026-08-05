@@ -10,6 +10,7 @@ import com.semantyca.datanest.rest.DraftController;
 import com.semantyca.datanest.rest.EventController;
 import com.semantyca.datanest.rest.LabelController;
 import com.semantyca.datanest.rest.ListenerController;
+import com.semantyca.datanest.rest.OtpAuthController;
 import com.semantyca.datanest.rest.OtsDefinitionController;
 import com.semantyca.datanest.rest.ProfileController;
 import com.semantyca.datanest.rest.PromptController;
@@ -117,7 +118,11 @@ public class DatanestApplication {
     @Inject
     OtsDefinitionController otsDefinitionController;
 
+    @Inject
+    OtpAuthController otpAuthController;
+
     void setupRoutes(@Observes Router router) {
+        otpAuthController.setupRoutes(router);
         artistController.setupRoutes(router);
         brandController.setupRoutes(router);
         mixdeckBrandController.setupRoutes(router);

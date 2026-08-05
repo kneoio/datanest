@@ -69,4 +69,24 @@ public interface DatanestConfig {
     @WithDefault("")
     String getOtpTestBypassCode();
 
+    /**
+     * Shared secret the Keycloak OTP authenticator presents when asking datanest to validate a code.
+     * Unset means the internal endpoint stays closed.
+     */
+    @WithName("otp.internal-secret")
+    Optional<String> getOtpInternalSecret();
+
+    @WithName("keycloak.url")
+    Optional<String> getKeycloakUrl();
+
+    @WithName("keycloak.realm")
+    @WithDefault("mixpla")
+    String getKeycloakRealm();
+
+    @WithName("keycloak.client-id")
+    Optional<String> getKeycloakClientId();
+
+    @WithName("keycloak.client-secret")
+    Optional<String> getKeycloakClientSecret();
+
 }
