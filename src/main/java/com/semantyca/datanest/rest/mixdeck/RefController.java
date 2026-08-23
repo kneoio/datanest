@@ -149,8 +149,8 @@ public class RefController extends AbstractController<Void, Void> {
                                 scriptFilter.setLabels(List.of(freeLabelUuid));
                             }
                             return Uni.combine().all().unis(
-                                            scriptService.getAllNonCustomCount(superUser, scriptFilter),
-                                            scriptService.getAllMixdeckFlatNonCustom(size, (page - 1) * size, superUser, scriptFilter)
+                                            scriptService.getAllNonCustomCount(scriptFilter),
+                                            scriptService.getAllMixdeckFlatNonCustom(size, (page - 1) * size, scriptFilter)
                                     )
                                     .asTuple()
                                     .map(tuple -> {

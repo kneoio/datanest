@@ -7,6 +7,7 @@ import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.model.cnst.LanguageTag;
 import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
+import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.WebHelper;
@@ -113,11 +114,11 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
         return repository.getAllCount(user, false, filter);
     }
 
-    public Uni<Integer> getAllNonCustomCount(final IUser user, final ScriptFilter filter) {
+    public Uni<Integer> getAllNonCustomCount(final ScriptFilter filter) {
         assert repository != null;
         ScriptFilter nonCustomFilter = filter != null ? filter : new ScriptFilter();
         nonCustomFilter.setCustom(false);
-        return repository.getAllCount(user, false, nonCustomFilter);
+        return repository.getAllCount(SuperUser.build(), false, nonCustomFilter);
     }
 
     public Uni<List<ScriptFlatDTO>> getAllFlatNonCustom(final int limit, final int offset, final IUser user, ScriptFilter filter) {
@@ -136,11 +137,11 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                 });
     }
 
-    public Uni<List<ScriptMixdeckFlatDTO>> getAllMixdeckFlatNonCustom(final int limit, final int offset, final IUser user, ScriptFilter filter) {
+    public Uni<List<ScriptMixdeckFlatDTO>> getAllMixdeckFlatNonCustom(final int limit, final int offset, ScriptFilter filter) {
         assert repository != null;
         ScriptFilter nonCustomFilter = filter != null ? filter : new ScriptFilter();
         nonCustomFilter.setCustom(false);
-        return repository.getAll(limit, offset, false, user, nonCustomFilter)
+        return repository.getAll(limit, offset, false, SuperUser.build(), nonCustomFilter)
                 .chain(list -> {
                     if (list.isEmpty()) {
                         return Uni.createFrom().item(List.of());
@@ -282,6 +283,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
                 assert profileService != null;
                 profileUni = profileService.getSlugById(script.getDefaultProfileId())
                         .invoke(dto::setDefaultProfileSlug)
+                        .onFailure(DocumentHasNotFoundException.class).recoverWithNull()
                         .replaceWithVoid();
             }
             Uni<Void> labelsUni;
