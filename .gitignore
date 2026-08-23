@@ -34,3 +34,4 @@ live-server-test.properties
 /out/
 /.cursor/
 /file-uploads/
+/.mcp.json
