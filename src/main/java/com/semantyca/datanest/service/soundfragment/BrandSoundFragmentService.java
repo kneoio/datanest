@@ -27,6 +27,9 @@ public class BrandSoundFragmentService {
 
     public Uni<List<BrandSoundFragmentFlatDTO>> getBrandSoundFragmentsFlat(String brandName, int limit, int offset,
                                                                            SoundFragmentFilter filter, IUser user) {
+        if (brandName == null || brandName.isBlank()) {
+            return repository.findAllFlat(limit, offset, user, filter);
+        }
         return brandService.getBySlugName(brandName)
                 .onItem().transformToUni(brand -> {
                     if (brand == null) {
@@ -41,6 +44,9 @@ public class BrandSoundFragmentService {
     }
 
     public Uni<Integer> getBrandSoundFragmentsCount(String brandName, SoundFragmentFilter filter, IUser user) {
+        if (brandName == null || brandName.isBlank()) {
+            return repository.findAllCount(user, filter);
+        }
         return brandService.getBySlugName(brandName)
                 .onItem().transformToUni(brand -> {
                     if (brand == null) {

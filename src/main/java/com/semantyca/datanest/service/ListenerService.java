@@ -96,6 +96,16 @@ public class ListenerService extends AbstractService<Listener, ListenerDTO> {
         assert repository != null;
         assert brandService != null;
 
+        if (brandName == null || brandName.isBlank()) {
+            return getAllDTO(limit, offset, user, filter)
+                    .map(list -> list.stream().map(listenerDTO -> {
+                        BrandListenerDTO dto = new BrandListenerDTO();
+                        dto.setId(listenerDTO.getId());
+                        dto.setListenerDTO(listenerDTO);
+                        return dto;
+                    }).collect(Collectors.toList()));
+        }
+
         return repository.findForBrand(brandName, limit, offset, user, false, filter)
                 .chain(list -> {
                     if (list.isEmpty()) {
@@ -112,6 +122,9 @@ public class ListenerService extends AbstractService<Listener, ListenerDTO> {
 
     public Uni<Integer> getCountBrandListeners(final String brand, final IUser user, final ListenerFilter filter) {
         assert repository != null;
+        if (brand == null || brand.isBlank()) {
+            return getAllCount(user, filter);
+        }
         return repository.findForBrandCount(brand, user, false, filter);
     }
 

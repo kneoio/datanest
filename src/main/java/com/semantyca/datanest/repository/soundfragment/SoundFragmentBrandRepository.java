@@ -130,6 +130,85 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
                 .onItem().transform(rows -> rows.iterator().next().getInteger(0));
     }
 
+    public Uni<List<BrandSoundFragmentFlatDTO>> findAllFlat(final int limit, final int offset,
+                                                            IUser user, SoundFragmentFilter filter) {
+        String sql = "SELECT t.id, t.slug_name, t.title, t.artist, t.album, t.source, " +
+                "0 AS played_by_brand_count, 0 AS boost, NULL::timestamptz AS last_time_played_by_brand, " +
+                "EXISTS (SELECT 1 FROM mixpla__shared_sound_fragments ssf WHERE ssf.sound_fragment_id = t.id AND ssf.archived = 0) AS shared, " +
+                "COALESCE(r.likes, 0) AS likes, COALESCE(r.dislikes, 0) AS dislikes";
+
+        if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
+            sql += ", similarity(t.search_name, $2) AS sim";
+        }
+
+        sql += " FROM " + entityData.getTableName() + " t " +
+                "JOIN " + entityData.getRlsName() + " rls ON t.id = rls.entity_id " +
+                "LEFT JOIN (" +
+                "  SELECT sound_fragment_id," +
+                "         COUNT(*) FILTER (WHERE rating = 1)  AS likes," +
+                "         COUNT(*) FILTER (WHERE rating = -1) AS dislikes" +
+                "  FROM (" +
+                "    SELECT DISTINCT ON (user_id, sound_fragment_id) user_id, sound_fragment_id, rating" +
+                "    FROM mixpla__sound_fragment_ratings_log" +
+                "    ORDER BY user_id, sound_fragment_id, created_at DESC" +
+                "  ) latest" +
+                "  GROUP BY sound_fragment_id" +
+                ") r ON r.sound_fragment_id = t.id " +
+                "WHERE rls.reader = $1 AND t.archived = 0";
+
+        if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
+            sql += " AND (t.search_name ILIKE '%' || $2 || '%' OR similarity(t.search_name, $2) > 0.05)";
+        }
+
+        if (filter != null && filter.isActivated()) {
+            sql += queryBuilder.buildFilterConditions(filter);
+        }
+
+        if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
+            sql += " ORDER BY sim DESC";
+        } else {
+            sql += " ORDER BY t.reg_date DESC";
+        }
+
+        if (limit > 0) {
+            sql += String.format(" LIMIT %s OFFSET %s", limit, offset);
+        }
+
+        Tuple params = (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty())
+                ? Tuple.of(user.getId(), filter.getSearchTerm())
+                : Tuple.of(user.getId());
+
+        return client.preparedQuery(sql)
+                .execute(params)
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transformToUni(row -> createFlatDTO(row, null))
+                .concatenate()
+                .collect().asList();
+    }
+
+    public Uni<Integer> findAllCount(IUser user, SoundFragmentFilter filter) {
+        String sql = "SELECT COUNT(*) " +
+                "FROM " + entityData.getTableName() + " t " +
+                "JOIN " + entityData.getRlsName() + " rls ON t.id = rls.entity_id " +
+                "WHERE rls.reader = $1 AND t.archived = 0";
+
+        if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
+            sql += " AND (t.search_name ILIKE '%' || $2 || '%' OR similarity(t.search_name, $2) > 0.05)";
+        }
+
+        if (filter != null && filter.isActivated()) {
+            sql += queryBuilder.buildFilterConditions(filter);
+        }
+
+        Tuple params = (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty())
+                ? Tuple.of(user.getId(), filter.getSearchTerm())
+                : Tuple.of(user.getId());
+
+        return client.preparedQuery(sql)
+                .execute(params)
+                .onItem().transform(rows -> rows.iterator().next().getInteger(0));
+    }
+
     public Uni<List<SoundFragment>> getBrandSongs(UUID brandId, PlaylistItemType fragmentType, final int limit, final int offset) {
         String sql = "SELECT t.* " +
                 "FROM " + entityData.getTableName() + " t " +
