@@ -6,6 +6,7 @@ import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.model.user.SuperUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
+import com.semantyca.core.util.ColorUtil;
 import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.dto.OtsDefinitionDTO;
 import com.semantyca.datanest.dto.brand.mixdeck.OtsDefinitionMixdeckDTO;
@@ -178,6 +179,9 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
                                         }
                                         return calculateEstimatedDurationMin(script.getId(), user)
                                                 .chain(estimatedDurationMin -> {
+                                                    if (dto.getColor() == null || dto.getColor().isBlank()) {
+                                                        dto.setColor(ColorUtil.generateContrastColorPair()[0]);
+                                                    }
                                                     return buildEntity(dto, script.getId(), user)
                                                             .chain(entity -> {
                                                                 entity.setName(name);
@@ -224,6 +228,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
         entity.setUserVariables(dto.getUserVariables());
         entity.setType(dto.getType());
         entity.setSceneDurations(dto.getSceneDurations());
+        entity.setColor(dto.getColor());
 
         Uni<Void> brandUni = dto.getBrandSlug() == null || dto.getBrandSlug().isBlank()
                 ? Uni.createFrom().voidItem()
@@ -292,6 +297,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
             dto.setType(ots.getType());
             dto.setEstimatedDurationMin(ots.getEstimatedDurationMin());
             dto.setChatContext(ots.getChatContext());
+            dto.setColor(ots.getColor());
             dto.setSceneDurations(ots.getSceneDurations());
             return dto;
         });

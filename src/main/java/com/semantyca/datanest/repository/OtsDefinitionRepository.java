@@ -181,8 +181,8 @@ public class OtsDefinitionRepository extends AsyncRepository {
         return Uni.createFrom().deferred(() -> {
             try {
                 String sql = "INSERT INTO " + entityData.getTableName() +
-                        " (author, reg_date, last_mod_user, last_mod_date, name, slug_name, script_id, user_variables, brand_id, agent_id, status, status_history, type, estimated_duration_min, chat_context, scene_durations) " +
-                        "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id";
+                        " (author, reg_date, last_mod_user, last_mod_date, name, slug_name, script_id, user_variables, brand_id, agent_id, status, status_history, type, estimated_duration_min, chat_context, scene_durations, color) " +
+                        "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING id";
 
                 OffsetDateTime now = OffsetDateTime.now();
 
@@ -220,7 +220,8 @@ public class OtsDefinitionRepository extends AsyncRepository {
                         .addString(type.name())
                         .addInteger(ots.getEstimatedDurationMin())
                         .addString(ots.getChatContext())
-                        .addJsonObject(sceneDurationsJson);
+                        .addJsonObject(sceneDurationsJson)
+                        .addString(ots.getColor());
 
                 return client.withTransaction(tx ->
                         tx.preparedQuery(sql)
@@ -268,8 +269,8 @@ public class OtsDefinitionRepository extends AsyncRepository {
                             }
 
                             String sql = "UPDATE " + entityData.getTableName() +
-                                    " SET name=$1, script_id=$2, user_variables=$3, brand_id=$4, agent_id=$5, type=$6, estimated_duration_min=$7, chat_context=$8, scene_durations=$9, last_mod_user=$10, last_mod_date=$11 " +
-                                    "WHERE id=$12";
+                                    " SET name=$1, script_id=$2, user_variables=$3, brand_id=$4, agent_id=$5, type=$6, estimated_duration_min=$7, chat_context=$8, scene_durations=$9, color=COALESCE($10, color), last_mod_user=$11, last_mod_date=$12 " +
+                                    "WHERE id=$13";
 
                             OffsetDateTime now = OffsetDateTime.now();
                             OtsRunType type = ots.getType() != null ? ots.getType() : OtsRunType.ONE_SHOT;
@@ -284,6 +285,7 @@ public class OtsDefinitionRepository extends AsyncRepository {
                                     .addInteger(ots.getEstimatedDurationMin())
                                     .addString(ots.getChatContext())
                                     .addJsonObject(finalSceneDurationsJson)
+                                    .addString(ots.getColor())
                                     .addLong(user.getId())
                                     .addOffsetDateTime(now)
                                     .addUUID(id);
@@ -380,6 +382,7 @@ public class OtsDefinitionRepository extends AsyncRepository {
 
         doc.setEstimatedDurationMin(row.getInteger("estimated_duration_min"));
         doc.setChatContext(row.getString("chat_context"));
+        doc.setColor(row.getString("color"));
 
         JsonArray statusHistoryJson = row.getJsonArray("status_history");
         if (statusHistoryJson != null && !statusHistoryJson.isEmpty()) {
