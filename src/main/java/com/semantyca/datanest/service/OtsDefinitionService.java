@@ -98,7 +98,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
                     OtsDefinitionDTO dto = new OtsDefinitionDTO();
                     dto.setScriptSlug(script.getSlugName());
                     dto.setName(script.getName());
-                    dto.setColor(script.getColor());
+                    dto.setColor(WebHelper.generateRandomBrightColor());
                     dto.setRequiredVariables(script.getRequiredVariables());
                     return dto;
                 });
