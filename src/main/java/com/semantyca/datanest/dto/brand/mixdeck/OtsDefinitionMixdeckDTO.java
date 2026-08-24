@@ -41,4 +41,5 @@ public class OtsDefinitionMixdeckDTO extends AbstractDTO {
     private List<ScriptVariable> requiredVariables;
     /** Per-scene duration overrides (seconds). Absent/null => use each scene's own duration. */
     private Map<UUID, Integer> sceneDurations;
+    private int publicOts;
 }

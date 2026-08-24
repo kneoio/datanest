@@ -229,6 +229,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
         entity.setType(dto.getType());
         entity.setSceneDurations(dto.getSceneDurations());
         entity.setColor(dto.getColor());
+        entity.setPublicOts(dto.getPublicOts());
 
         Uni<Void> brandUni = dto.getBrandSlug() == null || dto.getBrandSlug().isBlank()
                 ? Uni.createFrom().voidItem()
@@ -299,6 +300,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
             dto.setChatContext(ots.getChatContext());
             dto.setColor(ots.getColor());
             dto.setSceneDurations(ots.getSceneDurations());
+            dto.setPublicOts(ots.getPublicOts());
             return dto;
         });
     }
@@ -327,6 +329,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
         dto.setColor(src.getColor());
         dto.setRequiredVariables(src.getRequiredVariables());
         dto.setSceneDurations(src.getSceneDurations());
+        dto.setPublicOts(src.getPublicOts());
         return dto;
     }
 
@@ -346,6 +349,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
         dto.setColor(src.getColor());
         dto.setRequiredVariables(src.getRequiredVariables());
         dto.setSceneDurations(src.getSceneDurations());
+        dto.setPublicOts(src.getPublicOts());
         return dto;
     }
 }
