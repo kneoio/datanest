@@ -66,7 +66,6 @@ public class BrandDTO extends AbstractDTO {
     private SubmissionPolicy oneTimeStreamPolicy = SubmissionPolicy.NOT_ALLOWED;
     private SubmissionPolicy submissionPolicy = SubmissionPolicy.NOT_ALLOWED;
     private SubmissionPolicy messagingPolicy = SubmissionPolicy.REVIEW_REQUIRED;
-    private Integer isTemporary = 0;
     private int publicBrand;
     private UUID aiAgentId;
     private UUID profileId;

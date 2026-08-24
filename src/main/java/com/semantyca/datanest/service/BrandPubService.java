@@ -186,7 +186,6 @@ public class BrandPubService extends BrandService {
         dto.setOneTimeStreamPolicy(src.getOneTimeStreamPolicy());
         dto.setSubmissionPolicy(src.getSubmissionPolicy());
         dto.setMessagingPolicy(src.getMessagingPolicy());
-        dto.setIsTemporary(src.getIsTemporary());
         dto.setPublicBrand(src.getPublicBrand());
         dto.setAiOverridingEnabled(src.isAiOverridingEnabled());
         dto.setProfileOverridingEnabled(src.isProfileOverridingEnabled());

@@ -191,7 +191,6 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             dto.setOneTimeStreamPolicy(doc.getOneTimeStreamPolicy());
             dto.setSubmissionPolicy(doc.getSubmissionPolicy());
             dto.setMessagingPolicy(doc.getMessagingPolicy());
-            dto.setIsTemporary(doc.getIsTemporary());
             dto.setPublicBrand(doc.getPublicBrand());
             dto.setPopularityRate(doc.getPopularityRate());
 
@@ -715,7 +714,6 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
             dto.setOneTimeStreamPolicy(doc.getOneTimeStreamPolicy());
             dto.setSubmissionPolicy(doc.getSubmissionPolicy());
             dto.setMessagingPolicy(doc.getMessagingPolicy());
-            dto.setIsTemporary(doc.getIsTemporary());
             dto.setPublicBrand(doc.getPublicBrand());
             dto.setPopularityRate(doc.getPopularityRate());
 
@@ -897,7 +895,6 @@ public class BrandService extends AbstractService<Brand, BrandDTO> {
         Brand doc = new Brand();
         doc.setLocalizedName(dto.getLocalizedName());
         doc.setCountry(CountryCode.fromString(dto.getCountry()));
-        doc.setIsTemporary(dto.getIsTemporary() != null ? dto.getIsTemporary() : 0);
         doc.setPublicBrand(dto.getPublicBrand());
         doc.setManagedBy(ManagedBy.MIX);
         doc.setColor(dto.getColor());
