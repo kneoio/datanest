@@ -16,6 +16,7 @@ public class ScriptSceneMixdeckDTO {
     private String id;
     private String title;
     private Integer durationSeconds;
+    private double talkativity;
     private Integer seqNum;
     private boolean oneTimeRun;
     private String sceneType;

@@ -22,6 +22,7 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -331,7 +332,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
         dto.setColor(src.getColor());
         dto.setRequiredVariables(src.getRequiredVariables());
         dto.setSceneDurations(src.getSceneDurations());
-        dto.setSceneTalkativities(src.getSceneTalkativities());
+        dto.setSceneTalkativities(toStringKeyedTalkativities(src.getSceneTalkativities()));
         dto.setPublicOts(src.getPublicOts());
         return dto;
     }
@@ -352,8 +353,26 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
         dto.setColor(src.getColor());
         dto.setRequiredVariables(src.getRequiredVariables());
         dto.setSceneDurations(src.getSceneDurations());
-        dto.setSceneTalkativities(src.getSceneTalkativities());
+        dto.setSceneTalkativities(toUuidKeyedTalkativities(src.getSceneTalkativities()));
         dto.setPublicOts(src.getPublicOts());
         return dto;
+    }
+
+    private static Map<String, Double> toStringKeyedTalkativities(Map<UUID, Double> src) {
+        if (src == null || src.isEmpty()) {
+            return null;
+        }
+        Map<String, Double> out = new HashMap<>();
+        src.forEach((id, value) -> out.put(id.toString(), value));
+        return out;
+    }
+
+    private static Map<UUID, Double> toUuidKeyedTalkativities(Map<String, Double> src) {
+        if (src == null || src.isEmpty()) {
+            return null;
+        }
+        Map<UUID, Double> out = new HashMap<>();
+        src.forEach((id, value) -> out.put(UUID.fromString(id), value));
+        return out;
     }
 }

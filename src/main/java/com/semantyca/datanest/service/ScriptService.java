@@ -315,6 +315,7 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
             dto.setId(scene.getId().toString());
         }
         dto.setTitle(scene.getTitle());
+        dto.setTalkativity(scene.getTalkativity());
         dto.setOneTimeRun(scene.isOneTimeRun());
         dto.setSceneType(scene.isOneTimeRun() ? "ONE_TIME" : "LOOP");
         if (scene instanceof RelativeSceneDTO relative) {
