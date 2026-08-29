@@ -29,7 +29,10 @@ public class BrandPublicFlatDTO {
     private String titleFont;
     private long bitRate;
     private double popularityRate;
+    private String timeZone;
     private int publicBrand;
+    private String owner;
+    private String ownerEmail;
     private SubmissionPolicy oneTimeStreamPolicy;
     private SubmissionPolicy submissionPolicy;
     private SubmissionPolicy messagingPolicy;
