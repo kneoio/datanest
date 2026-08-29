@@ -34,5 +34,7 @@ public class OtsDefinitionDTO extends AbstractDTO {
     private List<ScriptVariable> requiredVariables;
     /** Per-scene duration overrides (seconds). Absent/null => use each scene's own duration. */
     private Map<UUID, Integer> sceneDurations;
+    /** Per-scene talkativity overrides. Absent/null => use each scene's own talkativity. */
+    private Map<UUID, Double> sceneTalkativities;
     private int publicOts;
 }

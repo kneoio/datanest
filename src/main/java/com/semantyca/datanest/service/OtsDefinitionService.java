@@ -228,6 +228,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
         entity.setUserVariables(dto.getUserVariables());
         entity.setType(dto.getType());
         entity.setSceneDurations(dto.getSceneDurations());
+        entity.setSceneTalkativities(dto.getSceneTalkativities());
         entity.setColor(dto.getColor());
         entity.setPublicOts(dto.getPublicOts());
 
@@ -300,6 +301,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
             dto.setChatContext(ots.getChatContext());
             dto.setColor(ots.getColor());
             dto.setSceneDurations(ots.getSceneDurations());
+            dto.setSceneTalkativities(ots.getSceneTalkativities());
             dto.setPublicOts(ots.getPublicOts());
             return dto;
         });
@@ -329,6 +331,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
         dto.setColor(src.getColor());
         dto.setRequiredVariables(src.getRequiredVariables());
         dto.setSceneDurations(src.getSceneDurations());
+        dto.setSceneTalkativities(src.getSceneTalkativities());
         dto.setPublicOts(src.getPublicOts());
         return dto;
     }
@@ -349,6 +352,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
         dto.setColor(src.getColor());
         dto.setRequiredVariables(src.getRequiredVariables());
         dto.setSceneDurations(src.getSceneDurations());
+        dto.setSceneTalkativities(src.getSceneTalkativities());
         dto.setPublicOts(src.getPublicOts());
         return dto;
     }
