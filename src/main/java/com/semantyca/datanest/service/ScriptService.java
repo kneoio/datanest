@@ -311,9 +311,6 @@ public class ScriptService extends AbstractService<Script, ScriptDTO> {
 
     private ScriptSceneMixdeckDTO toScriptSceneMixdeckDTO(AbstractSceneDTO scene) {
         ScriptSceneMixdeckDTO dto = new ScriptSceneMixdeckDTO();
-        if (scene.getId() != null) {
-            dto.setId(scene.getId().toString());
-        }
         dto.setTitle(scene.getTitle());
         dto.setTalkativity(scene.getTalkativity());
         dto.setOneTimeRun(scene.isOneTimeRun());

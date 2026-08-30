@@ -13,7 +13,6 @@ import lombok.Setter;
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ScriptSceneMixdeckDTO {
-    private String id;
     private String title;
     private Integer durationSeconds;
     private double talkativity;
