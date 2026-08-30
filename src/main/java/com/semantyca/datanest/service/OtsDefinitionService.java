@@ -10,6 +10,7 @@ import com.semantyca.core.util.ColorUtil;
 import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.dto.OtsDefinitionDTO;
 import com.semantyca.datanest.dto.brand.mixdeck.OtsDefinitionMixdeckDTO;
+import com.semantyca.datanest.dto.script.AbstractSceneDTO;
 import com.semantyca.datanest.dto.script.RelativeSceneDTO;
 import com.semantyca.datanest.messaging.CommandPublisher;
 import com.semantyca.datanest.repository.OtsDefinitionRepository;
@@ -106,7 +107,7 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
     }
 
     public Uni<OtsDefinitionMixdeckDTO> getNewMixdeckDTO(String scriptSlug, IUser user) {
-        return getNewDTO(scriptSlug, user).map(this::toMixdeckDTO);
+        return getNewDTO(scriptSlug, user).chain(this::toMixdeckDTO);
     }
 
     @Override
@@ -121,16 +122,19 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
         return update(UUID.fromString(id), dto, user);
     }
 
-    /** Mixdeck upsert; path key is ots definition slug (not UUID). */
+    /** Mixdeck upsert; path key is ots definition slug (not UUID). Scene maps are keyed by seqNum. */
     public Uni<OtsDefinitionMixdeckDTO> upsertMixdeck(String slugName, OtsDefinitionMixdeckDTO mixdeckDto, IUser user) {
         OtsDefinitionDTO dto = fromMixdeckDTO(mixdeckDto);
         boolean isNew = slugName == null || slugName.isBlank() || "new".equalsIgnoreCase(slugName);
-        if (isNew) {
-            return upsert("new", dto, user, LanguageCode.en).map(this::toMixdeckDTO);
-        }
-        return repository.findBySlugName(slugName, user, false)
-                .chain(existing -> upsert(existing.getId().toString(), dto, user, LanguageCode.en))
-                .map(this::toMixdeckDTO);
+        return applyMixdeckSceneMaps(mixdeckDto, dto)
+                .chain(() -> {
+                    if (isNew) {
+                        return upsert("new", dto, user, LanguageCode.en);
+                    }
+                    return repository.findBySlugName(slugName, user, false)
+                            .chain(existing -> upsert(existing.getId().toString(), dto, user, LanguageCode.en));
+                })
+                .chain(this::toMixdeckDTO);
     }
 
     @Override
@@ -309,10 +313,10 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
     }
 
     private Uni<OtsDefinitionMixdeckDTO> mapToMixdeckDTO(OtsDefinition ots) {
-        return mapToDTO(ots).map(this::toMixdeckDTO);
+        return mapToDTO(ots).chain(this::toMixdeckDTO);
     }
 
-    private OtsDefinitionMixdeckDTO toMixdeckDTO(OtsDefinitionDTO src) {
+    private Uni<OtsDefinitionMixdeckDTO> toMixdeckDTO(OtsDefinitionDTO src) {
         OtsDefinitionMixdeckDTO dto = new OtsDefinitionMixdeckDTO();
         dto.setAuthor(src.getAuthor());
         dto.setRegDate(src.getRegDate());
@@ -331,10 +335,15 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
         dto.setChatContext(src.getChatContext());
         dto.setColor(src.getColor());
         dto.setRequiredVariables(src.getRequiredVariables());
-        dto.setSceneDurations(src.getSceneDurations());
-        dto.setSceneTalkativities(toStringKeyedTalkativities(src.getSceneTalkativities()));
         dto.setPublicOts(src.getPublicOts());
-        return dto;
+        if (isEmpty(src.getSceneDurations()) && isEmpty(src.getSceneTalkativities())) {
+            return Uni.createFrom().item(dto);
+        }
+        return sceneIdToSeqNum(src.getScriptSlug()).map(index -> {
+            dto.setSceneDurations(remapUuidToSeq(src.getSceneDurations(), index));
+            dto.setSceneTalkativities(remapUuidToSeq(src.getSceneTalkativities(), index));
+            return dto;
+        });
     }
 
     private OtsDefinitionDTO fromMixdeckDTO(OtsDefinitionMixdeckDTO src) {
@@ -352,27 +361,79 @@ public class OtsDefinitionService extends AbstractService<OtsDefinition, OtsDefi
         dto.setChatContext(src.getChatContext());
         dto.setColor(src.getColor());
         dto.setRequiredVariables(src.getRequiredVariables());
-        dto.setSceneDurations(src.getSceneDurations());
-        dto.setSceneTalkativities(toUuidKeyedTalkativities(src.getSceneTalkativities()));
         dto.setPublicOts(src.getPublicOts());
         return dto;
     }
 
-    private static Map<String, Double> toStringKeyedTalkativities(Map<UUID, Double> src) {
-        if (src == null || src.isEmpty()) {
+    private Uni<Void> applyMixdeckSceneMaps(OtsDefinitionMixdeckDTO src, OtsDefinitionDTO dto) {
+        if (isEmpty(src.getSceneDurations()) && isEmpty(src.getSceneTalkativities())) {
+            return Uni.createFrom().voidItem();
+        }
+        return seqNumToSceneId(src.getScriptSlug()).invoke(index -> {
+            dto.setSceneDurations(remapSeqToUuid(src.getSceneDurations(), index, "sceneDurations"));
+            dto.setSceneTalkativities(remapSeqToUuid(src.getSceneTalkativities(), index, "sceneTalkativities"));
+        }).replaceWithVoid();
+    }
+
+    private Uni<Map<Integer, UUID>> seqNumToSceneId(String scriptSlug) {
+        return sceneIndex(scriptSlug).map(pair -> pair.seqToId());
+    }
+
+    private Uni<Map<UUID, Integer>> sceneIdToSeqNum(String scriptSlug) {
+        return sceneIndex(scriptSlug).map(pair -> pair.idToSeq());
+    }
+
+    private Uni<SceneSeqIndex> sceneIndex(String scriptSlug) {
+        return getScriptBySlug(scriptSlug, SuperUser.build())
+                .chain(script -> scriptService.getScenesByScriptId(script.getId(), SuperUser.build()))
+                .map(this::buildSceneSeqIndex);
+    }
+
+    private SceneSeqIndex buildSceneSeqIndex(List<AbstractSceneDTO> scenes) {
+        Map<Integer, UUID> seqToId = new HashMap<>();
+        Map<UUID, Integer> idToSeq = new HashMap<>();
+        for (AbstractSceneDTO scene : scenes) {
+            if (scene instanceof RelativeSceneDTO relative && scene.getId() != null) {
+                seqToId.put(relative.getSeqNum(), scene.getId());
+                idToSeq.put(scene.getId(), relative.getSeqNum());
+            }
+        }
+        return new SceneSeqIndex(seqToId, idToSeq);
+    }
+
+    private static <V> Map<UUID, V> remapSeqToUuid(Map<Integer, V> src, Map<Integer, UUID> index, String field) {
+        if (isEmpty(src)) {
             return null;
         }
-        Map<String, Double> out = new HashMap<>();
-        src.forEach((id, value) -> out.put(id.toString(), value));
+        Map<UUID, V> out = new HashMap<>();
+        for (Map.Entry<Integer, V> e : src.entrySet()) {
+            UUID id = index.get(e.getKey());
+            if (id == null) {
+                throw new IllegalArgumentException("Unknown scene seqNum " + e.getKey() + " in " + field);
+            }
+            out.put(id, e.getValue());
+        }
         return out;
     }
 
-    private static Map<UUID, Double> toUuidKeyedTalkativities(Map<String, Double> src) {
-        if (src == null || src.isEmpty()) {
+    private static <V> Map<Integer, V> remapUuidToSeq(Map<UUID, V> src, Map<UUID, Integer> index) {
+        if (isEmpty(src)) {
             return null;
         }
-        Map<UUID, Double> out = new HashMap<>();
-        src.forEach((id, value) -> out.put(UUID.fromString(id), value));
-        return out;
+        Map<Integer, V> out = new HashMap<>();
+        src.forEach((id, value) -> {
+            Integer seq = index.get(id);
+            if (seq != null) {
+                out.put(seq, value);
+            }
+        });
+        return out.isEmpty() ? null : out;
+    }
+
+    private static boolean isEmpty(Map<?, ?> map) {
+        return map == null || map.isEmpty();
+    }
+
+    private record SceneSeqIndex(Map<Integer, UUID> seqToId, Map<UUID, Integer> idToSeq) {
     }
 }

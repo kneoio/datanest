@@ -14,7 +14,6 @@ import lombok.Setter;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * Mixdeck OTS definition DTO — slugName only; no document UUID exposure.
@@ -39,9 +38,9 @@ public class OtsDefinitionMixdeckDTO extends AbstractDTO {
     private String chatContext;
     private String color;
     private List<ScriptVariable> requiredVariables;
-    /** Per-scene duration overrides (seconds). Absent/null => use each scene's own duration. */
-    private Map<UUID, Integer> sceneDurations;
-    /** Per-scene talkativity overrides, keyed by scene id. Absent/null => use each scene's own talkativity. */
-    private Map<String, Double> sceneTalkativities;
+    /** Per-scene duration overrides (seconds), keyed by scene seqNum. Absent/null => use each scene's own duration. */
+    private Map<Integer, Integer> sceneDurations;
+    /** Per-scene talkativity overrides, keyed by scene seqNum. Absent/null => use each scene's own talkativity. */
+    private Map<Integer, Double> sceneTalkativities;
     private int publicOts;
 }
