@@ -1,6 +1,5 @@
 package com.semantyca.datanest.rest;
 
-import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.form.FormPage;
@@ -29,7 +28,7 @@ import jakarta.validation.Validator;
 import java.util.UUID;
 
 @ApplicationScoped
-public class SceneController extends AbstractSecuredController<Scene, AbstractSceneDTO> {
+public class SceneController extends DatanestSecuredController<Scene, AbstractSceneDTO> {
     @Inject
     SceneService sceneService;
     private Validator validator;

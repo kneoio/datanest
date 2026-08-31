@@ -1,7 +1,6 @@
 package com.semantyca.datanest.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.form.FormPage;
@@ -33,7 +32,7 @@ import java.util.List;
 import java.util.UUID;
 
 @ApplicationScoped
-public class AiAgentController extends AbstractSecuredController<AiAgent, AiAgentDTO> {
+public class AiAgentController extends DatanestSecuredController<AiAgent, AiAgentDTO> {
     private static final Logger LOGGER = Logger.getLogger(AiAgentController.class);
 
     private AiAgentService service;

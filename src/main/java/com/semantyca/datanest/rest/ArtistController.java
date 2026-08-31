@@ -1,6 +1,5 @@
 package com.semantyca.datanest.rest;
 
-import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.form.FormPage;
@@ -32,7 +31,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
-public class ArtistController extends AbstractSecuredController<Artist, ArtistDTO> {
+public class ArtistController extends DatanestSecuredController<Artist, ArtistDTO> {
     private ArtistService service;
     private Validator validator;
 

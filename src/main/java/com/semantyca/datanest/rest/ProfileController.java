@@ -1,6 +1,5 @@
 package com.semantyca.datanest.rest;
 
-import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.form.FormPage;
@@ -34,7 +33,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
-public class ProfileController extends AbstractSecuredController<Profile, ProfileDTO> {
+public class ProfileController extends DatanestSecuredController<Profile, ProfileDTO> {
 
     private ProfileService service;
     private Validator validator;

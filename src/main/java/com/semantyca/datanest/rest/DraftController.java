@@ -12,6 +12,7 @@ import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.ProblemDetailsUtil;
 import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.datanest.dto.DraftDTO;
+import com.semantyca.datanest.util.DocumentIds;
 import com.semantyca.datanest.dto.agentrest.DraftTestReqDTO;
 import com.semantyca.datanest.service.DraftService;
 import com.semantyca.mixpla.model.Draft;
@@ -194,7 +195,7 @@ public class DraftController extends AbstractSecuredController<Draft, DraftDTO> 
             getContextUser(rc, false, true)
                     .chain(user -> service.upsert(id, dto, user, LanguageCode.en))
                     .subscribe().with(
-                            doc -> rc.response().setStatusCode("new".equalsIgnoreCase(id) || id == null || id.isBlank() ? 201 : 200).putHeader("Content-Type", "application/json").end(io.vertx.core.json.Json.encode(doc)),
+                            doc -> rc.response().setStatusCode(DocumentIds.isNewDocumentId(id) ? 201 : 200).putHeader("Content-Type", "application/json").end(io.vertx.core.json.Json.encode(doc)),
                             throwable -> handleFailure(rc, throwable)
                     );
         } catch (Exception e) {

@@ -11,6 +11,7 @@ import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.ProblemDetailsUtil;
 import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.datanest.dto.brand.mixdeck.OtsDefinitionMixdeckDTO;
+import com.semantyca.datanest.util.DocumentIds;
 import com.semantyca.datanest.service.BrandService;
 import com.semantyca.datanest.service.OtsDefinitionService;
 import com.semantyca.mixpla.model.filter.OtsDefinitionFilter;
@@ -199,7 +200,7 @@ public class MixdeckOtsDefinitionController extends AbstractSecuredController<Ot
                 return;
             }
 
-            boolean isNew = slugName == null || slugName.isBlank() || "new".equalsIgnoreCase(slugName);
+            boolean isNew = DocumentIds.isNewDocumentId(slugName);
 
             getContextUser(rc, false, true)
                     .chain(user -> {

@@ -1,7 +1,6 @@
 package com.semantyca.datanest.rest.mixdeck;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.form.FormPage;
@@ -19,6 +18,7 @@ import com.semantyca.datanest.dto.BrandSoundFragmentFlatDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
 import com.semantyca.datanest.dto.SoundFragmentPublicFlatDTO;
 import com.semantyca.datanest.dto.actionbars.SoundFragmentActionsFactory;
+import com.semantyca.datanest.rest.DatanestSecuredController;
 import com.semantyca.datanest.rest.SoundFragmentController;
 import com.semantyca.datanest.service.soundfragment.BrandSoundFragmentService;
 import com.semantyca.datanest.service.soundfragment.SharedSoundFragmentService;
@@ -26,6 +26,7 @@ import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
 import com.semantyca.datanest.service.util.FileDownloadService;
 import com.semantyca.datanest.service.util.ValidationResult;
 import com.semantyca.datanest.service.util.ValidationService;
+import com.semantyca.datanest.util.DocumentIds;
 import com.semantyca.datanest.util.InputStreamReadStream;
 import com.semantyca.mixpla.model.cnst.PlaylistItemType;
 import com.semantyca.mixpla.model.cnst.SourceType;
@@ -52,7 +53,7 @@ import java.util.List;
 import java.util.UUID;
 
 @ApplicationScoped
-public class MixdeckSoundFragmentController extends AbstractSecuredController<SoundFragment, SoundFragmentDTO> {
+public class MixdeckSoundFragmentController extends DatanestSecuredController<SoundFragment, SoundFragmentDTO> {
     private static final Logger LOGGER = Logger.getLogger(MixdeckSoundFragmentController.class);
     private static final int STREAM_BUFFER_SIZE = 524288; // 512KB buffer for file streaming
 
@@ -328,7 +329,7 @@ public class MixdeckSoundFragmentController extends AbstractSecuredController<So
                                         return Uni.createFrom().nullItem();
                                     }
 
-                                    if (slugName == null || "new".equalsIgnoreCase(slugName)) {
+                                    if (DocumentIds.isNewDocumentId(slugName)) {
                                         return service.upsert(null, dto, user, LanguageCode.en)
                                                 .map(doc -> Tuple2.of((String) null, doc));
                                     }

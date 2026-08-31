@@ -1,6 +1,5 @@
 package com.semantyca.datanest.rest;
 
-import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.form.FormPage;
@@ -45,7 +44,7 @@ import java.util.stream.Collectors;
 import static io.vertx.core.json.Json.encode;
 
 @ApplicationScoped
-public class PromptController extends AbstractSecuredController<DjPrompt, PromptDTO> {
+public class PromptController extends DatanestSecuredController<DjPrompt, PromptDTO> {
     private static final Logger LOGGER = LoggerFactory.getLogger(PromptController.class);
 
     private PromptService service;

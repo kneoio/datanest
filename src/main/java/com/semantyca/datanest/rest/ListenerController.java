@@ -1,6 +1,5 @@
 package com.semantyca.datanest.rest;
 
-import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.form.FormPage;
@@ -37,7 +36,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
-public class ListenerController extends AbstractSecuredController<Listener, ListenerDTO> {
+public class ListenerController extends DatanestSecuredController<Listener, ListenerDTO> {
     private static final Logger LOGGER = LoggerFactory.getLogger(ListenerController.class);
 
     private ListenerService service;

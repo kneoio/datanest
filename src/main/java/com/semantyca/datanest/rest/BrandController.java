@@ -18,6 +18,7 @@
     import com.semantyca.datanest.service.BrandLogoService;
     import com.semantyca.datanest.service.BrandPubService;
     import com.semantyca.datanest.service.BrandService;
+    import com.semantyca.datanest.util.DocumentIds;
     import com.semantyca.mixpla.model.brand.Brand;
     import com.semantyca.mixpla.model.cnst.SubmissionPolicy;
     import com.semantyca.mixpla.model.filter.BrandFilter;
@@ -182,7 +183,7 @@
                 getContextUser(rc, false, true)
                         .chain(user -> service.upsert(id, dto, user, LanguageCode.en))
                         .subscribe().with(
-                                doc -> rc.response().setStatusCode("new".equalsIgnoreCase(id) || id == null || id.isBlank() ? 201 : 200).putHeader("Content-Type", "application/json").end(io.vertx.core.json.Json.encode(doc)),
+                                doc -> rc.response().setStatusCode(DocumentIds.isNewDocumentId(id) ? 201 : 200).putHeader("Content-Type", "application/json").end(io.vertx.core.json.Json.encode(doc)),
                                 throwable -> {
                                     LOGGER.error("Failed to upsert radio station with id: {}", id, throwable);
                                     rc.fail(throwable);
@@ -240,7 +241,7 @@
                 getContextUser(rc, false, true)
                         .chain(user -> pubService.upsert(id, dto, user, LanguageCode.en))
                         .subscribe().with(
-                                doc -> rc.response().setStatusCode(200).putHeader("Content-Type", "application/json").end(io.vertx.core.json.Json.encode(doc)),
+                                doc -> rc.response().setStatusCode(DocumentIds.isNewDocumentId(id) ? 201 : 200).putHeader("Content-Type", "application/json").end(io.vertx.core.json.Json.encode(doc)),
                                 throwable -> {
                                     LOGGER.error("Failed to upsert pub brand with id: {}", id, throwable);
                                     rc.fail(throwable);

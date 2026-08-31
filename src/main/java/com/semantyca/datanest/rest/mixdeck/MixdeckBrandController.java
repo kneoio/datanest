@@ -15,6 +15,7 @@ import com.semantyca.datanest.dto.actionbars.SoundFragmentActionsFactory;
 import com.semantyca.datanest.dto.brand.mixdeck.BrandMixdeckDTO;
 import com.semantyca.datanest.dto.brand.mixdeck.BrandPublicFlatDTO;
 import com.semantyca.datanest.rest.BrandController;
+import com.semantyca.datanest.util.DocumentIds;
 import com.semantyca.datanest.service.BrandPubService;
 import com.semantyca.datanest.service.BrandService;
 import com.semantyca.mixpla.model.brand.Brand;
@@ -161,7 +162,7 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
                 return;
             }
 
-            boolean isNew = slugName == null || slugName.isBlank() || "new".equalsIgnoreCase(slugName);
+            boolean isNew = DocumentIds.isNewDocumentId(slugName);
             String upsertKey = isNew ? "new" : slugName;
 
             getContextUser(rc, false, true)

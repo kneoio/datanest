@@ -1,6 +1,5 @@
 package com.semantyca.datanest.rest;
 
-import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.form.FormPage;
@@ -46,7 +45,7 @@ import java.util.List;
 import java.util.UUID;
 
 @ApplicationScoped
-public class SoundFragmentController extends AbstractSecuredController<SoundFragment, SoundFragmentDTO> {
+public class SoundFragmentController extends DatanestSecuredController<SoundFragment, SoundFragmentDTO> {
     private static final Logger LOGGER = Logger.getLogger(SoundFragmentController.class);
     private static final int STREAM_BUFFER_SIZE = 524288; // 512KB buffer for file streaming
 

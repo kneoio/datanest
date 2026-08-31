@@ -1,6 +1,5 @@
 package com.semantyca.datanest.rest;
 
-import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.form.FormPage;
@@ -38,7 +37,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
-public class EventController extends AbstractSecuredController<Event, EventDTO> {
+public class EventController extends DatanestSecuredController<Event, EventDTO> {
     private EventService service;
     private Validator validator;
 

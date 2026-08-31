@@ -11,6 +11,7 @@ import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.ProblemDetailsUtil;
 import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.datanest.dto.OtsDefinitionDTO;
+import com.semantyca.datanest.util.DocumentIds;
 import com.semantyca.datanest.service.OtsDefinitionService;
 import com.semantyca.mixpla.model.filter.OtsDefinitionFilter;
 import com.semantyca.mixpla.model.stream.OtsDefinition;
@@ -177,7 +178,7 @@ public class OtsDefinitionController extends AbstractSecuredController<OtsDefini
                     .chain(user -> service.upsert(id, dto, user, LanguageCode.en))
                     .subscribe().with(
                             doc -> rc.response()
-                                    .setStatusCode(id == null ? 201 : 200)
+                                    .setStatusCode(DocumentIds.isNewDocumentId(id) ? 201 : 200)
                                     .putHeader("Content-Type", "application/json")
                                     .end(io.vertx.core.json.JsonObject.mapFrom(doc).encode()),
                             throwable -> {

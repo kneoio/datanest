@@ -1,6 +1,5 @@
 package com.semantyca.datanest.rest;
 
-import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.view.View;
 import com.semantyca.core.dto.view.ViewPage;
@@ -23,7 +22,7 @@ import jakarta.validation.Validator;
 import java.util.UUID;
 
 @ApplicationScoped
-public class SharedSoundFragmentController extends AbstractSecuredController<SharedSoundFragment, ShareDTO> {
+public class SharedSoundFragmentController extends DatanestSecuredController<SharedSoundFragment, ShareDTO> {
 
     private SharedSoundFragmentService sharedSoundFragmentService;
     private Validator validator;

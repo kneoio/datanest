@@ -1,6 +1,5 @@
 package com.semantyca.datanest.rest;
 
-import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.form.FormPage;
@@ -41,7 +40,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
-public class ScriptController extends AbstractSecuredController<Script, ScriptDTO> {
+public class ScriptController extends DatanestSecuredController<Script, ScriptDTO> {
     private ScriptService service;
     private Validator validator;
 
