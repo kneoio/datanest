@@ -23,6 +23,7 @@ import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.filter.BrandFilter;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
@@ -192,10 +193,27 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
     }
 
     private void failStationLimitOrDefault(RoutingContext rc, Throwable throwable, String logMessage) {
-        if (throwable instanceof IllegalStateException
-                && throwable.getMessage() != null
-                && throwable.getMessage().startsWith("Station limit reached")) {
-            rc.fail(403, throwable);
+        if (throwable instanceof UserSubscriptionService.StationLimitException limit) {
+            JsonObject body = new JsonObject()
+                    .put("status", 403)
+                    .put("code", "STATION_LIMIT_REACHED")
+                    .put("title", "Station limit reached")
+                    .put("detail", limit.getMessage())
+                    .put("upgradeTo", "Plus")
+                    .put("upgradeHint", "With a Plus subscription you can create a brand.");
+            if (limit.getSubscriptionType() != null) {
+                body.put("subscriptionType", limit.getSubscriptionType());
+            }
+            if (limit.getMaxStations() != null) {
+                body.put("maxStations", limit.getMaxStations());
+            }
+            if (limit.getStationCount() != null) {
+                body.put("stationCount", limit.getStationCount());
+            }
+            rc.response()
+                    .setStatusCode(403)
+                    .putHeader("Content-Type", "application/json")
+                    .end(body.encode());
             return;
         }
         LOGGER.error(logMessage, throwable);

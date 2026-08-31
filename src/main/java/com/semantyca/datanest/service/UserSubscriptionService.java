@@ -32,18 +32,53 @@ public class UserSubscriptionService {
     }
 
     public Uni<Void> assertCanCreateStation(IUser user) {
-        return getActiveSubscription(user)
-                .onItem().transformToUni(subscription -> {
+        return Uni.combine().all().unis(
+                        getActiveSubscription(user),
+                        brandRepository.getAllCount(user, false, null))
+                .asTuple()
+                .onItem().transformToUni(tuple -> {
+                    MixplaUserSubscription subscription = tuple.getItem1();
+                    Integer stationCount = tuple.getItem2();
                     if (subscription == null || subscription.getMaxStations() == null) {
-                        return Uni.createFrom().failure(new IllegalStateException(
-                                "Station limit reached: no active subscription found"));
+                        return Uni.createFrom().failure(new StationLimitException(
+                                "Station limit reached: no active subscription found",
+                                null, null, stationCount));
                     }
-                    return brandRepository.getAllCount(user, false, null)
-                            .chain(count -> count >= subscription.getMaxStations()
-                                    ? Uni.createFrom().failure(new IllegalStateException(
-                                            "Station limit reached: your subscription allows "
-                                                    + subscription.getMaxStations() + " stations"))
-                                    : Uni.createFrom().voidItem());
+                    if (stationCount >= subscription.getMaxStations()) {
+                        return Uni.createFrom().failure(new StationLimitException(
+                                "Station limit reached: your subscription allows "
+                                        + subscription.getMaxStations() + " stations",
+                                subscription.getSubscriptionType(),
+                                subscription.getMaxStations(),
+                                stationCount));
+                    }
+                    return Uni.createFrom().voidItem();
                 });
+    }
+
+    public static class StationLimitException extends IllegalStateException {
+        private final String subscriptionType;
+        private final Integer maxStations;
+        private final Integer stationCount;
+
+        public StationLimitException(String message, String subscriptionType,
+                                     Integer maxStations, Integer stationCount) {
+            super(message);
+            this.subscriptionType = subscriptionType;
+            this.maxStations = maxStations;
+            this.stationCount = stationCount;
+        }
+
+        public String getSubscriptionType() {
+            return subscriptionType;
+        }
+
+        public Integer getMaxStations() {
+            return maxStations;
+        }
+
+        public Integer getStationCount() {
+            return stationCount;
+        }
     }
 }
