@@ -1,6 +1,7 @@
 package com.semantyca.datanest.rest.mixdeck;
 
 import com.semantyca.core.controller.AbstractSecuredController;
+import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.actions.cnst.ActionType;
 import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.form.FormPage;
@@ -8,16 +9,16 @@ import com.semantyca.core.dto.view.View;
 import com.semantyca.core.dto.view.ViewPage;
 import com.semantyca.core.model.cnst.LanguageCode;
 import com.semantyca.core.service.UserService;
+import com.semantyca.core.util.ColorUtil;
 import com.semantyca.core.util.ProblemDetailsUtil;
 import com.semantyca.core.util.RuntimeUtil;
-import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.dto.brand.mixdeck.BrandMixdeckDTO;
 import com.semantyca.datanest.dto.brand.mixdeck.BrandPublicFlatDTO;
 import com.semantyca.datanest.rest.BrandController;
-import com.semantyca.datanest.util.DocumentIds;
 import com.semantyca.datanest.service.BrandPubService;
 import com.semantyca.datanest.service.BrandService;
 import com.semantyca.datanest.service.UserSubscriptionService;
+import com.semantyca.datanest.util.DocumentIds;
 import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.filter.BrandFilter;
 import io.smallrye.mutiny.Uni;
@@ -32,12 +33,7 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import org.jboss.logging.Logger;
 
-import java.util.ArrayList;
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
@@ -122,7 +118,7 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
                         BrandMixdeckDTO dto = new BrandMixdeckDTO();
                         dto.setLocalizedName(new EnumMap<>(LanguageCode.class));
                         dto.getLocalizedName().put(LanguageCode.en, "");
-                        dto.setColor(WebHelper.generateRandomBrightColor());
+                        dto.setColor(ColorUtil.generateRandomBrightColor());
                         dto.setBitRate(64000);
                         return Uni.createFrom().item(dto);
                     }
@@ -157,6 +153,7 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
             var body = rc.body().asJsonObject();
             BrandMixdeckDTO dto = body.mapTo(BrandMixdeckDTO.class);
 
+            assert validator != null;
             Set<ConstraintViolation<BrandMixdeckDTO>> violations = validator.validate(dto);
             if (violations != null && !violations.isEmpty()) {
                 Map<String, List<String>> fieldErrors = new HashMap<>();
