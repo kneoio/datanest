@@ -39,21 +39,30 @@ public class UserSubscriptionService {
                 .onItem().transformToUni(tuple -> {
                     MixplaUserSubscription subscription = tuple.getItem1();
                     Integer stationCount = tuple.getItem2();
-                    if (subscription == null || subscription.getMaxStations() == null) {
-                        return Uni.createFrom().failure(new StationLimitException(
-                                "Station limit reached: no active subscription found",
-                                null, null, stationCount));
-                    }
-                    if (stationCount >= subscription.getMaxStations()) {
-                        return Uni.createFrom().failure(new StationLimitException(
-                                "Station limit reached: your subscription allows "
-                                        + subscription.getMaxStations() + " stations",
-                                subscription.getSubscriptionType(),
-                                subscription.getMaxStations(),
-                                stationCount));
+                    if (!canCreate(subscription, stationCount)) {
+                        String type = subscription != null ? subscription.getSubscriptionType() : null;
+                        Integer max = subscription != null ? subscription.getMaxStations() : null;
+                        String message = max == null
+                                ? "Station limit reached: no active subscription found"
+                                : "Station limit reached: your subscription allows " + max + " stations";
+                        return Uni.createFrom().failure(new StationLimitException(message, type, max, stationCount));
                     }
                     return Uni.createFrom().voidItem();
                 });
+    }
+
+    public Uni<Boolean> canCreateStation(IUser user) {
+        return Uni.combine().all().unis(
+                        getActiveSubscription(user),
+                        brandRepository.getAllCount(user, false, null))
+                .asTuple()
+                .map(tuple -> canCreate(tuple.getItem1(), tuple.getItem2()));
+    }
+
+    private static boolean canCreate(MixplaUserSubscription subscription, Integer stationCount) {
+        return subscription != null
+                && subscription.getMaxStations() != null
+                && stationCount < subscription.getMaxStations();
     }
 
     public static class StationLimitException extends IllegalStateException {

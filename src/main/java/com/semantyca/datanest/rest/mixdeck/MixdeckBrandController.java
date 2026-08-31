@@ -1,7 +1,9 @@
 package com.semantyca.datanest.rest.mixdeck;
 
 import com.semantyca.core.controller.AbstractSecuredController;
+import com.semantyca.core.dto.actions.Action;
 import com.semantyca.core.dto.actions.ActionBox;
+import com.semantyca.core.dto.actions.cnst.ActionType;
 import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.form.FormPage;
 import com.semantyca.core.dto.view.View;
@@ -11,7 +13,6 @@ import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.ProblemDetailsUtil;
 import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.core.util.WebHelper;
-import com.semantyca.datanest.dto.actionbars.SoundFragmentActionsFactory;
 import com.semantyca.datanest.dto.brand.mixdeck.BrandMixdeckDTO;
 import com.semantyca.datanest.dto.brand.mixdeck.BrandPublicFlatDTO;
 import com.semantyca.datanest.rest.BrandController;
@@ -83,17 +84,21 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
         getContextUser(rc, false, true)
                 .chain(user -> {
                     assert service != null;
-                    return service.getAllPublicFlatDTO(user, filter);
+                    assert userSubscriptionService != null;
+                    return Uni.combine().all().unis(
+                                    service.getAllPublicFlatDTO(user, filter),
+                                    userSubscriptionService.canCreateStation(user))
+                            .asTuple();
                 })
-                .map(list -> {
+                .map(tuple -> {
+                    var list = tuple.getItem1();
                     ViewPage viewPage = new ViewPage();
                     View<BrandPublicFlatDTO> dtoEntries = new View<>(list,
                             list.size(), page,
                             RuntimeUtil.countMaxPage(list.size(), size),
                             size);
                     viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-                    ActionBox actions = SoundFragmentActionsFactory.getViewActions();
-                    viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, actions);
+                    viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, viewActions(tuple.getItem2()));
                     return viewPage;
                 })
                 .subscribe().with(
@@ -115,16 +120,12 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
         getContextUser(rc, false, true)
                 .chain(user -> {
                     if ("new".equalsIgnoreCase(slugName)) {
-                        assert userSubscriptionService != null;
-                        return userSubscriptionService.assertCanCreateStation(user)
-                                .map(ignored -> {
-                                    BrandMixdeckDTO dto = new BrandMixdeckDTO();
-                                    dto.setLocalizedName(new EnumMap<>(LanguageCode.class));
-                                    dto.getLocalizedName().put(LanguageCode.en, "");
-                                    dto.setColor(WebHelper.generateRandomBrightColor());
-                                    dto.setBitRate(64000);
-                                    return dto;
-                                });
+                        BrandMixdeckDTO dto = new BrandMixdeckDTO();
+                        dto.setLocalizedName(new EnumMap<>(LanguageCode.class));
+                        dto.getLocalizedName().put(LanguageCode.en, "");
+                        dto.setColor(WebHelper.generateRandomBrightColor());
+                        dto.setBitRate(64000);
+                        return Uni.createFrom().item(dto);
                     }
                     assert service != null;
                     return service.getDTOBySlug(slugName, user, languageCode);
@@ -139,7 +140,10 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
                                     .putHeader("Content-Type", "application/json")
                                     .end(io.vertx.core.json.Json.encode(page));
                         },
-                        throwable -> failStationLimitOrDefault(rc, throwable, "Failed to get brand by slug: " + slugName)
+                        throwable -> {
+                            LOGGER.error("Failed to get brand by slug: " + slugName, throwable);
+                            rc.fail(throwable);
+                        }
                 );
     }
 
@@ -190,6 +194,17 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
         } catch (Exception e) {
             rc.fail(400, e instanceof IllegalArgumentException ? e : new IllegalArgumentException("Invalid JSON payload"));
         }
+    }
+
+    private static ActionBox viewActions(boolean canCreate) {
+        ActionBox bar = new ActionBox();
+        bar.setCaption("Available actions");
+        bar.setHint("The actions available actions based on your credentials");
+        if (canCreate) {
+            bar.addAction(new Action(ActionType.CREATE.getAlias()));
+        }
+        bar.addAction(new Action(ActionType.DELETE.getAlias()));
+        return bar;
     }
 
     private void failStationLimitOrDefault(RoutingContext rc, Throwable throwable, String logMessage) {
