@@ -10,6 +10,7 @@
     import com.semantyca.core.model.cnst.LanguageCode;
     import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
     import com.semantyca.core.service.UserService;
+    import com.semantyca.core.util.ColorUtil;
     import com.semantyca.core.util.ProblemDetailsUtil;
     import com.semantyca.core.util.RuntimeUtil;
     import com.semantyca.core.util.WebHelper;
@@ -130,7 +131,7 @@
                             BrandDTO dto = new BrandDTO();
                             dto.setLocalizedName(new EnumMap<>(LanguageCode.class));
                             dto.getLocalizedName().put(LanguageCode.en, "");
-                            dto.setColor(WebHelper.generateRandomBrightColor());
+                            dto.setColor(ColorUtil.generateRandomBrightColor());
                             dto.setBitRate(64000);
                             return Uni.createFrom().item(Tuple2.of(dto, user));
                         }
