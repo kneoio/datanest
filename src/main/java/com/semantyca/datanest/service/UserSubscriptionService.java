@@ -59,10 +59,9 @@ public class UserSubscriptionService {
                 .map(tuple -> canCreate(tuple.getItem1(), tuple.getItem2()));
     }
 
-    private static boolean canCreate(MixplaUserSubscription subscription, Integer stationCount) {
-        return subscription != null
-                && subscription.getMaxStations() != null
-                && stationCount < subscription.getMaxStations();
+    public static boolean canCreate(MixplaUserSubscription subscription, Integer stationCount) {
+        Integer max = subscription != null ? subscription.getMaxStations() : null;
+        return max != null && max > 0 && stationCount != null && stationCount < max;
     }
 
     public static class StationLimitException extends IllegalStateException {

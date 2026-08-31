@@ -1,8 +1,6 @@
 package com.semantyca.datanest.rest.mixdeck;
 
 import com.semantyca.core.controller.AbstractSecuredController;
-import com.semantyca.core.dto.actions.Action;
-import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.actions.cnst.ActionType;
 import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.form.FormPage;
@@ -87,7 +85,7 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
                     assert userSubscriptionService != null;
                     return Uni.combine().all().unis(
                                     service.getAllPublicFlatDTO(user, filter),
-                                    userSubscriptionService.canCreateStation(user))
+                                    userSubscriptionService.getActiveSubscription(user))
                             .asTuple();
                 })
                 .map(tuple -> {
@@ -98,7 +96,8 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
                             RuntimeUtil.countMaxPage(list.size(), size),
                             size);
                     viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-                    viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, viewActions(tuple.getItem2()));
+                    viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, viewActions(
+                            UserSubscriptionService.canCreate(tuple.getItem2(), list.size())));
                     return viewPage;
                 })
                 .subscribe().with(
@@ -196,15 +195,13 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
         }
     }
 
-    private static ActionBox viewActions(boolean canCreate) {
-        ActionBox bar = new ActionBox();
-        bar.setCaption("Available actions");
-        bar.setHint("The actions available actions based on your credentials");
+    private static List<String> viewActions(boolean canCreate) {
+        List<String> actions = new ArrayList<>();
         if (canCreate) {
-            bar.addAction(new Action(ActionType.CREATE.getAlias()));
+            actions.add(ActionType.CREATE.getAlias());
         }
-        bar.addAction(new Action(ActionType.DELETE.getAlias()));
-        return bar;
+        actions.add(ActionType.DELETE.getAlias());
+        return actions;
     }
 
     private void failStationLimitOrDefault(RoutingContext rc, Throwable throwable, String logMessage) {
