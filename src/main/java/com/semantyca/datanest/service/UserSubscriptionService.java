@@ -30,4 +30,20 @@ public class UserSubscriptionService {
                     return userSubscriptionRepository.findActiveByUserId(brand.getOwner().getUserId());
                 });
     }
+
+    public Uni<Void> assertCanCreateStation(IUser user) {
+        return getActiveSubscription(user)
+                .onItem().transformToUni(subscription -> {
+                    if (subscription == null || subscription.getMaxStations() == null) {
+                        return Uni.createFrom().failure(new IllegalStateException(
+                                "Station limit reached: no active subscription found"));
+                    }
+                    return brandRepository.getAllCount(user, false, null)
+                            .chain(count -> count >= subscription.getMaxStations()
+                                    ? Uni.createFrom().failure(new IllegalStateException(
+                                            "Station limit reached: your subscription allows "
+                                                    + subscription.getMaxStations() + " stations"))
+                                    : Uni.createFrom().voidItem());
+                });
+    }
 }

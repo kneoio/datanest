@@ -18,6 +18,7 @@ import com.semantyca.datanest.rest.BrandController;
 import com.semantyca.datanest.util.DocumentIds;
 import com.semantyca.datanest.service.BrandPubService;
 import com.semantyca.datanest.service.BrandService;
+import com.semantyca.datanest.service.UserSubscriptionService;
 import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.filter.BrandFilter;
 import io.smallrye.mutiny.Uni;
@@ -45,21 +46,24 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
 
     private final BrandService service;
     private final BrandPubService pubService;
+    private final UserSubscriptionService userSubscriptionService;
     private final Validator validator;
 
     public MixdeckBrandController() {
         super(null);
         this.service = null;
         this.pubService = null;
+        this.userSubscriptionService = null;
         this.validator = null;
     }
 
     @Inject
     public MixdeckBrandController(UserService userService, BrandService service, BrandPubService pubService,
-                                  Validator validator) {
+                                  UserSubscriptionService userSubscriptionService, Validator validator) {
         super(userService);
         this.service = service;
         this.pubService = pubService;
+        this.userSubscriptionService = userSubscriptionService;
         this.validator = validator;
     }
 
@@ -110,12 +114,16 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
         getContextUser(rc, false, true)
                 .chain(user -> {
                     if ("new".equalsIgnoreCase(slugName)) {
-                        BrandMixdeckDTO dto = new BrandMixdeckDTO();
-                        dto.setLocalizedName(new EnumMap<>(LanguageCode.class));
-                        dto.getLocalizedName().put(LanguageCode.en, "");
-                        dto.setColor(WebHelper.generateRandomBrightColor());
-                        dto.setBitRate(64000);
-                        return Uni.createFrom().item(dto);
+                        assert userSubscriptionService != null;
+                        return userSubscriptionService.assertCanCreateStation(user)
+                                .map(ignored -> {
+                                    BrandMixdeckDTO dto = new BrandMixdeckDTO();
+                                    dto.setLocalizedName(new EnumMap<>(LanguageCode.class));
+                                    dto.getLocalizedName().put(LanguageCode.en, "");
+                                    dto.setColor(WebHelper.generateRandomBrightColor());
+                                    dto.setBitRate(64000);
+                                    return dto;
+                                });
                     }
                     assert service != null;
                     return service.getDTOBySlug(slugName, user, languageCode);
@@ -130,10 +138,7 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
                                     .putHeader("Content-Type", "application/json")
                                     .end(io.vertx.core.json.Json.encode(page));
                         },
-                        throwable -> {
-                            LOGGER.error("Failed to get brand by slug: " + slugName, throwable);
-                            rc.fail(throwable);
-                        }
+                        throwable -> failStationLimitOrDefault(rc, throwable, "Failed to get brand by slug: " + slugName)
                 );
     }
 
@@ -168,21 +173,33 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
             getContextUser(rc, false, true)
                     .chain(user -> {
                         assert pubService != null;
-                        return pubService.upsert(upsertKey, dto, user, LanguageCode.en);
+                        assert userSubscriptionService != null;
+                        Uni<Void> guard = isNew
+                                ? userSubscriptionService.assertCanCreateStation(user)
+                                : Uni.createFrom().voidItem();
+                        return guard.chain(() -> pubService.upsert(upsertKey, dto, user, LanguageCode.en));
                     })
                     .subscribe().with(
                             doc -> rc.response()
                                     .setStatusCode(isNew ? 201 : 200)
                                     .putHeader("Content-Type", "application/json")
                                     .end(io.vertx.core.json.Json.encode(doc)),
-                            throwable -> {
-                                LOGGER.error("Failed to upsert brand by slug: " + slugName, throwable);
-                                rc.fail(throwable);
-                            }
+                            throwable -> failStationLimitOrDefault(rc, throwable, "Failed to upsert brand by slug: " + slugName)
                     );
         } catch (Exception e) {
             rc.fail(400, e instanceof IllegalArgumentException ? e : new IllegalArgumentException("Invalid JSON payload"));
         }
+    }
+
+    private void failStationLimitOrDefault(RoutingContext rc, Throwable throwable, String logMessage) {
+        if (throwable instanceof IllegalStateException
+                && throwable.getMessage() != null
+                && throwable.getMessage().startsWith("Station limit reached")) {
+            rc.fail(403, throwable);
+            return;
+        }
+        LOGGER.error(logMessage, throwable);
+        rc.fail(throwable);
     }
 
     private void closeBrand(RoutingContext rc) {
