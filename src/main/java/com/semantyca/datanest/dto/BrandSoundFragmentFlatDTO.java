@@ -17,7 +17,8 @@ import java.util.UUID;
 public class BrandSoundFragmentFlatDTO {
     private String slugName;
     private UUID defaultBrandId;
-    private int playedByBrandCount;
+    private int playedCount;
+    private Integer playedByBrand;
     private int boost;
     private OffsetDateTime lastTimePlayedByBrand;
     private String title;

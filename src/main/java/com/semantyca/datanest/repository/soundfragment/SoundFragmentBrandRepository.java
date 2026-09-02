@@ -36,7 +36,8 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
     public Uni<List<BrandSoundFragmentFlatDTO>> findForBrandFlat(UUID brandId, final int limit, final int offset,
                                                                   IUser user, SoundFragmentFilter filter) {
         String sql = "SELECT t.id, t.slug_name, t.title, t.artist, t.album, t.source, " +
-                "COALESCE(bsf.played_by_brand_count, 0) AS played_by_brand_count, " +
+                "COALESCE(pc.played_count, 0) AS played_count, " +
+                "COALESCE(bsf.played_by_brand_count, 0) AS played_by_brand, " +
                 "COALESCE(bsf.boost, 0) AS boost, bsf.last_time_played_by_brand, " +
                 "(bsf.sound_fragment_id IS NOT NULL) AS assigned_to_brand, " +
                 "EXISTS (SELECT 1 FROM mixpla__shared_sound_fragments ssf WHERE ssf.sound_fragment_id = t.id AND ssf.archived = 0) AS shared, " +
@@ -48,6 +49,11 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
 
         sql += " FROM " + entityData.getTableName() + " t " +
                 "LEFT JOIN mixpla__brand_sound_fragments bsf ON t.id = bsf.sound_fragment_id AND bsf.brand_id = $1 " +
+                "LEFT JOIN (" +
+                "  SELECT sound_fragment_id, SUM(played_by_brand_count) AS played_count " +
+                "  FROM mixpla__brand_sound_fragments " +
+                "  GROUP BY sound_fragment_id" +
+                ") pc ON pc.sound_fragment_id = t.id " +
                 "JOIN " + entityData.getRlsName() + " rls ON t.id = rls.entity_id " +
                 "LEFT JOIN (" +
                 "  SELECT sound_fragment_id," +
@@ -96,7 +102,7 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
         if (sortBy != null && !sortBy.isBlank()) {
             String expr = switch (sortBy) {
                 case "BOOST" -> "COALESCE(bsf.boost, 0)";
-                case "PLAYED" -> "COALESCE(bsf.played_by_brand_count, 0)";
+                case "PLAYED" -> "COALESCE(pc.played_count, 0)";
                 case "RATE" -> "(COALESCE(r.likes, 0) - COALESCE(r.dislikes, 0))";
                 default -> null;
             };
@@ -146,7 +152,9 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
                                                             IUser user, SoundFragmentFilter filter,
                                                             boolean unassignedOnly) {
         String sql = "SELECT t.id, t.slug_name, t.title, t.artist, t.album, t.source, " +
-                "0 AS played_by_brand_count, 0 AS boost, NULL::timestamptz AS last_time_played_by_brand, " +
+                "COALESCE(pc.played_count, 0) AS played_count, " +
+                "NULL::int AS played_by_brand, " +
+                "0 AS boost, NULL::timestamptz AS last_time_played_by_brand, " +
                 "EXISTS (SELECT 1 FROM mixpla__shared_sound_fragments ssf WHERE ssf.sound_fragment_id = t.id AND ssf.archived = 0) AS shared, " +
                 "COALESCE(r.likes, 0) AS likes, COALESCE(r.dislikes, 0) AS dislikes";
 
@@ -156,6 +164,11 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
 
         sql += " FROM " + entityData.getTableName() + " t " +
                 "JOIN " + entityData.getRlsName() + " rls ON t.id = rls.entity_id " +
+                "LEFT JOIN (" +
+                "  SELECT sound_fragment_id, SUM(played_by_brand_count) AS played_count " +
+                "  FROM mixpla__brand_sound_fragments " +
+                "  GROUP BY sound_fragment_id" +
+                ") pc ON pc.sound_fragment_id = t.id " +
                 "LEFT JOIN (" +
                 "  SELECT sound_fragment_id," +
                 "         COUNT(*) FILTER (WHERE rating = 1)  AS likes," +
@@ -263,7 +276,9 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
                     BrandSoundFragmentFlatDTO dto = new BrandSoundFragmentFlatDTO();
                     dto.setSlugName(row.getString("slug_name"));
                     dto.setDefaultBrandId(brandId);
-                    dto.setPlayedByBrandCount(row.getInteger("played_by_brand_count"));
+                    Integer playedCount = row.getInteger("played_count");
+                    dto.setPlayedCount(playedCount != null ? playedCount : 0);
+                    dto.setPlayedByBrand(row.getInteger("played_by_brand"));
                     dto.setBoost(row.getInteger("boost") != null ? row.getInteger("boost") : 0);
                     dto.setLastTimePlayedByBrand(row.getOffsetDateTime("last_time_played_by_brand"));
                     dto.setTitle(row.getString("title"));
