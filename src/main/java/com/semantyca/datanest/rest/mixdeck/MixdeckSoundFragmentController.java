@@ -103,7 +103,6 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/sound-assets").handler(this::getSoundAssets);
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/available-soundfragments").handler(this::getForBrand);
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/files/:slugName/:fileSlug").handler(this::getFileBySlugName);
-        router.route(HttpMethod.PATCH, "/datanest/public/soundfragments/:slugName/boost").handler(BodyHandler.create()).handler(this::updateBoostBySlugName);
         router.route(HttpMethod.PATCH, "/datanest/public/soundfragments/:slugName/boost/:brandId").handler(BodyHandler.create()).handler(this::updateBoostBySlugName);
         router.route(HttpMethod.POST, "/datanest/public/soundfragments/:slugName?").handler(BodyHandler.create()).handler(this::upsertBySlugName);
         router.route(HttpMethod.DELETE, "/datanest/public/soundfragments/:slugName").handler(this::deleteBySlugName);
@@ -378,13 +377,12 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
                 rc.fail(400, new IllegalArgumentException("'boost' field is required"));
                 return;
             }
-            if (boost < -1 || boost > 2) {
-                rc.fail(400, new IllegalArgumentException("boost must be between -1 and 2"));
+            if (type == null || (!type.equals("brand") && !type.equals("shared"))) {
+                rc.fail(400, new IllegalArgumentException("'type' must be 'brand' or 'shared'"));
                 return;
             }
-            boolean allBrands = brandSlug == null || brandSlug.isBlank();
-            if (!allBrands && (type == null || (!type.equals("brand") && !type.equals("shared")))) {
-                rc.fail(400, new IllegalArgumentException("'type' must be 'brand' or 'shared'"));
+            if (boost < -1 || boost > 2) {
+                rc.fail(400, new IllegalArgumentException("boost must be between -1 and 2"));
                 return;
             }
 
@@ -392,22 +390,17 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
                     .chain(user -> {
                         assert service != null;
                         return service.getIdBySlug(slugName, user)
-                                .chain(soundFragmentId -> {
-                                    if (allBrands) {
-                                        return service.updateBoostAllBrands(soundFragmentId.toString(), boost);
-                                    }
-                                    return service.resolveBrandSlug(brandSlug)
-                                            .chain(brandUUID -> {
-                                                if (brandUUID == null) {
-                                                    return Uni.createFrom().failure(new IllegalArgumentException("Brand not found: " + brandSlug));
-                                                }
-                                                if ("shared".equals(type)) {
-                                                    assert sharedSoundFragmentService != null;
-                                                    return sharedSoundFragmentService.updateBoostBySoundFragmentAndBrand(soundFragmentId, brandUUID, boost);
-                                                }
-                                                return service.updateBoost(soundFragmentId.toString(), brandUUID.toString(), boost, type);
-                                            });
-                                });
+                                .chain(soundFragmentId -> service.resolveBrandSlug(brandSlug)
+                                        .chain(brandUUID -> {
+                                            if (brandUUID == null) {
+                                                return Uni.createFrom().failure(new IllegalArgumentException("Brand not found: " + brandSlug));
+                                            }
+                                            if ("shared".equals(type)) {
+                                                assert sharedSoundFragmentService != null;
+                                                return sharedSoundFragmentService.updateBoostBySoundFragmentAndBrand(soundFragmentId, brandUUID, boost);
+                                            }
+                                            return service.updateBoost(soundFragmentId.toString(), brandUUID.toString(), boost, type);
+                                        }));
                     })
                     .subscribe().with(
                             ignored -> rc.response().setStatusCode(204).end(),

@@ -867,19 +867,6 @@ public class SoundFragmentRepository extends SoundFragmentRepositoryAbstract imp
                 .onItem().ignore().andContinueWithNull();
     }
 
-    public Uni<List<UUID>> updateBoostForAllBrands(UUID soundFragmentId, int boost) {
-        String sql = "UPDATE mixpla__brand_sound_fragments SET boost=$1 WHERE sound_fragment_id=$2 RETURNING brand_id";
-        return client.preparedQuery(sql)
-                .execute(Tuple.of(boost, soundFragmentId))
-                .onItem().transform(rows -> {
-                    List<UUID> ids = new ArrayList<>();
-                    for (Row row : rows) {
-                        ids.add(row.getUUID("brand_id"));
-                    }
-                    return ids;
-                });
-    }
-
     private Uni<RowSet<Row>> updateSoundFragmentRecord(SqlClient tx, UUID id, SoundFragment doc, IUser user, OffsetDateTime nowTime) {
         String updateSql = String.format("UPDATE %s SET last_mod_user=$1, last_mod_date=$2, " +
                         "status=$3, type=$4, title=$5, " +
