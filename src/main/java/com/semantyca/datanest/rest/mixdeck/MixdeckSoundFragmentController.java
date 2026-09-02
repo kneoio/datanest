@@ -38,7 +38,6 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
@@ -101,7 +100,6 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
 
     public void setupRoutes(Router router) {
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/shared").handler(this::get);
-        router.route(HttpMethod.GET, "/datanest/public/soundfragments/unassigned-brands").handler(this::getUnassignedBrands); //it is archived from regular POV
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/sound-assets").handler(this::getSoundAssets);
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/available-soundfragments").handler(this::getForBrand);
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/files/:slugName/:fileSlug").handler(this::getFileBySlugName);
@@ -173,44 +171,6 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
                 );
     }
 
-    private void getUnassignedBrands(RoutingContext rc) {
-        int page = Integer.parseInt(rc.request().getParam("page", "1"));
-        int size = Integer.parseInt(rc.request().getParam("size", "10"));
-        SoundFragmentFilter filter = new SoundFragmentFilter();
-
-        getContextUser(rc, false, true)
-                .chain(user -> {
-                    assert service != null;
-                    assert userSubscriptionService != null;
-                    return Uni.combine().all().unis(
-                            service.getAllCountWithoutBrandAssociation(user, filter),
-                            service.getAllPublicFlatDTOWithoutBrandAssociation(size, (page - 1) * size, user, filter),
-                            userSubscriptionService.songCreate(user)
-                    ).asTuple().map(tuple -> {
-                        ViewPage viewPage = new ViewPage();
-                        View<SoundFragmentPublicFlatDTO> dtoEntries = new View<>(tuple.getItem2(),
-                                tuple.getItem1(), page,
-                                RuntimeUtil.countMaxPage(tuple.getItem1(), size),
-                                size);
-                        viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-                        viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, MixdeckEntitlements.viewActions(tuple.getItem3()));
-                        return viewPage;
-                    });
-                })
-                .subscribe().with(
-                        viewPage -> {
-                            try {
-                                rc.response().setStatusCode(200)
-                                        .putHeader("Content-Type", "application/json")
-                                        .end(mapper.writeValueAsString(viewPage));
-                            } catch (Exception e) {
-                                rc.fail(e);
-                            }
-                        },
-                        t -> handleFailure(rc, t)
-                );
-    }
-
     private void getSoundAssets(RoutingContext rc) {
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
@@ -263,19 +223,37 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
         return filter;
     }
 
+    private static boolean parseUnassignedFilter(RoutingContext rc) {
+        if ("true".equalsIgnoreCase(rc.request().getParam("unassigned"))) {
+            return true;
+        }
+        String filterParam = rc.request().getParam("filter");
+        if (filterParam == null || filterParam.isBlank()) {
+            return false;
+        }
+        try {
+            return Boolean.TRUE.equals(new JsonObject(filterParam).getBoolean("unassigned"));
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private void getForBrand(RoutingContext rc) {
         String brandName = rc.request().getParam("brand");
         int page = Integer.parseInt(rc.request().getParam("page", "1"));
         int size = Integer.parseInt(rc.request().getParam("size", "10"));
         SoundFragmentFilter filter = SoundFragmentController.parseFilterDTO(rc,
                 List.of(SourceType.USER_UPLOAD, SourceType.CONTRIBUTION), List.of(PlaylistItemType.SONG));
+        boolean unassignedOnly = parseUnassignedFilter(rc);
 
         getContextUser(rc, false, true)
                 .chain(user -> {
                     assert brandSoundFragmentService != null;
+                    assert userSubscriptionService != null;
                     return Uni.combine().all().unis(
-                            brandSoundFragmentService.getBrandSoundFragmentsFlat(brandName, size, (page - 1) * size, filter, user),
-                            brandSoundFragmentService.getBrandSoundFragmentsCount(brandName, filter, user)
+                            brandSoundFragmentService.getBrandSoundFragmentsFlat(brandName, size, (page - 1) * size, filter, user, unassignedOnly),
+                            brandSoundFragmentService.getBrandSoundFragmentsCount(brandName, filter, user, unassignedOnly),
+                            userSubscriptionService.songCreate(user)
                     ).asTuple().map(tuple -> {
                         ViewPage viewPage = new ViewPage();
                         View<BrandSoundFragmentFlatDTO> dtoEntries = new View<>(tuple.getItem1(),
@@ -283,6 +261,7 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
                                 RuntimeUtil.countMaxPage(tuple.getItem2(), size),
                                 size);
                         viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
+                        viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, MixdeckEntitlements.viewActions(tuple.getItem3()));
                         return viewPage;
                     });
                 })

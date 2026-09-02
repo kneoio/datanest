@@ -27,8 +27,14 @@ public class BrandSoundFragmentService {
 
     public Uni<List<BrandSoundFragmentFlatDTO>> getBrandSoundFragmentsFlat(String brandName, int limit, int offset,
                                                                            SoundFragmentFilter filter, IUser user) {
-        if (brandName == null || brandName.isBlank()) {
-            return repository.findAllFlat(limit, offset, user, filter);
+        return getBrandSoundFragmentsFlat(brandName, limit, offset, filter, user, false);
+    }
+
+    public Uni<List<BrandSoundFragmentFlatDTO>> getBrandSoundFragmentsFlat(String brandName, int limit, int offset,
+                                                                           SoundFragmentFilter filter, IUser user,
+                                                                           boolean unassignedOnly) {
+        if (unassignedOnly || brandName == null || brandName.isBlank()) {
+            return repository.findAllFlat(limit, offset, user, filter, unassignedOnly);
         }
         return brandService.getBySlugName(brandName)
                 .onItem().transformToUni(brand -> {
@@ -44,8 +50,13 @@ public class BrandSoundFragmentService {
     }
 
     public Uni<Integer> getBrandSoundFragmentsCount(String brandName, SoundFragmentFilter filter, IUser user) {
-        if (brandName == null || brandName.isBlank()) {
-            return repository.findAllCount(user, filter);
+        return getBrandSoundFragmentsCount(brandName, filter, user, false);
+    }
+
+    public Uni<Integer> getBrandSoundFragmentsCount(String brandName, SoundFragmentFilter filter, IUser user,
+                                                    boolean unassignedOnly) {
+        if (unassignedOnly || brandName == null || brandName.isBlank()) {
+            return repository.findAllCount(user, filter, unassignedOnly);
         }
         return brandService.getBySlugName(brandName)
                 .onItem().transformToUni(brand -> {

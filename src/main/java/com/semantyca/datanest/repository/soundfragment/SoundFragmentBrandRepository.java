@@ -36,7 +36,9 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
     public Uni<List<BrandSoundFragmentFlatDTO>> findForBrandFlat(UUID brandId, final int limit, final int offset,
                                                                   IUser user, SoundFragmentFilter filter) {
         String sql = "SELECT t.id, t.slug_name, t.title, t.artist, t.album, t.source, " +
-                "bsf.played_by_brand_count, bsf.boost, bsf.last_time_played_by_brand, " +
+                "COALESCE(bsf.played_by_brand_count, 0) AS played_by_brand_count, " +
+                "COALESCE(bsf.boost, 0) AS boost, bsf.last_time_played_by_brand, " +
+                "(bsf.sound_fragment_id IS NOT NULL) AS assigned_to_brand, " +
                 "EXISTS (SELECT 1 FROM mixpla__shared_sound_fragments ssf WHERE ssf.sound_fragment_id = t.id AND ssf.archived = 0) AS shared, " +
                 "COALESCE(r.likes, 0) AS likes, COALESCE(r.dislikes, 0) AS dislikes";
 
@@ -45,7 +47,7 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
         }
 
         sql += " FROM " + entityData.getTableName() + " t " +
-                "JOIN mixpla__brand_sound_fragments bsf ON t.id = bsf.sound_fragment_id " +
+                "LEFT JOIN mixpla__brand_sound_fragments bsf ON t.id = bsf.sound_fragment_id AND bsf.brand_id = $1 " +
                 "JOIN " + entityData.getRlsName() + " rls ON t.id = rls.entity_id " +
                 "LEFT JOIN (" +
                 "  SELECT sound_fragment_id," +
@@ -58,7 +60,9 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
                 "  ) latest" +
                 "  GROUP BY sound_fragment_id" +
                 ") r ON r.sound_fragment_id = t.id " +
-                "WHERE bsf.brand_id = $1 AND rls.reader = $2 AND t.archived = 0";
+                "WHERE rls.reader = $2 AND t.archived = 0 " +
+                "AND (bsf.sound_fragment_id IS NOT NULL " +
+                "OR NOT EXISTS (SELECT 1 FROM mixpla__brand_sound_fragments x WHERE x.sound_fragment_id = t.id))";
 
         if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
             sql += " AND (t.search_name ILIKE '%' || $3 || '%' OR similarity(t.search_name, $3) > 0.05)";
@@ -81,7 +85,8 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
         return client.preparedQuery(sql)
                 .execute(params)
                 .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
-                .onItem().transformToUni(row -> createFlatDTO(row, brandId))
+                .onItem().transformToUni(row -> createFlatDTO(row,
+                        Boolean.TRUE.equals(row.getBoolean("assigned_to_brand")) ? brandId : null))
                 .concatenate()
                 .collect().asList();
     }
@@ -90,8 +95,8 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
         String sortBy = filter != null ? filter.getSortBy() : null;
         if (sortBy != null && !sortBy.isBlank()) {
             String expr = switch (sortBy) {
-                case "BOOST" -> "bsf.boost";
-                case "PLAYED" -> "bsf.played_by_brand_count";
+                case "BOOST" -> "COALESCE(bsf.boost, 0)";
+                case "PLAYED" -> "COALESCE(bsf.played_by_brand_count, 0)";
                 case "RATE" -> "(COALESCE(r.likes, 0) - COALESCE(r.dislikes, 0))";
                 default -> null;
             };
@@ -109,9 +114,11 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
     public Uni<Integer> findForBrandCount(UUID brandId, IUser user, SoundFragmentFilter filter) {
         String sql = "SELECT COUNT(*) " +
                 "FROM " + entityData.getTableName() + " t " +
-                "JOIN mixpla__brand_sound_fragments bsf ON t.id = bsf.sound_fragment_id " +
+                "LEFT JOIN mixpla__brand_sound_fragments bsf ON t.id = bsf.sound_fragment_id AND bsf.brand_id = $1 " +
                 "JOIN " + entityData.getRlsName() + " rls ON t.id = rls.entity_id " +
-                "WHERE bsf.brand_id = $1 AND rls.reader = $2 AND t.archived = 0";
+                "WHERE rls.reader = $2 AND t.archived = 0 " +
+                "AND (bsf.sound_fragment_id IS NOT NULL " +
+                "OR NOT EXISTS (SELECT 1 FROM mixpla__brand_sound_fragments x WHERE x.sound_fragment_id = t.id))";
 
         if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
             sql += " AND (t.search_name ILIKE '%' || $3 || '%' OR similarity(t.search_name, $3) > 0.05)";
@@ -132,6 +139,12 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
 
     public Uni<List<BrandSoundFragmentFlatDTO>> findAllFlat(final int limit, final int offset,
                                                             IUser user, SoundFragmentFilter filter) {
+        return findAllFlat(limit, offset, user, filter, false);
+    }
+
+    public Uni<List<BrandSoundFragmentFlatDTO>> findAllFlat(final int limit, final int offset,
+                                                            IUser user, SoundFragmentFilter filter,
+                                                            boolean unassignedOnly) {
         String sql = "SELECT t.id, t.slug_name, t.title, t.artist, t.album, t.source, " +
                 "0 AS played_by_brand_count, 0 AS boost, NULL::timestamptz AS last_time_played_by_brand, " +
                 "EXISTS (SELECT 1 FROM mixpla__shared_sound_fragments ssf WHERE ssf.sound_fragment_id = t.id AND ssf.archived = 0) AS shared, " +
@@ -155,6 +168,10 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
                 "  GROUP BY sound_fragment_id" +
                 ") r ON r.sound_fragment_id = t.id " +
                 "WHERE rls.reader = $1 AND t.archived = 0";
+
+        if (unassignedOnly) {
+            sql += " AND NOT EXISTS (SELECT 1 FROM mixpla__brand_sound_fragments bsf WHERE bsf.sound_fragment_id = t.id)";
+        }
 
         if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
             sql += " AND (t.search_name ILIKE '%' || $2 || '%' OR similarity(t.search_name, $2) > 0.05)";
@@ -187,10 +204,18 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
     }
 
     public Uni<Integer> findAllCount(IUser user, SoundFragmentFilter filter) {
+        return findAllCount(user, filter, false);
+    }
+
+    public Uni<Integer> findAllCount(IUser user, SoundFragmentFilter filter, boolean unassignedOnly) {
         String sql = "SELECT COUNT(*) " +
                 "FROM " + entityData.getTableName() + " t " +
                 "JOIN " + entityData.getRlsName() + " rls ON t.id = rls.entity_id " +
                 "WHERE rls.reader = $1 AND t.archived = 0";
+
+        if (unassignedOnly) {
+            sql += " AND NOT EXISTS (SELECT 1 FROM mixpla__brand_sound_fragments bsf WHERE bsf.sound_fragment_id = t.id)";
+        }
 
         if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
             sql += " AND (t.search_name ILIKE '%' || $2 || '%' OR similarity(t.search_name, $2) > 0.05)";
