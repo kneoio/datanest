@@ -19,7 +19,6 @@ import com.semantyca.datanest.dto.SoundFragmentPublicFlatDTO;
 import com.semantyca.datanest.rest.DatanestSecuredController;
 import com.semantyca.datanest.rest.SoundFragmentController;
 import com.semantyca.datanest.service.soundfragment.BrandSoundFragmentService;
-import com.semantyca.datanest.service.soundfragment.SharedSoundFragmentService;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
 import com.semantyca.datanest.service.UserSubscriptionService;
 import com.semantyca.datanest.service.util.FileDownloadService;
@@ -57,7 +56,6 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
 
     private final SoundFragmentService service;
     private final BrandSoundFragmentService brandSoundFragmentService;
-    private final SharedSoundFragmentService sharedSoundFragmentService;
     private final FileDownloadService fileDownloadService;
     private final ValidationService validationService;
     private final UserSubscriptionService userSubscriptionService;
@@ -69,7 +67,6 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
         super(null);
         this.service = null;
         this.brandSoundFragmentService = null;
-        this.sharedSoundFragmentService = null;
         this.fileDownloadService = null;
         this.validationService = null;
         this.userSubscriptionService = null;
@@ -81,7 +78,6 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
     @Inject
     public MixdeckSoundFragmentController(UserService userService, SoundFragmentService service,
                                           BrandSoundFragmentService brandSoundFragmentService,
-                                          SharedSoundFragmentService sharedSoundFragmentService,
                                           FileDownloadService fileDownloadService,
                                           ValidationService validationService,
                                           UserSubscriptionService userSubscriptionService,
@@ -89,7 +85,6 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
         super(userService);
         this.service = service;
         this.brandSoundFragmentService = brandSoundFragmentService;
-        this.sharedSoundFragmentService = sharedSoundFragmentService;
         this.fileDownloadService = fileDownloadService;
         this.validationService = validationService;
         this.userSubscriptionService = userSubscriptionService;
@@ -103,7 +98,6 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/sound-assets").handler(this::getSoundAssets);
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/available-soundfragments").handler(this::getForBrand);
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/files/:slugName/:fileSlug").handler(this::getFileBySlugName);
-        router.route(HttpMethod.PATCH, "/datanest/public/soundfragments/:slugName/boost/:brandId").handler(BodyHandler.create()).handler(this::updateBoostBySlugName);
         router.route(HttpMethod.POST, "/datanest/public/soundfragments/:slugName?").handler(BodyHandler.create()).handler(this::upsertBySlugName);
         router.route(HttpMethod.DELETE, "/datanest/public/soundfragments/:slugName").handler(this::deleteBySlugName);
         router.route(HttpMethod.GET, "/datanest/public/soundfragments/:slugName").handler(this::getBySlugName);
@@ -364,51 +358,6 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
                         count -> rc.response().setStatusCode(count > 0 ? 204 : 404).end(),
                         t -> handleFailure(rc, t)
                 );
-    }
-
-    private void updateBoostBySlugName(RoutingContext rc) {
-        String slugName = rc.pathParam("slugName");
-        String brandSlug = rc.pathParam("brandId");
-        try {
-            var body = rc.body().asJsonObject();
-            Integer boost = body.getInteger("boost");
-            String type = body.getString("type");
-            if (boost == null) {
-                rc.fail(400, new IllegalArgumentException("'boost' field is required"));
-                return;
-            }
-            if (type == null || (!type.equals("brand") && !type.equals("shared"))) {
-                rc.fail(400, new IllegalArgumentException("'type' must be 'brand' or 'shared'"));
-                return;
-            }
-            if (boost < -1 || boost > 2) {
-                rc.fail(400, new IllegalArgumentException("boost must be between -1 and 2"));
-                return;
-            }
-
-            getContextUser(rc, false, true)
-                    .chain(user -> {
-                        assert service != null;
-                        return service.getIdBySlug(slugName, user)
-                                .chain(soundFragmentId -> service.resolveBrandSlug(brandSlug)
-                                        .chain(brandUUID -> {
-                                            if (brandUUID == null) {
-                                                return Uni.createFrom().failure(new IllegalArgumentException("Brand not found: " + brandSlug));
-                                            }
-                                            if ("shared".equals(type)) {
-                                                assert sharedSoundFragmentService != null;
-                                                return sharedSoundFragmentService.updateBoostBySoundFragmentAndBrand(soundFragmentId, brandUUID, boost);
-                                            }
-                                            return service.updateBoost(soundFragmentId.toString(), brandUUID.toString(), boost, type);
-                                        }));
-                    })
-                    .subscribe().with(
-                            ignored -> rc.response().setStatusCode(204).end(),
-                            t -> handleFailure(rc, t)
-                    );
-        } catch (IllegalArgumentException e) {
-            rc.fail(400, new IllegalArgumentException("Invalid ID format"));
-        }
     }
 
     private void getFileBySlugName(RoutingContext rc) {

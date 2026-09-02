@@ -43,6 +43,16 @@ public class ValidationService {
                     .add("Music file is required - either provide an existing ID or upload new files");
         }
 
+        if (dto.getBoosts() != null) {
+            for (Integer boost : dto.getBoosts().values()) {
+                if (boost == null || boost < -1 || boost > 2) {
+                    fieldErrors.computeIfAbsent("boosts", k -> new ArrayList<>())
+                            .add("boost must be between -1 and 2");
+                    break;
+                }
+            }
+        }
+
         for (ConstraintViolation<SoundFragmentDTO> v : violations) {
             String field = v.getPropertyPath().toString();
             fieldErrors.computeIfAbsent(field, k -> new ArrayList<>()).add(v.getMessage());

@@ -12,6 +12,7 @@ import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Setter
@@ -20,6 +21,7 @@ import java.util.UUID;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class SoundFragmentDTO extends SoundFragmentFlatDTO {
     private List<String> brands;
+    private Map<String, Integer> boosts;
     private List<String> newlyUploaded;
     private List<String> customTags;
     private List<UploadFileDTO> uploadedFiles;

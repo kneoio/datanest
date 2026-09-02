@@ -273,20 +273,22 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 .chain(doc -> {
                     UUID uuid = doc.getId();
                     Uni<List<UUID>> brandsUni = repository.getBrandsForSoundFragment(uuid, user);
-                    Uni<List<String>> brandSlugsUni = repository.getBrandSlugsForSoundFragment(uuid, user);
+                    Uni<Map<String, Integer>> brandBoostsUni = repository.getBrandSlugsWithBoosts(uuid, user);
                     Uni<int[]> ratingsUni = repository.getRatings(uuid);
 
-                    return Uni.combine().all().unis(brandsUni, brandSlugsUni, ratingsUni).asTuple()
+                    return Uni.combine().all().unis(brandsUni, brandBoostsUni, ratingsUni).asTuple()
                             .chain(tuple -> {
                                 List<UUID> representedInBrands = tuple.getItem1();
-                                List<String> brandSlugs = tuple.getItem2();
+                                Map<String, Integer> boosts = tuple.getItem2();
                                 int[] ratings = tuple.getItem3();
+                                List<String> brandSlugs = new ArrayList<>(boosts.keySet());
                                 assert sharedSoundFragmentService != null;
                                 return sharedSoundFragmentService.listShareDTO(doc.getId())
                                         .chain(shared -> mapToDTO(doc, true, representedInBrands, shared))
                                         .chain(dto -> {
                                             dto.setLikes(ratings[0]);
                                             dto.setDislikes(ratings[1]);
+                                            dto.setBoosts(boosts);
                                             if (dto.getUploadedFiles() != null) {
                                                 dto.getUploadedFiles().forEach(f ->
                                                         f.setUrl("/datanest/public/soundfragments/files/" + slugName + "/" + f.getId()));
@@ -320,6 +322,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
             dto.setBoost(src.getBoost());
             dto.setDescription(src.getDescription());
             dto.setRepresentedInBrands(brandSlugs);
+            dto.setBoosts(src.getBoosts());
             dto.setExpiresAt(src.getExpiresAt());
             dto.setShared(src.isShared());
             dto.setScheduled(src.isScheduled());
@@ -568,7 +571,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                     .chain(() -> repository.insert(entity, dto.getRepresentedInBrands(), rlsActions, user)
                             .chain(doc -> moveFilesForNewEntity(doc, fileMetadataList, user))
                             .invoke(this::triggerSpectraAnalysis)
-                            .chain(doc -> mapToDTO(doc, true, null, null))
+                            .chain(doc -> finishUpsert(doc, dto))
                             .onFailure().invoke(failure -> {
                                 LOGGER.warnf("Entity creation failed, cleaning up temp files for user: %s", user.getUserName());
                                 localFileCleanupService.cleanupTempFilesForUser(user.getUserName())
@@ -594,7 +597,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                         : List.of();
                 return assignUniqueSlug(entity, brandIds, entityId, user)
                         .chain(() -> repository.update(entityId, entity, dto.getRepresentedInBrands(), List.of(), user, slugsToRemove))
-                        .chain(doc -> mapToDTO(doc, true, null, null))
+                        .chain(doc -> finishUpsert(doc, dto))
                         .onFailure().invoke(failure -> {
                             LOGGER.warnf("Entity update failed, cleaning up files for user: %s, entity: %s",
                                     user.getUserName(), id);
@@ -609,7 +612,7 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                     .chain(() -> repository.update(entityId, entity, dto.getRepresentedInBrands(), List.of(), user))
                     .invoke(doc -> triggerOpusEncodingIfMissing(doc, brandId, fileMetadataList))
                     .invoke(this::triggerSpectraAnalysis)
-                    .chain(doc -> mapToDTO(doc, true, null, null))
+                    .chain(doc -> finishUpsert(doc, dto))
                     .onFailure().invoke(failure -> {
                         LOGGER.warnf("Entity update failed, cleaning up files for user: %s, entity: %s",
                                 user.getUserName(), id);
@@ -620,6 +623,39 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                                 );
                     });
         }
+    }
+
+    private Uni<SoundFragmentDTO> finishUpsert(SoundFragment doc, SoundFragmentDTO request) {
+        return applyBrandBoosts(doc.getId(), request)
+                .chain(() -> mapToDTO(doc, true, null, null))
+                .invoke(mapped -> mapped.setBoosts(request.getBoosts()));
+    }
+
+    private Uni<Void> applyBrandBoosts(UUID soundFragmentId, SoundFragmentDTO dto) {
+        if (dto.getBoosts() == null || dto.getBoosts().isEmpty()) {
+            return Uni.createFrom().voidItem();
+        }
+        assert repository != null;
+        assert commandPublisher != null;
+        return Multi.createFrom().iterable(dto.getBoosts().entrySet())
+                .onItem().transformToUniAndConcatenate(entry ->
+                        resolveBrandSlug(entry.getKey())
+                                .chain(brandUUID -> {
+                                    if (brandUUID == null) {
+                                        return Uni.createFrom().failure(new IllegalArgumentException(
+                                                "Brand not found: " + entry.getKey()));
+                                    }
+                                    return repository.updateBoost(soundFragmentId, brandUUID, entry.getValue())
+                                            .invoke(() -> commandPublisher.publishCommand(
+                                                    CommandType.REBUILD_AGENDA,
+                                                    "boost_updated",
+                                                    Map.of("brandId", brandUUID.toString(),
+                                                            "soundFragmentId", soundFragmentId.toString(),
+                                                            "boost", entry.getValue())
+                                            ));
+                                }))
+                .collect().asList()
+                .replaceWithVoid();
     }
 
     /**

@@ -49,6 +49,7 @@ public class SoundFragmentPublicDTO {
     private int boost;
     private String description;
     private List<String> representedInBrands;
+    private Map<String, Integer> boosts;
     private OffsetDateTime expiresAt;
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private boolean shared;
