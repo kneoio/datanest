@@ -2,7 +2,6 @@ package com.semantyca.datanest.rest.mixdeck;
 
 import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.dto.actions.ActionBox;
-import com.semantyca.core.dto.actions.cnst.ActionType;
 import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.form.FormPage;
 import com.semantyca.core.dto.view.View;
@@ -23,7 +22,6 @@ import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.filter.BrandFilter;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.http.HttpMethod;
-import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
@@ -92,8 +90,8 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
                             RuntimeUtil.countMaxPage(list.size(), size),
                             size);
                     viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-                    viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, viewActions(
-                            UserSubscriptionService.canCreate(tuple.getItem2(), list.size())));
+                    viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, MixdeckEntitlements.viewActions(
+                            UserSubscriptionService.canCreateStation(tuple.getItem2(), list.size())));
                     return viewPage;
                 })
                 .subscribe().with(
@@ -192,37 +190,8 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
         }
     }
 
-    private static List<String> viewActions(boolean canCreate) {
-        List<String> actions = new ArrayList<>();
-        if (canCreate) {
-            actions.add(ActionType.CREATE.getAlias());
-        }
-        actions.add(ActionType.DELETE.getAlias());
-        return actions;
-    }
-
     private void failStationLimitOrDefault(RoutingContext rc, Throwable throwable, String logMessage) {
-        if (throwable instanceof UserSubscriptionService.StationLimitException limit) {
-            JsonObject body = new JsonObject()
-                    .put("status", 403)
-                    .put("code", "STATION_LIMIT_REACHED")
-                    .put("title", "Station limit reached")
-                    .put("detail", limit.getMessage())
-                    .put("upgradeTo", "Plus")
-                    .put("upgradeHint", "With a Plus subscription you can create a brand.");
-            if (limit.getSubscriptionType() != null) {
-                body.put("subscriptionType", limit.getSubscriptionType());
-            }
-            if (limit.getMaxStations() != null) {
-                body.put("maxStations", limit.getMaxStations());
-            }
-            if (limit.getStationCount() != null) {
-                body.put("stationCount", limit.getStationCount());
-            }
-            rc.response()
-                    .setStatusCode(403)
-                    .putHeader("Content-Type", "application/json")
-                    .end(body.encode());
+        if (MixdeckEntitlements.respondLimitFailure(rc, throwable)) {
             return;
         }
         LOGGER.error(logMessage, throwable);

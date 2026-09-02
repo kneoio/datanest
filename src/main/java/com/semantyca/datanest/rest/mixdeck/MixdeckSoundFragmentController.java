@@ -1,7 +1,6 @@
 package com.semantyca.datanest.rest.mixdeck;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.semantyca.core.dto.actions.ActionBox;
 import com.semantyca.core.dto.cnst.PayloadType;
 import com.semantyca.core.dto.form.FormPage;
 import com.semantyca.core.dto.view.View;
@@ -17,12 +16,12 @@ import com.semantyca.datanest.config.DatanestConfig;
 import com.semantyca.datanest.dto.BrandSoundFragmentFlatDTO;
 import com.semantyca.datanest.dto.SoundFragmentDTO;
 import com.semantyca.datanest.dto.SoundFragmentPublicFlatDTO;
-import com.semantyca.datanest.dto.actionbars.SoundFragmentActionsFactory;
 import com.semantyca.datanest.rest.DatanestSecuredController;
 import com.semantyca.datanest.rest.SoundFragmentController;
 import com.semantyca.datanest.service.soundfragment.BrandSoundFragmentService;
 import com.semantyca.datanest.service.soundfragment.SharedSoundFragmentService;
 import com.semantyca.datanest.service.soundfragment.SoundFragmentService;
+import com.semantyca.datanest.service.UserSubscriptionService;
 import com.semantyca.datanest.service.util.FileDownloadService;
 import com.semantyca.datanest.service.util.ValidationResult;
 import com.semantyca.datanest.service.util.ValidationService;
@@ -62,6 +61,7 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
     private final SharedSoundFragmentService sharedSoundFragmentService;
     private final FileDownloadService fileDownloadService;
     private final ValidationService validationService;
+    private final UserSubscriptionService userSubscriptionService;
     private final DatanestConfig config;
     private final Vertx vertx;
     private final ObjectMapper mapper;
@@ -73,6 +73,7 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
         this.sharedSoundFragmentService = null;
         this.fileDownloadService = null;
         this.validationService = null;
+        this.userSubscriptionService = null;
         this.config = null;
         this.vertx = null;
         this.mapper = null;
@@ -84,6 +85,7 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
                                           SharedSoundFragmentService sharedSoundFragmentService,
                                           FileDownloadService fileDownloadService,
                                           ValidationService validationService,
+                                          UserSubscriptionService userSubscriptionService,
                                           DatanestConfig config, Vertx vertx, ObjectMapper mapper) {
         super(userService);
         this.service = service;
@@ -91,6 +93,7 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
         this.sharedSoundFragmentService = sharedSoundFragmentService;
         this.fileDownloadService = fileDownloadService;
         this.validationService = validationService;
+        this.userSubscriptionService = userSubscriptionService;
         this.config = config;
         this.vertx = vertx;
         this.mapper = mapper;
@@ -178,9 +181,11 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
         getContextUser(rc, false, true)
                 .chain(user -> {
                     assert service != null;
+                    assert userSubscriptionService != null;
                     return Uni.combine().all().unis(
                             service.getAllCountWithoutBrandAssociation(user, filter),
-                            service.getAllPublicFlatDTOWithoutBrandAssociation(size, (page - 1) * size, user, filter)
+                            service.getAllPublicFlatDTOWithoutBrandAssociation(size, (page - 1) * size, user, filter),
+                            userSubscriptionService.canCreateSong(user)
                     ).asTuple().map(tuple -> {
                         ViewPage viewPage = new ViewPage();
                         View<SoundFragmentPublicFlatDTO> dtoEntries = new View<>(tuple.getItem2(),
@@ -188,8 +193,7 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
                                 RuntimeUtil.countMaxPage(tuple.getItem1(), size),
                                 size);
                         viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
-                        ActionBox actions = SoundFragmentActionsFactory.getViewActions();
-                        viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, actions);
+                        viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, MixdeckEntitlements.viewActions(tuple.getItem3()));
                         return viewPage;
                     });
                 })
@@ -330,8 +334,10 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
                                     }
 
                                     if (DocumentIds.isNewDocumentId(slugName)) {
-                                        return service.upsert(null, dto, user, LanguageCode.en)
-                                                .map(doc -> Tuple2.of((String) null, doc));
+                                        assert userSubscriptionService != null;
+                                        return userSubscriptionService.assertCanCreateSong(user)
+                                                .chain(() -> service.upsert(null, dto, user, LanguageCode.en)
+                                                        .map(doc -> Tuple2.of((String) null, doc)));
                                     }
                                     return service.getIdBySlug(slugName, user)
                                             .chain(id -> service.upsert(id.toString(), dto, user, LanguageCode.en)
@@ -478,6 +484,9 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
     }
 
     protected void handleFailure(RoutingContext rc, Throwable throwable) {
+        if (MixdeckEntitlements.respondLimitFailure(rc, throwable)) {
+            return;
+        }
         if (throwable instanceof DocumentHasNotFoundException) {
             rc.fail(404, throwable);
         } else if (throwable instanceof IllegalStateException
