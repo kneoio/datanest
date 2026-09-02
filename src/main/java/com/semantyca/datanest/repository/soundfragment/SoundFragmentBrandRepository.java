@@ -78,7 +78,7 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
             sql += queryBuilder.buildFilterConditions(filter);
         }
 
-        sql += buildOrderBy(filter);
+        sql += buildOrderBy(filter, true);
 
         if (limit > 0) {
             sql += String.format(" LIMIT %s OFFSET %s", limit, offset);
@@ -97,12 +97,14 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
                 .collect().asList();
     }
 
-    private static String buildOrderBy(SoundFragmentFilter filter) {
+    private static String buildOrderBy(SoundFragmentFilter filter, boolean brandScoped) {
         String sortBy = filter != null ? filter.getSortBy() : null;
         if (sortBy != null && !sortBy.isBlank()) {
             String expr = switch (sortBy) {
-                case "BOOST" -> "COALESCE(bsf.boost, 0)";
-                case "PLAYED" -> "COALESCE(pc.played_count, 0)";
+                case "BOOST" -> brandScoped ? "COALESCE(bsf.boost, 0)" : "boost";
+                case "PLAYED" -> brandScoped
+                        ? "COALESCE(bsf.played_by_brand_count, 0)"
+                        : "COALESCE(pc.played_count, 0)";
                 case "RATE" -> "(COALESCE(r.likes, 0) - COALESCE(r.dislikes, 0))";
                 default -> null;
             };
@@ -194,11 +196,7 @@ public class SoundFragmentBrandRepository extends SoundFragmentRepositoryAbstrac
             sql += queryBuilder.buildFilterConditions(filter);
         }
 
-        if (filter != null && filter.getSearchTerm() != null && !filter.getSearchTerm().trim().isEmpty()) {
-            sql += " ORDER BY sim DESC";
-        } else {
-            sql += " ORDER BY t.reg_date DESC";
-        }
+        sql += buildOrderBy(filter, false);
 
         if (limit > 0) {
             sql += String.format(" LIMIT %s OFFSET %s", limit, offset);
