@@ -91,7 +91,7 @@ public class MixdeckBrandController extends AbstractSecuredController<Brand, Bra
                             size);
                     viewPage.addPayload(PayloadType.VIEW_DATA, dtoEntries);
                     viewPage.addPayload(PayloadType.CONTEXT_ACTIONS, MixdeckEntitlements.viewActions(
-                            UserSubscriptionService.canCreateStation(tuple.getItem2(), list.size())));
+                            UserSubscriptionService.stationCreate(tuple.getItem2(), list.size())));
                     return viewPage;
                 })
                 .subscribe().with(

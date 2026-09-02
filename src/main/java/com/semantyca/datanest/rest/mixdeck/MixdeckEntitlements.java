@@ -1,24 +1,43 @@
 package com.semantyca.datanest.rest.mixdeck;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.semantyca.core.dto.actions.cnst.ActionType;
 import com.semantyca.datanest.service.UserSubscriptionService;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public final class MixdeckEntitlements {
     private MixdeckEntitlements() {
     }
 
-    public static List<String> viewActions(boolean canCreate) {
-        List<String> actions = new ArrayList<>();
-        if (canCreate) {
-            actions.add(ActionType.CREATE.getAlias());
+    public static List<MixdeckAction> viewActions(UserSubscriptionService.CreateAvailability create) {
+        return List.of(createAction(create), enabled(ActionType.DELETE));
+    }
+
+    private static MixdeckAction createAction(UserSubscriptionService.CreateAvailability create) {
+        if (create != null && create.enabled()) {
+            return enabled(ActionType.CREATE);
         }
-        actions.add(ActionType.DELETE.getAlias());
-        return actions;
+        UserSubscriptionService.EntitlementLimitException denial = create != null ? create.denial() : null;
+        MixdeckAction action = new MixdeckAction();
+        action.setId(ActionType.CREATE.getAlias());
+        action.setEnabled(false);
+        if (denial != null) {
+            action.setCode(denial.getCode());
+            action.setReason(denial.getMessage());
+            action.setUpgradeTo("Plus");
+            action.setUpgradeHint(denial.getUpgradeHint());
+        }
+        return action;
+    }
+
+    private static MixdeckAction enabled(ActionType type) {
+        MixdeckAction action = new MixdeckAction();
+        action.setId(type.getAlias());
+        action.setEnabled(true);
+        return action;
     }
 
     public static boolean respondLimitFailure(RoutingContext rc, Throwable throwable) {
@@ -46,5 +65,63 @@ public final class MixdeckEntitlements {
                 .putHeader("Content-Type", "application/json")
                 .end(body.encode());
         return true;
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class MixdeckAction {
+        private String id;
+        private boolean enabled;
+        private String code;
+        private String reason;
+        private String upgradeTo;
+        private String upgradeHint;
+
+        public String getId() {
+            return id;
+        }
+
+        public void setId(String id) {
+            this.id = id;
+        }
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getCode() {
+            return code;
+        }
+
+        public void setCode(String code) {
+            this.code = code;
+        }
+
+        public String getReason() {
+            return reason;
+        }
+
+        public void setReason(String reason) {
+            this.reason = reason;
+        }
+
+        public String getUpgradeTo() {
+            return upgradeTo;
+        }
+
+        public void setUpgradeTo(String upgradeTo) {
+            this.upgradeTo = upgradeTo;
+        }
+
+        public String getUpgradeHint() {
+            return upgradeHint;
+        }
+
+        public void setUpgradeHint(String upgradeHint) {
+            this.upgradeHint = upgradeHint;
+        }
     }
 }

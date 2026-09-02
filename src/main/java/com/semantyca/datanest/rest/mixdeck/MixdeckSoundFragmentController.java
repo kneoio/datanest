@@ -185,7 +185,7 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
                     return Uni.combine().all().unis(
                             service.getAllCountWithoutBrandAssociation(user, filter),
                             service.getAllPublicFlatDTOWithoutBrandAssociation(size, (page - 1) * size, user, filter),
-                            userSubscriptionService.canCreateSong(user)
+                            userSubscriptionService.songCreate(user)
                     ).asTuple().map(tuple -> {
                         ViewPage viewPage = new ViewPage();
                         View<SoundFragmentPublicFlatDTO> dtoEntries = new View<>(tuple.getItem2(),

@@ -45,17 +45,10 @@ public class UserSubscriptionService {
                         brandRepository.getAllCount(user, false, null))
                 .asTuple()
                 .onItem().transformToUni(tuple -> {
-                    MixplaUserSubscription subscription = tuple.getItem1();
-                    Integer stationCount = tuple.getItem2();
-                    if (!canCreateStation(subscription, stationCount)) {
-                        String type = subscription != null ? subscription.getSubscriptionType() : null;
-                        Integer max = subscription != null ? subscription.getMaxStations() : null;
-                        String message = max == null
-                                ? "Station limit reached: no active subscription found"
-                                : "Station limit reached: your subscription allows " + max + " stations";
-                        return Uni.createFrom().failure(EntitlementLimitException.station(message, type, max, stationCount));
-                    }
-                    return Uni.createFrom().voidItem();
+                    CreateAvailability availability = stationCreate(tuple.getItem1(), tuple.getItem2());
+                    return availability.enabled()
+                            ? Uni.createFrom().voidItem()
+                            : Uni.createFrom().failure(availability.denial());
                 });
     }
 
@@ -71,36 +64,51 @@ public class UserSubscriptionService {
         return withinLimit(subscription != null ? subscription.getMaxStations() : null, stationCount);
     }
 
+    public static CreateAvailability stationCreate(MixplaUserSubscription subscription, Integer stationCount) {
+        if (canCreateStation(subscription, stationCount)) {
+            return CreateAvailability.allowed();
+        }
+        String type = subscription != null ? subscription.getSubscriptionType() : null;
+        Integer max = subscription != null ? subscription.getMaxStations() : null;
+        String message = max == null
+                ? "Station limit reached: no active subscription found"
+                : "Station limit reached: your subscription allows " + max + " stations";
+        return CreateAvailability.denied(EntitlementLimitException.station(message, type, max, stationCount));
+    }
+
     public Uni<Void> assertCanCreateSong(IUser user) {
-        return Uni.combine().all().unis(
-                        getActiveSubscription(user),
-                        songCount(user))
-                .asTuple()
-                .onItem().transformToUni(tuple -> {
-                    MixplaUserSubscription subscription = tuple.getItem1();
-                    Integer songCount = tuple.getItem2();
-                    if (!canCreateSong(subscription, songCount)) {
-                        String type = subscription != null ? subscription.getSubscriptionType() : null;
-                        Integer max = subscription != null ? subscription.getMaxSongs() : null;
-                        String message = max == null
-                                ? "Song limit reached: no active subscription found"
-                                : "Song limit reached: your subscription allows " + max + " songs";
-                        return Uni.createFrom().failure(EntitlementLimitException.song(message, type, max, songCount));
-                    }
-                    return Uni.createFrom().voidItem();
-                });
+        return songCreate(user)
+                .onItem().transformToUni(availability -> availability.enabled()
+                        ? Uni.createFrom().voidItem()
+                        : Uni.createFrom().failure(availability.denial()));
     }
 
     public Uni<Boolean> canCreateSong(IUser user) {
+        return songCreate(user).map(CreateAvailability::enabled);
+    }
+
+    public Uni<CreateAvailability> songCreate(IUser user) {
         return Uni.combine().all().unis(
                         getActiveSubscription(user),
                         songCount(user))
                 .asTuple()
-                .map(tuple -> canCreateSong(tuple.getItem1(), tuple.getItem2()));
+                .map(tuple -> songCreate(tuple.getItem1(), tuple.getItem2()));
     }
 
     public static boolean canCreateSong(MixplaUserSubscription subscription, Integer songCount) {
         return withinLimit(subscription != null ? subscription.getMaxSongs() : null, songCount);
+    }
+
+    public static CreateAvailability songCreate(MixplaUserSubscription subscription, Integer songCount) {
+        if (canCreateSong(subscription, songCount)) {
+            return CreateAvailability.allowed();
+        }
+        String type = subscription != null ? subscription.getSubscriptionType() : null;
+        Integer max = subscription != null ? subscription.getMaxSongs() : null;
+        String message = max == null
+                ? "Song limit reached: no active subscription found"
+                : "Song limit reached: your subscription allows " + max + " songs";
+        return CreateAvailability.denied(EntitlementLimitException.song(message, type, max, songCount));
     }
 
     private static boolean withinLimit(Integer max, Integer count) {
@@ -113,6 +121,32 @@ public class UserSubscriptionService {
         filter.setAuthor(user.getId().intValue());
         filter.setActivated(true);
         return soundFragmentRepository.getAllCount(user, false, filter);
+    }
+
+    public static class CreateAvailability {
+        private final boolean enabled;
+        private final EntitlementLimitException denial;
+
+        private CreateAvailability(boolean enabled, EntitlementLimitException denial) {
+            this.enabled = enabled;
+            this.denial = denial;
+        }
+
+        public static CreateAvailability allowed() {
+            return new CreateAvailability(true, null);
+        }
+
+        public static CreateAvailability denied(EntitlementLimitException denial) {
+            return new CreateAvailability(false, denial);
+        }
+
+        public boolean enabled() {
+            return enabled;
+        }
+
+        public EntitlementLimitException denial() {
+            return denial;
+        }
     }
 
     public static class EntitlementLimitException extends IllegalStateException {
