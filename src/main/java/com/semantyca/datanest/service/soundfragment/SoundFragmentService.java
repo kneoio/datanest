@@ -1039,6 +1039,22 @@ public class SoundFragmentService extends AbstractService<SoundFragment, SoundFr
                 ));
     }
 
+    public Uni<Void> updateBoostAllBrands(String id, int boost) {
+        assert repository != null;
+        assert commandPublisher != null;
+        return repository.updateBoostForAllBrands(UUID.fromString(id), boost)
+                .invoke(brandIds -> {
+                    for (UUID brandUUID : brandIds) {
+                        commandPublisher.publishCommand(
+                                CommandType.REBUILD_AGENDA,
+                                "boost_updated",
+                                Map.of("brandId", brandUUID.toString(), "soundFragmentId", id, "boost", boost)
+                        );
+                    }
+                })
+                .replaceWithVoid();
+    }
+
     public Uni<Integer> revokeMyAccess(UUID id, IUser user) {
         assert repository != null;
         return repository.revokeMyAccess(id, user);
