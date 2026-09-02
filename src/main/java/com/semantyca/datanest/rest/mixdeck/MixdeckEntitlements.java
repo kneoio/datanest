@@ -27,8 +27,6 @@ public final class MixdeckEntitlements {
         if (denial != null) {
             action.setCode(denial.getCode());
             action.setReason(denial.getMessage());
-            action.setUpgradeTo("Plus");
-            action.setUpgradeHint(denial.getUpgradeHint());
         }
         return action;
     }
@@ -48,9 +46,7 @@ public final class MixdeckEntitlements {
                 .put("status", 403)
                 .put("code", limit.getCode())
                 .put("title", limit.getTitle())
-                .put("detail", limit.getMessage())
-                .put("upgradeTo", "Plus")
-                .put("upgradeHint", limit.getUpgradeHint());
+                .put("detail", limit.getMessage());
         if (limit.getSubscriptionType() != null) {
             body.put("subscriptionType", limit.getSubscriptionType());
         }
@@ -73,8 +69,6 @@ public final class MixdeckEntitlements {
         private boolean enabled;
         private String code;
         private String reason;
-        private String upgradeTo;
-        private String upgradeHint;
 
         public String getId() {
             return id;
@@ -106,22 +100,6 @@ public final class MixdeckEntitlements {
 
         public void setReason(String reason) {
             this.reason = reason;
-        }
-
-        public String getUpgradeTo() {
-            return upgradeTo;
-        }
-
-        public void setUpgradeTo(String upgradeTo) {
-            this.upgradeTo = upgradeTo;
-        }
-
-        public String getUpgradeHint() {
-            return upgradeHint;
-        }
-
-        public void setUpgradeHint(String upgradeHint) {
-            this.upgradeHint = upgradeHint;
         }
     }
 }

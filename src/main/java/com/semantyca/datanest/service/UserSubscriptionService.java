@@ -152,20 +152,18 @@ public class UserSubscriptionService {
     public static class EntitlementLimitException extends IllegalStateException {
         private final String code;
         private final String title;
-        private final String upgradeHint;
         private final String subscriptionType;
         private final String maxField;
         private final Integer maxValue;
         private final String countField;
         private final Integer countValue;
 
-        private EntitlementLimitException(String message, String code, String title, String upgradeHint,
+        private EntitlementLimitException(String message, String code, String title,
                                           String subscriptionType, String maxField, Integer maxValue,
                                           String countField, Integer countValue) {
             super(message);
             this.code = code;
             this.title = title;
-            this.upgradeHint = upgradeHint;
             this.subscriptionType = subscriptionType;
             this.maxField = maxField;
             this.maxValue = maxValue;
@@ -176,14 +174,12 @@ public class UserSubscriptionService {
         public static EntitlementLimitException station(String message, String subscriptionType,
                                                         Integer maxStations, Integer stationCount) {
             return new EntitlementLimitException(message, "STATION_LIMIT_REACHED", "Station limit reached",
-                    "With a Plus subscription you can create a brand.",
                     subscriptionType, "maxStations", maxStations, "stationCount", stationCount);
         }
 
         public static EntitlementLimitException song(String message, String subscriptionType,
                                                      Integer maxSongs, Integer songCount) {
             return new EntitlementLimitException(message, "SONG_LIMIT_REACHED", "Song limit reached",
-                    "With a Plus subscription you can add more songs.",
                     subscriptionType, "maxSongs", maxSongs, "songCount", songCount);
         }
 
@@ -193,10 +189,6 @@ public class UserSubscriptionService {
 
         public String getTitle() {
             return title;
-        }
-
-        public String getUpgradeHint() {
-            return upgradeHint;
         }
 
         public String getSubscriptionType() {
