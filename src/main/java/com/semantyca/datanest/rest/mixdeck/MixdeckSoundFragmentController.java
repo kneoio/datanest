@@ -209,14 +209,12 @@ public class MixdeckSoundFragmentController extends DatanestSecuredController<So
     private static @NonNull SoundFragmentFilter createFilter() {
         SoundFragmentFilter filter = new SoundFragmentFilter();
         filter.setType(List.of(
-                PlaylistItemType.ADVERTISEMENT,
                 PlaylistItemType.PRERECORDED_ADVERTISEMENT,
                 PlaylistItemType.PRERECORDED_PODCAST,
                 PlaylistItemType.JINGLE,
                 PlaylistItemType.JINGLE_INTRO,
                 PlaylistItemType.JINGLE_OUTRO,
                 PlaylistItemType.BACKGROUND_LOOP,
-                PlaylistItemType.NEWS,
                 PlaylistItemType.WEATHER
         ));
         filter.setActivated(true);
