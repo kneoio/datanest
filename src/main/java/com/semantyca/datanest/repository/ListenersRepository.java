@@ -131,6 +131,35 @@ public class ListenersRepository extends AsyncRepository {
                 });
     }
 
+    public Uni<Listener> findBySlugName(String slugName, IUser user, boolean includeArchived) {
+        String sql = "SELECT theTable.*, rls.* " +
+                "FROM %s theTable " +
+                "JOIN _users u ON u.id = theTable.user_id " +
+                "JOIN %s rls ON theTable.id = rls.entity_id " +
+                "WHERE rls.reader = $1 AND u.login = $2";
+
+        if (!includeArchived) {
+            sql += " AND (theTable.archived IS NULL OR theTable.archived = 0)";
+        }
+
+        return client.preparedQuery(String.format(sql, entityData.getTableName(), entityData.getRlsName()))
+                .execute(Tuple.of(user.getId(), slugName))
+                .onItem().transform(RowSet::iterator)
+                .onItem().transformToUni(iterator -> {
+                    if (iterator.hasNext()) {
+                        return Uni.createFrom().item(from(iterator.next()))
+                                .chain(listener -> loadLabels(listener.getId())
+                                        .onItem().transform(labels -> {
+                                            listener.setLabels(labels);
+                                            return listener;
+                                        }));
+                    } else {
+                        LOGGER.warnf("No {} found with slug: {}, user: {} ", LISTENER, slugName, user.getId());
+                        throw new DocumentHasNotFoundException(slugName);
+                    }
+                });
+    }
+
     public Uni<List<BrandListener>> findForBrand(String slugName, final int limit, final int offset, IUser user, boolean includeArchived, ListenerFilter filter) {
         String sql = "SELECT l.*, lb.brand_id, lb.rank " +
                 "FROM " + entityData.getTableName() + " l " +

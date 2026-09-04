@@ -12,11 +12,16 @@ import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.WebHelper;
 import com.semantyca.datanest.dto.BrandListenerDTO;
 import com.semantyca.datanest.dto.ListenerDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.BrandListenerMixdeckDTO;
+import com.semantyca.datanest.dto.brand.mixdeck.ListenerMixdeckDTO;
 import com.semantyca.datanest.repository.ListenersRepository;
+import com.semantyca.datanest.util.DocumentIds;
 import com.semantyca.mixpla.model.BrandListener;
 import com.semantyca.mixpla.model.Listener;
 import com.semantyca.mixpla.model.brand.Brand;
 import com.semantyca.mixpla.model.filter.ListenerFilter;
+import com.semantyca.officeframe.model.Label;
+import com.semantyca.officeframe.service.LabelService;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -35,20 +40,24 @@ public class ListenerService extends AbstractService<Listener, ListenerDTO> {
     private final ListenersRepository repository;
     private final Validator validator;
     private BrandService brandService;
+    private final LabelService labelService;
 
     protected ListenerService() {
         super();
         this.repository = null;
         this.validator = null;
+        this.labelService = null;
     }
 
     @Inject
     public ListenerService(UserService userService,
                            BrandService brandService,
+                           LabelService labelService,
                            Validator validator,
                            ListenersRepository repository) {
         super(userService);
         this.brandService = brandService;
+        this.labelService = labelService;
         this.validator = validator;
         this.repository = repository;
     }
@@ -90,6 +99,53 @@ public class ListenerService extends AbstractService<Listener, ListenerDTO> {
         assert repository != null;
         return repository.findById(uuid, user, false)
                 .chain(this::mapToDTO);
+    }
+
+    public Uni<ListenerMixdeckDTO> getMixdeckDTOBySlug(String slugName, IUser user) {
+        assert repository != null;
+        return repository.findBySlugName(slugName, user, false).chain(this::mapToMixdeckDTO);
+    }
+
+    public Uni<ListenerMixdeckDTO> getNewMixdeckDTO(IUser user, LanguageCode code) {
+        return getDTOTemplate(user, code).chain(this::toMixdeckDTO);
+    }
+
+    public Uni<List<BrandListenerMixdeckDTO>> getBrandListenersMixdeck(String brandName, int limit, final int offset,
+                                                                       IUser user, ListenerFilter filter) {
+        return getBrandListeners(brandName, limit, offset, user, filter)
+                .chain(list -> {
+                    if (list.isEmpty()) {
+                        return Uni.createFrom().item(List.of());
+                    }
+                    List<Uni<BrandListenerMixdeckDTO>> unis = list.stream()
+                            .map(this::toBrandListenerMixdeckDTO)
+                            .collect(Collectors.toList());
+                    return Uni.join().all(unis).andFailFast();
+                });
+    }
+
+    /** Mixdeck upsert; path key is listener slugName (user login), not UUID. */
+    public Uni<ListenerMixdeckDTO> upsertMixdeck(String slugName, ListenerMixdeckDTO mixdeckDto, String stationSlug,
+                                                 IUser user) {
+        boolean isNew = DocumentIds.isNewDocumentId(slugName);
+        return toLabelIds(mixdeckDto.getLabels())
+                .chain(labelIds -> {
+                    ListenerDTO dto = fromMixdeckDTO(mixdeckDto);
+                    dto.setLabels(labelIds);
+                    if (isNew) {
+                        return upsert("new", dto, stationSlug, user);
+                    }
+                    assert repository != null;
+                    return repository.findBySlugName(slugName, user, false)
+                            .chain(existing -> upsert(existing.getId().toString(), dto, stationSlug, user));
+                })
+                .chain(this::toMixdeckDTO);
+    }
+
+    public Uni<Integer> archiveBySlug(String slugName, IUser user) {
+        assert repository != null;
+        return repository.findBySlugName(slugName, user, false)
+                .chain(existing -> archive(existing.getId().toString(), user));
     }
 
     public Uni<List<BrandListenerDTO>> getBrandListeners(String brandName, int limit, final int offset, IUser user, ListenerFilter filter) {
@@ -262,6 +318,67 @@ public class ListenerService extends AbstractService<Listener, ListenerDTO> {
                     dto.setListenerDTO(listenerDTO);
                     return dto;
                 });
+    }
+
+    private Uni<BrandListenerMixdeckDTO> toBrandListenerMixdeckDTO(BrandListenerDTO src) {
+        return toMixdeckDTO(src.getListenerDTO()).map(listener -> {
+            BrandListenerMixdeckDTO dto = new BrandListenerMixdeckDTO();
+            dto.setListenerDTO(listener);
+            return dto;
+        });
+    }
+
+    private Uni<ListenerMixdeckDTO> mapToMixdeckDTO(Listener doc) {
+        return mapToDTO(doc).chain(this::toMixdeckDTO);
+    }
+
+    private Uni<ListenerMixdeckDTO> toMixdeckDTO(ListenerDTO src) {
+        return toLabelIdentifiers(src.getLabels()).map(labels -> {
+            ListenerMixdeckDTO dto = new ListenerMixdeckDTO();
+            dto.setAuthor(src.getAuthor());
+            dto.setRegDate(src.getRegDate());
+            dto.setLastModifier(src.getLastModifier());
+            dto.setLastModifiedDate(src.getLastModifiedDate());
+            dto.setLocalizedName(src.getLocalizedName());
+            dto.setNickName(src.getNickName());
+            dto.setUserData(src.getUserData());
+            dto.setEmail(src.getEmail());
+            dto.setSlugName(src.getSlugName());
+            dto.setLabels(labels);
+            return dto;
+        });
+    }
+
+    private ListenerDTO fromMixdeckDTO(ListenerMixdeckDTO src) {
+        ListenerDTO dto = new ListenerDTO();
+        dto.setLocalizedName(src.getLocalizedName());
+        dto.setNickName(src.getNickName());
+        dto.setUserData(src.getUserData());
+        dto.setEmail(src.getEmail());
+        dto.setSlugName(src.getSlugName());
+        return dto;
+    }
+
+    private Uni<List<UUID>> toLabelIds(List<String> identifiers) {
+        if (identifiers == null || identifiers.isEmpty()) {
+            return Uni.createFrom().item(List.of());
+        }
+        assert labelService != null;
+        List<Uni<UUID>> unis = identifiers.stream()
+                .map(identifier -> labelService.findByIdentifier(identifier).map(Label::getId))
+                .collect(Collectors.toList());
+        return Uni.join().all(unis).andFailFast();
+    }
+
+    private Uni<List<String>> toLabelIdentifiers(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Uni.createFrom().item(List.of());
+        }
+        assert labelService != null;
+        List<Uni<String>> unis = ids.stream()
+                .map(id -> labelService.getById(id).map(Label::getIdentifier))
+                .collect(Collectors.toList());
+        return Uni.join().all(unis).andFailFast();
     }
 
     public Uni<List<DocumentAccessDTO>> getDocumentAccess(UUID documentId, IUser user) {
