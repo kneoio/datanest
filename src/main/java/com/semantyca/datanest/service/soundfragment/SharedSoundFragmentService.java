@@ -189,6 +189,26 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
         return repository.findById(id, user.getId()).map(this::toSharingPreviewDTO);
     }
 
+    public Uni<ReceivedSharePublicDTO> getPublicByBrandAndFragmentSlug(String brandSlug, String fragmentSlug, IUser user) {
+        return repository.findByBrandSlugAndFragmentSlug(brandSlug, fragmentSlug, user.getId())
+                .chain(e -> toPublicSharingPreviewDTO(e, Map.of(e.getSoundFragmentId(), fragmentSlug)));
+    }
+
+    public Uni<Integer> acceptShareByReceiver(String brandSlug, String fragmentSlug, IUser user) {
+        return repository.findIdByBrandSlugAndFragmentSlug(brandSlug, fragmentSlug, user.getId())
+                .chain(id -> acceptShareByReceiver(id, user));
+    }
+
+    public Uni<Integer> rejectShareByReceiver(String brandSlug, String fragmentSlug, IUser user) {
+        return repository.findIdByBrandSlugAndFragmentSlug(brandSlug, fragmentSlug, user.getId())
+                .chain(id -> rejectShareByReceiver(id, user));
+    }
+
+    public Uni<Integer> archiveRejectedShareByReceiver(String brandSlug, String fragmentSlug, IUser user) {
+        return repository.findIdByBrandSlugAndFragmentSlug(brandSlug, fragmentSlug, user.getId())
+                .chain(id -> archiveRejectedShareByReceiver(id, user));
+    }
+
     // Slug names the source station attributing the share (its owner's name/email is recorded as
     // sourceUserName/Email, shown to the receiver as "shared by"). A fragment with no brand
     // association (e.g. the "unassigned to brands" page) has no station to pick - the FE sends
@@ -344,7 +364,6 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
                 repository.loadLabelIdentifiers(e.getSoundFragmentId())
         ).asTuple().map(tuple -> {
             ReceivedSharePublicDTO dto = new ReceivedSharePublicDTO();
-            dto.setId(e.getId());
             dto.setTitle(e.getTitle());
             dto.setArtist(e.getArtist());
             dto.setType(e.getType());
@@ -353,7 +372,7 @@ public class SharedSoundFragmentService extends AbstractService<SharedSoundFragm
             dto.setLabels(tuple.getItem2());
             dto.setSharerUserName(e.getSourceUserName());
             dto.setSharerUserEmail(e.getSourceUserEmail());
-            dto.setTargetBrandId(e.getTargetBrandId());
+            dto.setTargetBrandSlug(e.getBrandSlugName());
             dto.setTargetBrandName(e.getTargetBrandName());
             dto.setBoost(e.getBoost() != null ? e.getBoost() : 0);
             dto.setStatus(e.getStatus());

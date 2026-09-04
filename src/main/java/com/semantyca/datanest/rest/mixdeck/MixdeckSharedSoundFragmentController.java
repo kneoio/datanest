@@ -2,8 +2,10 @@ package com.semantyca.datanest.rest.mixdeck;
 
 import com.semantyca.core.controller.AbstractSecuredController;
 import com.semantyca.core.dto.cnst.PayloadType;
+import com.semantyca.core.dto.form.FormPage;
 import com.semantyca.core.dto.view.View;
 import com.semantyca.core.dto.view.ViewPage;
+import com.semantyca.core.repository.exception.DocumentHasNotFoundException;
 import com.semantyca.core.service.UserService;
 import com.semantyca.core.util.RuntimeUtil;
 import com.semantyca.datanest.dto.sharing.ReceivedSharePublicDTO;
@@ -52,6 +54,14 @@ public class MixdeckSharedSoundFragmentController extends AbstractSecuredControl
     public void setupRoutes(Router router) {
         BodyHandler jsonBodyHandler = BodyHandler.create().setHandleFileUploads(false);
         router.route(HttpMethod.GET, "/datanest/public/shared-sound-fragments/received").handler(this::getReceived);
+        router.route(HttpMethod.PATCH, "/datanest/public/shared-sound-fragments/received/:brandSlug/:fragmentSlug/accept")
+                .handler(this::acceptShareByReceiver);
+        router.route(HttpMethod.PATCH, "/datanest/public/shared-sound-fragments/received/:brandSlug/:fragmentSlug/reject")
+                .handler(this::rejectShareByReceiver);
+        router.route(HttpMethod.DELETE, "/datanest/public/shared-sound-fragments/received/:brandSlug/:fragmentSlug")
+                .handler(this::archiveRejectedByReceiver);
+        router.route(HttpMethod.GET, "/datanest/public/shared-sound-fragments/received/:brandSlug/:fragmentSlug")
+                .handler(this::getReceivedDoc);
         router.route(HttpMethod.GET, "/datanest/public/shared-sound-fragments/discover").handler(this::getShareTargets);
         // slug = source station attributing the share; fragmentSlug = song. FE sends NO_BRAND when unassigned.
         router.route(HttpMethod.PATCH, "/datanest/public/shared-sound-fragments/shared/:slug/:fragmentSlug")
@@ -155,8 +165,73 @@ public class MixdeckSharedSoundFragmentController extends AbstractSecuredControl
                 );
     }
 
+    private void getReceivedDoc(RoutingContext rc) {
+        String brandSlug = rc.pathParam("brandSlug");
+        String fragmentSlug = rc.pathParam("fragmentSlug");
+        getContextUser(rc, false, true)
+                .chain(user -> {
+                    assert sharedSoundFragmentService != null;
+                    return sharedSoundFragmentService.getPublicByBrandAndFragmentSlug(brandSlug, fragmentSlug, user);
+                })
+                .subscribe().with(
+                        dto -> {
+                            FormPage page = new FormPage();
+                            page.addPayload(PayloadType.DOC_DATA, dto);
+                            rc.response()
+                                    .setStatusCode(200)
+                                    .putHeader("Content-Type", "application/json")
+                                    .end(io.vertx.core.json.Json.encode(page));
+                        },
+                        t -> handleFailure(rc, t)
+                );
+    }
+
+    private void acceptShareByReceiver(RoutingContext rc) {
+        String brandSlug = rc.pathParam("brandSlug");
+        String fragmentSlug = rc.pathParam("fragmentSlug");
+        getContextUser(rc, false, true)
+                .chain(user -> {
+                    assert sharedSoundFragmentService != null;
+                    return sharedSoundFragmentService.acceptShareByReceiver(brandSlug, fragmentSlug, user);
+                })
+                .subscribe().with(
+                        count -> rc.response().setStatusCode(204).end(),
+                        t -> handleFailure(rc, t)
+                );
+    }
+
+    private void rejectShareByReceiver(RoutingContext rc) {
+        String brandSlug = rc.pathParam("brandSlug");
+        String fragmentSlug = rc.pathParam("fragmentSlug");
+        getContextUser(rc, false, true)
+                .chain(user -> {
+                    assert sharedSoundFragmentService != null;
+                    return sharedSoundFragmentService.rejectShareByReceiver(brandSlug, fragmentSlug, user);
+                })
+                .subscribe().with(
+                        count -> rc.response().setStatusCode(204).end(),
+                        t -> handleFailure(rc, t)
+                );
+    }
+
+    private void archiveRejectedByReceiver(RoutingContext rc) {
+        String brandSlug = rc.pathParam("brandSlug");
+        String fragmentSlug = rc.pathParam("fragmentSlug");
+        getContextUser(rc, false, true)
+                .chain(user -> {
+                    assert sharedSoundFragmentService != null;
+                    return sharedSoundFragmentService.archiveRejectedShareByReceiver(brandSlug, fragmentSlug, user);
+                })
+                .subscribe().with(
+                        count -> rc.response().setStatusCode(count > 0 ? 204 : 404).end(),
+                        t -> handleFailure(rc, t)
+                );
+    }
+
     protected void handleFailure(RoutingContext rc, Throwable throwable) {
-        if (throwable instanceof IllegalStateException
+        if (throwable instanceof DocumentHasNotFoundException) {
+            rc.fail(404, throwable);
+        } else if (throwable instanceof IllegalStateException
                 || throwable instanceof IllegalArgumentException) {
             rc.fail(401, throwable);
         } else {

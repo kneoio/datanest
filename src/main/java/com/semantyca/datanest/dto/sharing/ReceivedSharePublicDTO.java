@@ -10,14 +10,12 @@ import lombok.Setter;
 
 import java.util.EnumMap;
 import java.util.List;
-import java.util.UUID;
 
 @Setter
 @Getter
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ReceivedSharePublicDTO {
-    private UUID id;
     private String title;
     private String artist;
     private PlaylistItemType type;
@@ -26,7 +24,7 @@ public class ReceivedSharePublicDTO {
     private String album;
     private String sharerUserName;
     private String sharerUserEmail;
-    private UUID targetBrandId;
+    private String targetBrandSlug;
     private EnumMap<LanguageCode, String> targetBrandName;
     private int boost;
     private Integer status;

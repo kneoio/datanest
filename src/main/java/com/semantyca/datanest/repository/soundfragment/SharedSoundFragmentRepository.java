@@ -295,12 +295,16 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         });
     }
 
+    private static final String RECEIVED_PREVIEW_COLUMNS =
+            "ssf.id AS ssf_id, sf.id AS sf_id, sf.title, sf.artist, sf.type, sf.album, sf.reg_date, " +
+            "ssf.source_user_name, ssf.source_user_email, ssf.boost, ssf.status, ssf.notify_on_play, " +
+            "b.loc_name AS target_brand_name, b.slug_name AS target_brand_slug";
+
     private static final String RECEIVED_SEARCH_CLAUSE =
             " AND (sf.title ILIKE $4 OR sf.artist ILIKE $4 OR ssf.source_user_name ILIKE $4)";
 
     public Uni<List<SharedSoundFragment>> getReceivedList(int limit, int offset, long userId, String search) {
-        String sql = "SELECT ssf.id AS ssf_id, sf.id AS sf_id, sf.title, sf.artist, sf.type, sf.album, sf.reg_date, " +
-                "ssf.source_user_name, ssf.source_user_email, ssf.boost, ssf.status, ssf.notify_on_play, b.loc_name AS target_brand_name " +
+        String sql = "SELECT " + RECEIVED_PREVIEW_COLUMNS + " " +
                 "FROM " + SF_TABLE + " sf " +
                 "JOIN " + entityData.getTableName() + " ssf ON ssf.sound_fragment_id = sf.id " +
                 "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = ssf.id " +
@@ -336,8 +340,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
     }
 
     public Uni<SharedSoundFragment> findById(UUID id, long userId) {
-        String sql = "SELECT ssf.id AS ssf_id, sf.id AS sf_id, sf.title, sf.artist, sf.type, sf.album, sf.reg_date, " +
-                "ssf.source_user_name, ssf.source_user_email, ssf.boost, ssf.status, ssf.notify_on_play, b.loc_name AS target_brand_name " +
+        String sql = "SELECT " + RECEIVED_PREVIEW_COLUMNS + " " +
                 "FROM " + SF_TABLE + " sf " +
                 "JOIN " + entityData.getTableName() + " ssf ON ssf.sound_fragment_id = sf.id " +
                 "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = ssf.id " +
@@ -354,10 +357,46 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
                 .chain(this::attachPreviewFiles);
     }
 
+    public Uni<SharedSoundFragment> findByBrandSlugAndFragmentSlug(String brandSlug, String fragmentSlug, long userId) {
+        String sql = "SELECT " + RECEIVED_PREVIEW_COLUMNS + " " +
+                "FROM " + SF_TABLE + " sf " +
+                "JOIN " + entityData.getTableName() + " ssf ON ssf.sound_fragment_id = sf.id " +
+                "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = ssf.id " +
+                "JOIN " + BRANDS_TABLE + " b ON b.id = ssf.target_brand_id " +
+                "WHERE b.slug_name = $1 AND sf.slug_name = $2 AND rls.reader = $3 " +
+                "AND sf.archived = 0 AND ssf.archived = 0 LIMIT 1";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(brandSlug, fragmentSlug, userId))
+                .onItem().transformToUni(rows -> {
+                    if (!rows.iterator().hasNext()) {
+                        throw new DocumentHasNotFoundException(brandSlug + "/" + fragmentSlug);
+                    }
+                    return fromSoundFragmentPreviewRow(rows.iterator().next());
+                })
+                .chain(this::attachPreviewFiles);
+    }
+
+    public Uni<UUID> findIdByBrandSlugAndFragmentSlug(String brandSlug, String fragmentSlug, long userId) {
+        String sql = "SELECT ssf.id FROM " + entityData.getTableName() + " ssf " +
+                "JOIN " + SF_TABLE + " sf ON ssf.sound_fragment_id = sf.id " +
+                "JOIN " + entityData.getRlsName() + " rls ON rls.entity_id = ssf.id " +
+                "JOIN " + BRANDS_TABLE + " b ON b.id = ssf.target_brand_id " +
+                "WHERE b.slug_name = $1 AND sf.slug_name = $2 AND rls.reader = $3 " +
+                "AND sf.archived = 0 AND ssf.archived = 0 LIMIT 1";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(brandSlug, fragmentSlug, userId))
+                .onItem().transform(rows -> {
+                    if (!rows.iterator().hasNext()) {
+                        throw new DocumentHasNotFoundException(brandSlug + "/" + fragmentSlug);
+                    }
+                    return rows.iterator().next().getUUID("id");
+                });
+    }
+
     // Lets the receiver preview the audio before accepting/rejecting. Deliberately bypasses the
     // fragment's own RLS gate (accept never grants it, see the knowledge bundle
     // workflows/sharing-and-approvals.md) - safe here
-    // because this is only reached after findById's own share-entity RLS check above already
+    // because this is only reached after the share-entity RLS check already
     // passed, so the caller is already an authorized reader of this specific share.
     private Uni<SharedSoundFragment> attachPreviewFiles(SharedSoundFragment e) {
         String sql = "SELECT slug_name, file_original_name, file_type FROM _files " +
@@ -417,6 +456,7 @@ public class SharedSoundFragmentRepository extends AsyncRepository {
         e.setStatus(row.getInteger("status"));
         e.setNotifyOnPlay(row.getBoolean("notify_on_play"));
         e.setRegDate(row.getOffsetDateTime("reg_date").toZonedDateTime());
+        e.setBrandSlugName(row.getString("target_brand_slug"));
         JsonObject locNameJson = row.getJsonObject("target_brand_name");
         if (locNameJson != null) {
             EnumMap<LanguageCode, String> targetBrandName = new EnumMap<>(LanguageCode.class);
