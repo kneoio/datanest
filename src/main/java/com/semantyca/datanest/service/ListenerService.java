@@ -196,8 +196,12 @@ public class ListenerService extends AbstractService<Listener, ListenerDTO> {
 
     private Uni<Long> createNewUser(Listener listener, String email) {
         UserDTO userDTO = new UserDTO();
-        String slugName = WebHelper.generatePersonSlug(listener.getLocalizedName().get(LanguageCode.en));
-        userDTO.setLogin(slugName);
+        String preferredName = null;
+        if (listener.getUserData() != null && listener.getUserData().getData() != null) {
+            preferredName = listener.getUserData().getData().get("preferred_name");
+        }
+        userDTO.setLogin(WebHelper.generateUserLogin(
+                preferredName, listener.getNickName(), listener.getLocalizedName()));
         userDTO.setEmail(email);
         return userService.add(userDTO, true);
     }
