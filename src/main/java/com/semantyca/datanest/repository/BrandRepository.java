@@ -650,7 +650,13 @@ public class BrandRepository extends AsyncRepository {
 
                         return tx.preparedQuery(removeSfRlsSql).execute(Tuple.of(user.getId(), id))
                                 .onItem().transformToUni(ignored ->
+                                        ensureSuperUserAccessForQuery(tx, soundFragmentEntityData.getRlsName(),
+                                                "SELECT sound_fragment_id FROM mixpla__brand_sound_fragments WHERE brand_id = $1", id))
+                                .onItem().transformToUni(ignored ->
                                         tx.preparedQuery(removeListenerRlsSql).execute(Tuple.of(user.getId(), id)))
+                                .onItem().transformToUni(ignored ->
+                                        ensureSuperUserAccessForQuery(tx, listenerEntityData.getRlsName(),
+                                                "SELECT listener_id FROM mixpla__listener_brands WHERE brand_id = $1", id))
                                 .onItem().transformToUni(ignored ->
                                         tx.preparedQuery(removeSfAssocSql).execute(Tuple.of(id)))
                                 .onItem().transformToUni(ignored ->
@@ -658,10 +664,22 @@ public class BrandRepository extends AsyncRepository {
                                 .onItem().transformToUni(ignored ->
                                         tx.preparedQuery(removeBrandRlsSql).execute(Tuple.of(user.getId(), id)))
                                 .onItem().transformToUni(ignored ->
+                                        RlsActionUtil.ensureSuperUserAccess(tx, entityData.getRlsName(), id))
+                                .onItem().transformToUni(ignored ->
                                         tx.preparedQuery(setArchivedSql).execute(Tuple.of(user.getId(), now, id)))
                                 .onItem().transform(RowSet::rowCount);
                     });
                 });
+    }
+
+    private Uni<Void> ensureSuperUserAccessForQuery(SqlClient tx, String rlsTable, String entityIdSql, UUID brandId) {
+        return tx.preparedQuery(entityIdSql)
+                .execute(Tuple.of(brandId))
+                .onItem().transformToMulti(rows -> Multi.createFrom().iterable(rows))
+                .onItem().transformToUniAndConcatenate(row ->
+                        RlsActionUtil.ensureSuperUserAccess(tx, rlsTable, row.getUUID(0)))
+                .collect().asList()
+                .replaceWithVoid();
     }
 
     public Uni<Integer> delete(UUID id, IUser user) {
