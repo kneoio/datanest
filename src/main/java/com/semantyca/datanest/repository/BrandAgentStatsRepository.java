@@ -12,6 +12,7 @@ import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
+import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -72,6 +73,13 @@ public class BrandAgentStatsRepository extends AsyncRepository {
                     if (iterator.hasNext()) return from(iterator.next());
                     throw new DocumentHasNotFoundException(id.toString());
                 });
+    }
+
+    public Uni<Integer> delete(Integer id) {
+        String sql = "DELETE FROM " + TABLE_NAME + " WHERE id = $1";
+        return client.preparedQuery(sql)
+                .execute(Tuple.of(id))
+                .onItem().transform(RowSet::rowCount);
     }
 
     private String buildFilterConditions(BrandAgentStatsFilter filter) {

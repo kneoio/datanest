@@ -1,5 +1,6 @@
 package com.semantyca.datanest.service;
 
+import com.semantyca.core.model.user.IUser;
 import com.semantyca.core.service.AbstractService;
 import com.semantyca.core.service.UserService;
 import com.semantyca.datanest.dto.BrandAgentStatsDTO;
@@ -49,6 +50,11 @@ public class BrandAgentStatsService extends AbstractService<BrandAgentStats, Bra
     public Uni<BrandAgentStatsDTO> getById(Integer id) {
         assert repository != null;
         return repository.findById(id).chain(this::toDTO);
+    }
+
+    public Uni<Integer> delete(String id, IUser user) {
+        assert repository != null;
+        return repository.delete(Integer.parseInt(id));
     }
 
     private Uni<BrandAgentStatsDTO> toDTO(BrandAgentStats stats) {

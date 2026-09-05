@@ -44,6 +44,7 @@ public class BrandAgentStatsController extends AbstractSecuredController<BrandAg
         router.route(path + "*").handler(this::addHeaders);
         router.get(path).handler(this::getAll);
         router.get(path + "/:id").handler(this::getById);
+        router.delete(path + "/:id").handler(this::delete);
     }
 
     private void getAll(RoutingContext rc) {
@@ -88,6 +89,16 @@ public class BrandAgentStatsController extends AbstractSecuredController<BrandAg
                                     .putHeader("Content-Type", "application/json")
                                     .end(io.vertx.core.json.Json.encode(page));
                         },
+                        rc::fail
+                );
+    }
+
+    private void delete(RoutingContext rc) {
+        String id = rc.pathParam("id");
+        getContextUser(rc, false, true)
+                .chain(user -> service.delete(id, user))
+                .subscribe().with(
+                        count -> rc.response().setStatusCode(count > 0 ? 204 : 404).end(),
                         rc::fail
                 );
     }
